@@ -1,4 +1,4 @@
-import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
+import { getTicksForRange, formatTooltipLabel } from "@/lib/telemetry/chart-ticks";
 
 describe("getTicksForRange", () => {
   it("returns every third hour for 24h", () => {
@@ -63,5 +63,12 @@ describe("getTicksForRange", () => {
     expect(getTicksForRange([], "7d")).toEqual([]);
     expect(getTicksForRange([], "30d")).toEqual([]);
     expect(getTicksForRange([], "1y")).toEqual([]);
+  });
+});
+
+describe("formatTooltipLabel", () => {
+  it("formats bucket timestamps in UTC", () => {
+    const result = formatTooltipLabel("2025-08-09T03:00:00.000Z");
+    expect(result).toBe("8/9/2025, 3:00:00 AM");
   });
 });

@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
-import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
+import { getTicksForRange, formatTooltipLabel } from "@/lib/telemetry/chart-ticks";
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
@@ -83,9 +83,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               borderColor: "var(--border)",
               color: "var(--popover-foreground)",
             }}
-            labelFormatter={(label: unknown) =>
-              new Date(String(label)).toLocaleString()
-            }
+            labelFormatter={formatTooltipLabel}
           />
           <Legend wrapperStyle={{ color: "var(--foreground)" }} />
           {SERIES.map((series) => (
