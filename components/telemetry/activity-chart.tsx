@@ -7,23 +7,47 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
-import { TimeSeriesPoint } from "@/lib/telemetry/types";
+import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
+
+const RANGE_FORMATS: Record<
+  TelemetryRange,
+  Intl.DateTimeFormatOptions
+> = {
+  "24h": { hour: "numeric" },
+  "7d": { weekday: "short", day: "numeric" },
+  "30d": { month: "short", day: "numeric" },
+  "1y": { month: "short" },
+};
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
+  range: TelemetryRange;
+  dataKey: "leftClicks" | "rightClicks" | "keyPresses" | "movementMeters";
+  name: string;
+  color: string;
 }
 
-function formatTick(value: string): string {
-  const date = new Date(value);
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+export function ActivityChart({
+  data,
+  range,
+  dataKey,
+  name,
+  color,
+}: ActivityChartProps) {
+  const stroke = color.startsWith("--")
+    ? `hsl(var(${color}))`
+    : color;
 
-export function ActivityChart({ data }: ActivityChartProps) {
+  function formatTick(value: string): string {
+    const date = new Date(value);
+    return date.toLocaleDateString("en-US", RANGE_FORMATS[range]);
+  }
+
   return (
-    <div className="h-80 w-full rounded-xl border border-border bg-card p-4">
+    <div className="h-72 w-full rounded-xl border border-border bg-card p-4">
+      <h3 className="mb-2 text-sm font-medium text-muted-foreground">{name}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -34,14 +58,6 @@ export function ActivityChart({ data }: ActivityChartProps) {
             stroke="hsl(var(--muted-foreground))"
           />
           <YAxis
-            yAxisId="counts"
-            orientation="left"
-            tick={{ fontSize: 12 }}
-            stroke="hsl(var(--muted-foreground))"
-          />
-          <YAxis
-            yAxisId="distance"
-            orientation="right"
             tick={{ fontSize: 12 }}
             stroke="hsl(var(--muted-foreground))"
           />
@@ -51,45 +67,16 @@ export function ActivityChart({ data }: ActivityChartProps) {
               borderColor: "hsl(var(--border))",
               color: "hsl(var(--popover-foreground))",
             }}
-            labelFormatter={(label: unknown) => new Date(String(label)).toLocaleString()}
-          />
-          <Legend />
-          <Line
-            type="monotone"
-            yAxisId="counts"
-            dataKey="leftClicks"
-            name="Left Clicks"
-            stroke="hsl(var(--chart-1))"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
+            labelFormatter={(label: unknown) =>
+              new Date(String(label)).toLocaleString()
+            }
+            formatter={(value: unknown) => [String(value), name]}
           />
           <Line
             type="monotone"
-            yAxisId="counts"
-            dataKey="rightClicks"
-            name="Right Clicks"
-            stroke="hsl(var(--chart-2))"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-          <Line
-            type="monotone"
-            yAxisId="counts"
-            dataKey="keyPresses"
-            name="Key Presses"
-            stroke="hsl(var(--chart-3))"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-          <Line
-            type="monotone"
-            yAxisId="distance"
-            dataKey="movementMeters"
-            name="Distance (m)"
-            stroke="hsl(var(--chart-4))"
+            dataKey={dataKey}
+            name={name}
+            stroke={stroke}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}

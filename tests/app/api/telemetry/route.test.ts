@@ -46,6 +46,7 @@ describe("GET /api/telemetry", () => {
     const json = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
     expect(json).toEqual({
       totals: {
         leftClicks: 10,
@@ -74,6 +75,15 @@ describe("GET /api/telemetry", () => {
 
   it("returns 500 when aggregation throws", async () => {
     (fetchTotals as jest.Mock).mockRejectedValue(new Error("DB error"));
+    const request = new Request("http://localhost:3000/api/telemetry?range=24h");
+    const response = await GET(request);
+    expect(response.status).toBe(500);
+  });
+
+  it("returns 500 when database connection is misconfigured", async () => {
+    (getTelemetryCollection as jest.Mock).mockImplementation(() => {
+      throw new Error("Missing MONGO_URI environment variable");
+    });
     const request = new Request("http://localhost:3000/api/telemetry?range=24h");
     const response = await GET(request);
     expect(response.status).toBe(500);

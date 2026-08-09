@@ -112,6 +112,10 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   }, [keys]);
 
   const allKeys = useMemo(() => ROWS.flat(), []);
+  const hoveredKey = useMemo(
+    () => allKeys.find((key) => key.label === hovered),
+    [allKeys, hovered]
+  );
 
   return (
     <div className="relative overflow-x-auto">
@@ -135,6 +139,8 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               onBlur={() => setHovered(null)}
               tabIndex={count > 0 ? 0 : -1}
               className={count > 0 ? "cursor-pointer" : ""}
+              role="button"
+              aria-label={`${key.label}: ${formatNumber(count)} presses`}
             >
               <rect
                 x={key.x}
@@ -158,13 +164,30 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
             </g>
           );
         })}
-      </svg>
 
-      {hovered && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
-          {hovered}: {formatNumber(keys[hovered] ?? 0)} presses
-        </div>
-      )}
+        {hoveredKey && (
+          <g
+            transform={`translate(${hoveredKey.x + hoveredKey.width / 2}, ${hoveredKey.y - 8})`}
+          >
+            <rect
+              x="-60"
+              y="-24"
+              width="120"
+              height="20"
+              rx="4"
+              className="fill-popover stroke-border"
+              strokeWidth="1"
+            />
+            <text
+              y="-10"
+              textAnchor="middle"
+              className="fill-popover-foreground text-[10px]"
+            >
+              {hoveredKey.label}: {formatNumber(keys[hoveredKey.label] ?? 0)} presses
+            </text>
+          </g>
+        )}
+      </svg>
     </div>
   );
 }

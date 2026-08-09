@@ -5,18 +5,17 @@ const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.ACTIVITY_DB_NAME || "activity-telemetry";
 const COLLECTION_NAME = "telemetry";
 
-if (!MONGO_URI) {
-  throw new Error("Missing MONGO_URI environment variable");
-}
-
 declare global {
   // Allow caching the client across hot reloads in development.
   var _mongoClient: MongoClient | undefined;
 }
 
 function getClient(): MongoClient {
+  if (!MONGO_URI) {
+    throw new Error("Missing MONGO_URI environment variable");
+  }
   if (!global._mongoClient) {
-    global._mongoClient = new MongoClient(MONGO_URI!);
+    global._mongoClient = new MongoClient(MONGO_URI);
   }
   return global._mongoClient;
 }

@@ -45,7 +45,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       timeSeries,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (error) {
     console.error("Telemetry API error:", error);
     return NextResponse.json(

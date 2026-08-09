@@ -103,7 +103,39 @@ export default function HomePage() {
             <KeyboardHeatmap keys={data.keys} />
           </div>
 
-          <ActivityChart data={data.timeSeries} />
+          <div>
+            <h2 className="mb-4 text-lg font-medium">Activity Over Time</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ActivityChart
+                data={data.timeSeries}
+                range={range}
+                dataKey="leftClicks"
+                name="Left Clicks"
+                color="--chart-1"
+              />
+              <ActivityChart
+                data={data.timeSeries}
+                range={range}
+                dataKey="rightClicks"
+                name="Right Clicks"
+                color="--chart-2"
+              />
+              <ActivityChart
+                data={data.timeSeries}
+                range={range}
+                dataKey="keyPresses"
+                name="Key Presses"
+                color="--chart-3"
+              />
+              <ActivityChart
+                data={data.timeSeries}
+                range={range}
+                dataKey="movementMeters"
+                name="Distance (m)"
+                color="--chart-4"
+              />
+            </div>
+          </div>
         </div>
       ) : null}
     </main>

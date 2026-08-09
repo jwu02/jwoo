@@ -20,7 +20,7 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
   ) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      setHovered(region);
+      setHovered((current) => (current === region ? null : region));
     }
   }
 
