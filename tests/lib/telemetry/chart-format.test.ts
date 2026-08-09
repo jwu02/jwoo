@@ -1,0 +1,50 @@
+process.env.TZ = "Asia/Shanghai";
+
+import { formatTick, formatTooltip, getTimezoneLabel } from "@/lib/telemetry/chart-format";
+
+describe("formatTick", () => {
+  const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
+
+  it("formats 24h range as 24-hour time", () => {
+    expect(formatTick(bucket, "24h")).toBe("11:00");
+  });
+
+  it("formats 7d range as month and day", () => {
+    expect(formatTick(bucket, "7d")).toBe("Aug 9");
+  });
+
+  it("formats 30d range as month and day", () => {
+    expect(formatTick(bucket, "30d")).toBe("Aug 9");
+  });
+
+  it("formats 1y range as month and year", () => {
+    expect(formatTick(bucket, "1y")).toBe("Aug 2025");
+  });
+});
+
+describe("formatTooltip", () => {
+  const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
+
+  it("formats 24h tooltip as short date and 24-hour time", () => {
+    expect(formatTooltip(bucket, "24h")).toBe("8/9/25, 11:00");
+  });
+
+  it("formats 7d tooltip as month, day, and year", () => {
+    expect(formatTooltip(bucket, "7d")).toBe("Aug 9, 2025");
+  });
+
+  it("formats 30d tooltip as month, day, and year", () => {
+    expect(formatTooltip(bucket, "30d")).toBe("Aug 9, 2025");
+  });
+
+  it("formats 1y tooltip as month and year", () => {
+    expect(formatTooltip(bucket, "1y")).toBe("Aug 2025");
+  });
+});
+
+describe("getTimezoneLabel", () => {
+  it("returns the timezone name and UTC offset", () => {
+    const label = getTimezoneLabel();
+    expect(label).toMatch(/UTC[+-]\d{2}:\d{2}$/);
+  });
+});
