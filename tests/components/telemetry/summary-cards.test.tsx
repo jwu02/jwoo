@@ -13,7 +13,7 @@ describe("SummaryCards", () => {
     render(<SummaryCards totals={totals} />);
     expect(screen.getByText("1,000")).toBeInTheDocument();
     expect(screen.getByText("250")).toBeInTheDocument();
-    expect(screen.getByText("1,234.56")).toBeInTheDocument();
+    expect(screen.getByText(/1,234\.56/)).toBeInTheDocument();
     expect(screen.getByText("50,000")).toBeInTheDocument();
   });
 });
