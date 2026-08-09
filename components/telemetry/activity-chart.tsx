@@ -58,9 +58,14 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               borderColor: "var(--border)",
               color: "var(--popover-foreground)",
             }}
+            labelStyle={{ color: "var(--foreground)" }}
+            itemStyle={{ color: "var(--foreground)" }}
             labelFormatter={(label: unknown) => formatTooltip(String(label), range)}
           />
-          <Legend wrapperStyle={{ color: "var(--foreground)" }} />
+          <Legend
+            iconType="square"
+            wrapperStyle={{ color: "var(--foreground)" }}
+          />
           {SERIES.map((series) => (
             <Line
               key={series.dataKey}
