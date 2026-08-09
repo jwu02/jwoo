@@ -11,7 +11,6 @@ if (!MONGO_URI) {
 
 declare global {
   // Allow caching the client across hot reloads in development.
-  // eslint-disable-next-line no-var
   var _mongoClient: MongoClient | undefined;
 }
 
