@@ -12,7 +12,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
-import { getTicksForRange, formatTooltipLabel } from "@/lib/telemetry/chart-ticks";
+import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
+import {
+  formatTick,
+  formatTooltip,
+  getTimezoneLabel,
+} from "@/lib/telemetry/chart-format";
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
@@ -32,34 +37,11 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
     [data, range]
   );
 
-  function formatTick(value: string): string {
-    const date = new Date(value);
-
-    switch (range) {
-      case "24h": {
-        const hour = date.getUTCHours();
-        const suffix = hour >= 12 ? "pm" : "am";
-        const displayHour = hour % 12 || 12;
-        return `${displayHour}${suffix}`;
-      }
-      case "7d":
-      case "30d":
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          timeZone: "UTC",
-        });
-      case "1y":
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        });
-    }
-  }
-
   return (
-    <div className="h-80 w-full rounded-xl border border-border bg-card p-4">
+    <div className="relative h-80 w-full rounded-xl border border-border bg-card p-4">
+      <div className="absolute right-4 top-3 text-xs text-muted-foreground">
+        {getTimezoneLabel()}
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
@@ -69,7 +51,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
           <XAxis
             dataKey="bucket"
             ticks={ticks}
-            tickFormatter={formatTick}
+            tickFormatter={(value: string) => formatTick(value, range)}
             tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
             stroke="var(--muted-foreground)"
           />
@@ -83,7 +65,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               borderColor: "var(--border)",
               color: "var(--popover-foreground)",
             }}
-            labelFormatter={formatTooltipLabel}
+            labelFormatter={(label: unknown) => formatTooltip(String(label), range)}
           />
           <Legend wrapperStyle={{ color: "var(--foreground)" }} />
           {SERIES.map((series) => (
