@@ -1,19 +1,95 @@
-import { Button } from "@/components/ui/button"
+"use client";
 
-export default function Page() {
+import { useEffect, useState, useCallback } from "react";
+import { SummaryCards } from "@/components/telemetry/summary-cards";
+import { MouseVisual } from "@/components/telemetry/mouse-visual";
+import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap";
+import { RangeSelector } from "@/components/telemetry/range-selector";
+import { ActivityChart } from "@/components/telemetry/activity-chart";
+import { ErrorBanner } from "@/components/telemetry/error-banner";
+import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types";
+
+const POLL_INTERVAL_MS = 60_000;
+
+async function fetchTelemetry(range: TelemetryRange): Promise<TelemetryResponse> {
+  const response = await fetch(`/api/telemetry?range=${range}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+export default function HomePage() {
+  const [range, setRange] = useState<TelemetryRange>("24h");
+  const [data, setData] = useState<TelemetryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchTelemetry(range);
+      setData(result);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load telemetry");
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(() => load(true), POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [load]);
+
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
+    <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Activity Telemetry</h1>
+          {lastUpdated && (
+            <p className="text-sm text-muted-foreground">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
         </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
+        <RangeSelector value={range} onChange={setRange} />
       </div>
-    </div>
-  )
+
+      {error && <ErrorBanner message={error} onRetry={() => load()} />}
+
+      {loading && !data ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-xl bg-muted"
+              />
+            ))}
+          </div>
+          <div className="h-80 animate-pulse rounded-xl bg-muted" />
+        </div>
+      ) : data ? (
+        <div className="space-y-8">
+          <SummaryCards totals={data.totals} />
+
+          <div className="grid gap-8 md:grid-cols-[240px_1fr]">
+            <MouseVisual
+              leftClicks={data.totals.leftClicks}
+              rightClicks={data.totals.rightClicks}
+            />
+            <KeyboardHeatmap keys={data.keys} />
+          </div>
+
+          <ActivityChart data={data.timeSeries} />
+        </div>
+      ) : null}
+    </main>
+  );
 }
