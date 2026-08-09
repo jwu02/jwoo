@@ -32,9 +32,3 @@ export function getTicksForRange(
     }
   }
 }
-
-export function formatTooltipLabel(label: unknown): string {
-  return new Date(String(label)).toLocaleString("en-US", {
-    timeZone: "UTC",
-  });
-}
