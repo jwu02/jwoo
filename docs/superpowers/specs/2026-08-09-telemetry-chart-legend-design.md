@@ -9,6 +9,7 @@ The telemetry dashboard's activity chart uses Recharts with a default legend and
 - Change the legend symbol from the default line to a square filled with each series' color.
 - Ensure legend labels use the normal text color (`--foreground`).
 - Ensure tooltip label and item values use the normal text color (`--foreground`).
+- Show colored squares in the tooltip next to each series name (matching the legend).
 
 ## Non-Goals
 
@@ -23,24 +24,24 @@ The telemetry dashboard's activity chart uses Recharts with a default legend and
 In `components/telemetry/activity-chart.tsx`, update the existing `<Legend>` component:
 
 - Add `iconType="square"` so Recharts renders a square marker for each series.
-- Keep `wrapperStyle={{ color: "var(--foreground)" }}` so legend labels already use the normal text color.
+- Add a `formatter` that wraps each label in a `<span style={{ color: "var(--foreground)" }}>` so the text is explicitly normal text color even when rendered below the chart.
+- Keep `wrapperStyle={{ color: "var(--foreground)" }}` as a fallback.
 
 ### Tooltip
 
-Update the existing `<Tooltip>` component:
+Replace the default tooltip with a custom tooltip component in `components/telemetry/activity-chart.tsx`:
 
-- Add `labelStyle={{ color: "var(--foreground)" }}` for the time/date header.
-- Add `itemStyle={{ color: "var(--foreground)" }}` for each series row.
-- Keep the existing `contentStyle` background/border theming unchanged.
+- Render the tooltip label in `var(--foreground)`.
+- Render each series row with its name and value in `var(--foreground)`.
+- Prefix each series row with a small colored square using the series `color` from the tooltip payload.
 
 ## Components
 
 ### `components/telemetry/activity-chart.tsx`
 
-- `<Legend>`: add `iconType="square"`.
-- `<Tooltip>`: add `labelStyle` and `itemStyle` with `color: "var(--foreground)"`.
-
-No other components change.
+- `<Legend>`: add `iconType="square"` and a `formatter` that applies `var(--foreground)` text color.
+- `<Tooltip>`: replace the default content with a custom tooltip component that shows colored squares and uses `var(--foreground)` for all text.
+- Add a new `ActivityChartTooltip` helper component inside the same file for the custom tooltip content.
 
 ## Data Flow
 
