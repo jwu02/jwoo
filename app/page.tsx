@@ -77,7 +77,6 @@ export default function HomePage() {
             </p>
           )}
         </div>
-        <RangeSelector value={range} onChange={setRange} />
       </div>
 
       {error && <ErrorBanner message={error} onRetry={() => load()} />}
@@ -104,7 +103,10 @@ export default function HomePage() {
           </div>
 
           <div>
-            <h2 className="mb-4 text-lg font-medium">Activity Over Time</h2>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-medium">Activity Over Time</h2>
+              <RangeSelector value={range} onChange={setRange} />
+            </div>
             <ActivityChart data={data.timeSeries} range={range} />
           </div>
         </div>
