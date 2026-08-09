@@ -30,8 +30,11 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
   switch (range) {
     case "24h":
       return date.toLocaleString("en-US", {
-        dateStyle: "short",
-        timeStyle: "short",
+        month: "numeric",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
         hour12: false,
       });
     case "7d":
@@ -50,11 +53,8 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
 }
 
 export function getTimezoneLabel(): string {
+  const timeZoneName = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const date = new Date();
-  const timeZoneName = date
-    .toLocaleTimeString("en-US", { timeZoneName: "short" })
-    .split(" ")
-    .pop();
   const offsetMinutes = -date.getTimezoneOffset();
   const sign = offsetMinutes >= 0 ? "+" : "-";
   const hours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, "0");

@@ -26,7 +26,7 @@ describe("formatTooltip", () => {
   const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
 
   it("formats 24h tooltip as short date and 24-hour time", () => {
-    expect(formatTooltip(bucket, "24h")).toBe("8/9/25, 11:00");
+    expect(formatTooltip(bucket, "24h")).toBe("8/9/2025, 11:00");
   });
 
   it("formats 7d tooltip as month, day, and year", () => {
@@ -45,6 +45,6 @@ describe("formatTooltip", () => {
 describe("getTimezoneLabel", () => {
   it("returns the timezone name and UTC offset", () => {
     const label = getTimezoneLabel();
-    expect(label).toMatch(/UTC[+-]\d{2}:\d{2}$/);
+    expect(label).toMatch(/^Asia\/Shanghai UTC[+]08:00$/);
   });
 });
