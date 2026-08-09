@@ -1,7 +1,7 @@
 // components/telemetry/keyboard-heatmap.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { KeyCounts } from "@/lib/telemetry/types";
 
 interface KeyboardHeatmapProps {
@@ -105,6 +105,8 @@ function interpolateColor(intensity: number): string {
 
 export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const maxCount = useMemo(() => {
     const values = Object.values(keys);
@@ -117,8 +119,31 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
     [allKeys, hovered]
   );
 
+  function showTooltip(
+    label: string,
+    event: React.MouseEvent<SVGGElement> | React.FocusEvent<SVGGElement>
+  ) {
+    const g = event.currentTarget;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const gRect = g.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    setHovered(label);
+    setTooltipPos({
+      left: gRect.left - containerRect.left + gRect.width / 2 + container.scrollLeft,
+      top: gRect.top - containerRect.top + container.scrollTop - 8,
+    });
+  }
+
+  function hideTooltip() {
+    setHovered(null);
+    setTooltipPos(null);
+  }
+
   return (
-    <div className="relative overflow-x-auto">
+    <div ref={containerRef} className="relative overflow-x-auto">
       <svg
         viewBox="-5 -5 680 235"
         className="min-w-[680px]"
@@ -133,10 +158,10 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           return (
             <g
               key={key.label}
-              onMouseEnter={() => setHovered(key.label)}
-              onMouseLeave={() => setHovered(null)}
-              onFocus={() => setHovered(key.label)}
-              onBlur={() => setHovered(null)}
+              onMouseEnter={(event) => showTooltip(key.label, event)}
+              onMouseLeave={hideTooltip}
+              onFocus={(event) => showTooltip(key.label, event)}
+              onBlur={hideTooltip}
               tabIndex={count > 0 ? 0 : -1}
               className={count > 0 ? "cursor-pointer" : ""}
               role="button"
@@ -164,30 +189,16 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
             </g>
           );
         })}
-
-        {hoveredKey && (
-          <g
-            transform={`translate(${hoveredKey.x + hoveredKey.width / 2}, ${hoveredKey.y - 8})`}
-          >
-            <rect
-              x="-60"
-              y="-24"
-              width="120"
-              height="20"
-              rx="4"
-              className="fill-popover stroke-border"
-              strokeWidth="1"
-            />
-            <text
-              y="-10"
-              textAnchor="middle"
-              className="fill-popover-foreground text-[10px]"
-            >
-              {hoveredKey.label}: {formatNumber(keys[hoveredKey.label] ?? 0)} presses
-            </text>
-          </g>
-        )}
       </svg>
+
+      {hoveredKey && tooltipPos && (
+        <div
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-sm"
+          style={{ left: tooltipPos.left, top: tooltipPos.top }}
+        >
+          {hoveredKey.label}: {formatNumber(keys[hoveredKey.label] ?? 0)} presses
+        </div>
+      )}
     </div>
   );
 }

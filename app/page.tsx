@@ -89,7 +89,11 @@ export default function HomePage() {
               <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
-          <div className="h-80 animate-pulse rounded-xl bg-muted" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-72 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
         </div>
       ) : data ? (
         <div className="space-y-8">

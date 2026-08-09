@@ -48,41 +48,43 @@ export function ActivityChart({
   return (
     <div className="h-72 w-full rounded-xl border border-border bg-card p-4">
       <h3 className="mb-2 text-sm font-medium text-muted-foreground">{name}</h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-          <XAxis
-            dataKey="bucket"
-            tickFormatter={formatTick}
-            tick={{ fontSize: 12 }}
-            stroke="hsl(var(--muted-foreground))"
-          />
-          <YAxis
-            tick={{ fontSize: 12 }}
-            stroke="hsl(var(--muted-foreground))"
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
-              borderColor: "hsl(var(--border))",
-              color: "hsl(var(--popover-foreground))",
-            }}
-            labelFormatter={(label: unknown) =>
-              new Date(String(label)).toLocaleString()
-            }
-            formatter={(value: unknown) => [String(value), name]}
-          />
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            name={name}
-            stroke={stroke}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <XAxis
+              dataKey="bucket"
+              tickFormatter={formatTick}
+              tick={{ fontSize: 12 }}
+              stroke="hsl(var(--muted-foreground))"
+            />
+            <YAxis
+              tick={{ fontSize: 12 }}
+              stroke="hsl(var(--muted-foreground))"
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--popover))",
+                borderColor: "hsl(var(--border))",
+                color: "hsl(var(--popover-foreground))",
+              }}
+              labelFormatter={(label: unknown) =>
+                new Date(String(label)).toLocaleString()
+              }
+              formatter={(value: unknown) => [String(value), name]}
+            />
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              name={name}
+              stroke={stroke}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
