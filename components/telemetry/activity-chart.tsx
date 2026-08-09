@@ -48,31 +48,31 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
           <XAxis
             dataKey="bucket"
             tickFormatter={formatTick}
-            tick={{ fontSize: 12 }}
-            stroke="hsl(var(--muted-foreground))"
+            tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+            stroke="var(--muted-foreground)"
           />
           <YAxis
-            tick={{ fontSize: 12 }}
-            stroke="hsl(var(--muted-foreground))"
+            tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+            stroke="var(--muted-foreground)"
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
-              borderColor: "hsl(var(--border))",
-              color: "hsl(var(--popover-foreground))",
+              backgroundColor: "var(--popover)",
+              borderColor: "var(--border)",
+              color: "var(--popover-foreground)",
             }}
             labelFormatter={(label: unknown) =>
               new Date(String(label)).toLocaleString()
             }
           />
-          <Legend />
+          <Legend wrapperStyle={{ color: "var(--foreground)" }} />
           {SERIES.map((series) => (
             <Line
               key={series.dataKey}
               type="monotone"
               dataKey={series.dataKey}
               name={series.name}
-              stroke={`hsl(var(${series.color}))`}
+              stroke={`var(${series.color})`}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}

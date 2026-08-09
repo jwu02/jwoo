@@ -129,7 +129,7 @@ function generateBuckets(range: TelemetryRange, now: Date): string[] {
   let current = alignToInterval(start, interval);
   const end = alignToInterval(now, interval);
 
-  while (current < end) {
+  while (current <= end) {
     buckets.push(current.toISOString());
     current = addInterval(current, interval);
   }

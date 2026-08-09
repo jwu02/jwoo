@@ -156,28 +156,34 @@ describe("fetchTimeSeries", () => {
 });
 
 describe("generateBuckets", () => {
-  it("produces 24 hourly buckets for 24h", () => {
-    const now = new Date("2026-08-09T12:00:00.000Z");
+  it("includes the current in-progress bucket", () => {
+    const now = new Date("2026-08-09T17:28:00.000Z");
     const buckets = generateBuckets("24h", now);
-    expect(buckets.length).toBe(24);
-    expect(buckets[0]).toBe("2026-08-08T12:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-09T11:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T17:00:00.000Z");
   });
 
-  it("produces 28 six-hour buckets for 7d aligned to 6-hour boundaries", () => {
+  it("produces 25 hourly buckets for 24h including the current hour", () => {
+    const now = new Date("2026-08-09T12:00:00.000Z");
+    const buckets = generateBuckets("24h", now);
+    expect(buckets.length).toBe(25);
+    expect(buckets[0]).toBe("2026-08-08T12:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
+  });
+
+  it("produces 29 six-hour buckets for 7d aligned to 6-hour boundaries", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("7d", now);
-    expect(buckets.length).toBe(28);
+    expect(buckets.length).toBe(29);
     expect(buckets[0]).toBe("2026-08-02T12:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-09T06:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
   });
 
   it("produces weekly buckets for 1y aligned to Monday UTC", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("1y", now);
-    expect(buckets.length).toBe(52);
+    expect(buckets.length).toBe(53);
     expect(buckets[0]).toBe("2025-08-04T00:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-07-27T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-03T00:00:00.000Z");
     expect(new Date(buckets[0]).getUTCDay()).toBe(1);
     expect(new Date(buckets[buckets.length - 1]).getUTCDay()).toBe(1);
   });
