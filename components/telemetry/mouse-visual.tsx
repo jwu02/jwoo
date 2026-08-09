@@ -14,11 +14,22 @@ function formatNumber(value: number): string {
 export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
   const [hovered, setHovered] = useState<"left" | "right" | null>(null);
 
+  function handleKeyDown(
+    event: React.KeyboardEvent<SVGPathElement>,
+    region: "left" | "right"
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setHovered(region);
+    }
+  }
+
   return (
     <div className="relative flex flex-col items-center">
       <svg
         viewBox="0 0 160 240"
         className="h-48 w-32 drop-shadow-sm"
+        role="img"
         aria-label="Physical mouse with left and right click counts"
       >
         {/* Mouse body */}
@@ -54,9 +65,11 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
           onMouseLeave={() => setHovered(null)}
           onFocus={() => setHovered("left")}
           onBlur={() => setHovered(null)}
+          onKeyDown={(event) => handleKeyDown(event, "left")}
           tabIndex={0}
           role="button"
           aria-label={`Left button: ${formatNumber(leftClicks)} clicks`}
+          aria-describedby={hovered === "left" ? "mouse-visual-tooltip" : undefined}
         />
 
         {/* Right button region */}
@@ -69,9 +82,11 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
           onMouseLeave={() => setHovered(null)}
           onFocus={() => setHovered("right")}
           onBlur={() => setHovered(null)}
+          onKeyDown={(event) => handleKeyDown(event, "right")}
           tabIndex={0}
           role="button"
           aria-label={`Right button: ${formatNumber(rightClicks)} clicks`}
+          aria-describedby={hovered === "right" ? "mouse-visual-tooltip" : undefined}
         />
 
         {/* Center dividing line */}
@@ -86,7 +101,11 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
       </svg>
 
       {hovered && (
-        <div className="absolute -bottom-10 rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
+        <div
+          id="mouse-visual-tooltip"
+          role="tooltip"
+          className="absolute -bottom-10 rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md"
+        >
           {hovered === "left" ? (
             <>Left: {formatNumber(leftClicks)} clicks</>
           ) : (
