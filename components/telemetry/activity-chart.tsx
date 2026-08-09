@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -11,13 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
-
-const RANGE_FORMATS: Record<TelemetryRange, Intl.DateTimeFormatOptions> = {
-  "24h": { hour: "numeric" },
-  "7d": { weekday: "short", day: "numeric" },
-  "30d": { month: "short", day: "numeric" },
-  "1y": { month: "short" },
-};
+import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
@@ -32,9 +27,35 @@ const SERIES = [
 ] as const;
 
 export function ActivityChart({ data, range }: ActivityChartProps) {
+  const ticks = useMemo(
+    () => getTicksForRange(data.map((point) => point.bucket), range),
+    [data, range]
+  );
+
   function formatTick(value: string): string {
     const date = new Date(value);
-    return date.toLocaleDateString("en-US", RANGE_FORMATS[range]);
+
+    switch (range) {
+      case "24h": {
+        const hour = date.getUTCHours();
+        const suffix = hour >= 12 ? "pm" : "am";
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}${suffix}`;
+      }
+      case "7d":
+      case "30d":
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        });
+      case "1y":
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+          timeZone: "UTC",
+        });
+    }
   }
 
   return (
@@ -47,6 +68,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis
             dataKey="bucket"
+            ticks={ticks}
             tickFormatter={formatTick}
             tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
             stroke="var(--muted-foreground)"
