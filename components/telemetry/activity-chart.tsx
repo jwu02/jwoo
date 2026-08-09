@@ -33,7 +33,18 @@ export function ActivityChart({ data }: ActivityChartProps) {
             tick={{ fontSize: 12 }}
             stroke="hsl(var(--muted-foreground))"
           />
-          <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+          <YAxis
+            yAxisId="counts"
+            orientation="left"
+            tick={{ fontSize: 12 }}
+            stroke="hsl(var(--muted-foreground))"
+          />
+          <YAxis
+            yAxisId="distance"
+            orientation="right"
+            tick={{ fontSize: 12 }}
+            stroke="hsl(var(--muted-foreground))"
+          />
           <Tooltip
             contentStyle={{
               backgroundColor: "hsl(var(--popover))",
@@ -45,6 +56,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
           <Legend />
           <Line
             type="monotone"
+            yAxisId="counts"
             dataKey="leftClicks"
             name="Left Clicks"
             stroke="hsl(var(--chart-1))"
@@ -54,6 +66,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
           />
           <Line
             type="monotone"
+            yAxisId="counts"
             dataKey="rightClicks"
             name="Right Clicks"
             stroke="hsl(var(--chart-2))"
@@ -63,6 +76,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
           />
           <Line
             type="monotone"
+            yAxisId="counts"
             dataKey="keyPresses"
             name="Key Presses"
             stroke="hsl(var(--chart-3))"
@@ -72,6 +86,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
           />
           <Line
             type="monotone"
+            yAxisId="distance"
             dataKey="movementMeters"
             name="Distance (m)"
             stroke="hsl(var(--chart-4))"

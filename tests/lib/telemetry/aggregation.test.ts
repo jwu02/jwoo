@@ -68,6 +68,21 @@ describe("buildTimeSeriesPipeline", () => {
 
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
+
+  it("uses startOfWeek monday for 1y weekly buckets", () => {
+    const now = new Date("2026-08-09T12:00:00.000Z");
+    const pipeline = buildTimeSeriesPipeline("1y", now);
+
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: {
+        date: "$createdAt",
+        unit: "week",
+        binSize: 1,
+        startOfWeek: "monday",
+      },
+    });
+  });
 });
 
 describe("fetchTotals", () => {
@@ -149,9 +164,21 @@ describe("generateBuckets", () => {
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T11:00:00.000Z");
   });
 
-  it("produces 28 six-hour buckets for 7d", () => {
-    const now = new Date("2026-08-09T12:00:00.000Z");
+  it("produces 28 six-hour buckets for 7d aligned to 6-hour boundaries", () => {
+    const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("7d", now);
     expect(buckets.length).toBe(28);
+    expect(buckets[0]).toBe("2026-08-02T12:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T06:00:00.000Z");
+  });
+
+  it("produces weekly buckets for 1y aligned to Monday UTC", () => {
+    const now = new Date("2026-08-09T14:30:00.000Z");
+    const buckets = generateBuckets("1y", now);
+    expect(buckets.length).toBe(52);
+    expect(buckets[0]).toBe("2025-08-04T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-07-27T00:00:00.000Z");
+    expect(new Date(buckets[0]).getUTCDay()).toBe(1);
+    expect(new Date(buckets[buckets.length - 1]).getUTCDay()).toBe(1);
   });
 });

@@ -44,6 +44,7 @@ export function buildTimeSeriesPipeline(
             date: "$createdAt",
             unit: interval.unit,
             binSize: interval.binSize,
+            ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
           },
         },
         leftClicks: { $sum: "$mouse.leftClicks" },
@@ -149,7 +150,13 @@ function alignToInterval(date: Date, interval: RangeConfig): Date {
 
   if (interval.unit === "week") {
     const day = aligned.getUTCDay();
-    aligned.setUTCDate(aligned.getUTCDate() - day);
+    const daysSinceMonday = day === 0 ? 6 : day - 1;
+    aligned.setUTCDate(aligned.getUTCDate() - daysSinceMonday);
+  }
+
+  if (interval.unit === "hour") {
+    const hour = aligned.getUTCHours();
+    aligned.setUTCHours(hour - (hour % interval.binSize));
   }
 
   return aligned;
