@@ -1,6 +1,6 @@
 process.env.TZ = "Asia/Shanghai";
 
-import { formatTick, formatTooltip, getTimezoneLabel } from "@/lib/telemetry/chart-format";
+import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
 
 describe("formatTick", () => {
   const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
@@ -39,12 +39,5 @@ describe("formatTooltip", () => {
 
   it("formats 1y tooltip as month and year", () => {
     expect(formatTooltip(bucket, "1y")).toBe("Aug 2025");
-  });
-});
-
-describe("getTimezoneLabel", () => {
-  it("returns the timezone name and UTC offset", () => {
-    const label = getTimezoneLabel();
-    expect(label).toMatch(/^Asia\/Shanghai UTC[+]08:00$/);
   });
 });

@@ -48,7 +48,8 @@ All helpers use the browser's local timezone via `toLocaleString` / `toLocaleDat
   - `1y`: `{ month: "short", year: "numeric" }` → `Aug 2025`
 
 - `getTimezoneLabel`:
-  - Uses `Intl.DateTimeFormat().resolvedOptions().timeZone` and the current offset from `new Date().getTimezoneOffset()`.
+  - Derives the short timezone name (e.g., `CST`) using `new Date().toLocaleTimeString("en-US", { timeZoneName: "short" })`.
+  - Computes the offset (e.g., `UTC+08:00`) from `new Date().getTimezoneOffset()`.
   - Returns a string like `CST UTC+08:00`.
 
 ### Chart component

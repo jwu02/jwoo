@@ -13,11 +13,7 @@ import {
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
-import {
-  formatTick,
-  formatTooltip,
-  getTimezoneLabel,
-} from "@/lib/telemetry/chart-format";
+import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
@@ -38,10 +34,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
   );
 
   return (
-    <div className="relative h-80 w-full rounded-xl border border-border bg-card p-4">
-      <div className="absolute right-4 top-3 text-xs text-muted-foreground">
-        {getTimezoneLabel()}
-      </div>
+    <div className="h-80 w-full rounded-xl border border-border bg-card p-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
