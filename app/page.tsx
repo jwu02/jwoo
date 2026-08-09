@@ -89,11 +89,7 @@ export default function HomePage() {
               <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-72 animate-pulse rounded-xl bg-muted" />
-            ))}
-          </div>
+          <div className="h-80 animate-pulse rounded-xl bg-muted" />
         </div>
       ) : data ? (
         <div className="space-y-8">
@@ -109,36 +105,7 @@ export default function HomePage() {
 
           <div>
             <h2 className="mb-4 text-lg font-medium">Activity Over Time</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <ActivityChart
-                data={data.timeSeries}
-                range={range}
-                dataKey="leftClicks"
-                name="Left Clicks"
-                color="--chart-1"
-              />
-              <ActivityChart
-                data={data.timeSeries}
-                range={range}
-                dataKey="rightClicks"
-                name="Right Clicks"
-                color="--chart-2"
-              />
-              <ActivityChart
-                data={data.timeSeries}
-                range={range}
-                dataKey="keyPresses"
-                name="Key Presses"
-                color="--chart-3"
-              />
-              <ActivityChart
-                data={data.timeSeries}
-                range={range}
-                dataKey="movementMeters"
-                name="Distance (m)"
-                color="--chart-4"
-              />
-            </div>
+            <ActivityChart data={data.timeSeries} range={range} />
           </div>
         </div>
       ) : null}
