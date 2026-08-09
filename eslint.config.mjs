@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore Claude worktree directories so lint does not traverse build output
+    // from isolated development workspaces.
+    ".claude/**",
   ]),
 ]);
 
