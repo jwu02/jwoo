@@ -28,13 +28,12 @@ The activity telemetry chart renders four series (Left Clicks, Right Clicks, Key
 
 The recharts `<Legend />` will be replaced by a custom legend rendered below the chart:
 
-- A horizontal flex row of buttons, one per series.
-- Each button displays a color square and series name.
-- Items have increased horizontal spacing (e.g., `gap-6` or explicit `px-3`).
+- A horizontal flex row of buttons, one per series, with `gap-6` between items.
+- Each button has internal padding (`px-3 py-1`) and displays a color square and series name.
 - Hover state provides subtle visual feedback (background/border).
 - Clicking a button toggles its series in the hidden set.
 - Visible items render with foreground text and full opacity.
-- Hidden items render with reduced opacity (e.g., `opacity-50`) and/or muted text.
+- Hidden items render with reduced opacity (`opacity-50`) and muted text.
 
 ### Series rendering
 
