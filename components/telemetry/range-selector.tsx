@@ -8,7 +8,6 @@ interface RangeSelectorProps {
 const OPTIONS: { value: TelemetryRange; label: string }[] = [
   { value: "24h", label: "24h" },
   { value: "7d", label: "7d" },
-  { value: "30d", label: "30d" },
   { value: "1y", label: "1y" },
 ];
 
