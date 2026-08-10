@@ -8,7 +8,10 @@ jest.mock("recharts", () => {
   return {
     ...actual,
     ResponsiveContainer: ({ children }: { children: React.ReactElement }) =>
-      cloneElement(children, { width: 800, height: 400 }),
+      cloneElement(
+        children as React.ReactElement<{ width?: number; height?: number }>,
+        { width: 800, height: 400 }
+      ),
   };
 });
 
