@@ -11,7 +11,6 @@ export function formatTick(bucket: string, range: TelemetryRange): string {
         hour12: false,
       });
     case "7d":
-    case "30d":
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -38,7 +37,6 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
         hour12: false,
       });
     case "7d":
-    case "30d":
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
