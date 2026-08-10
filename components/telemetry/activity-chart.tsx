@@ -57,10 +57,10 @@ interface ActivityChartProps {
 }
 
 const SERIES = [
+  { dataKey: "keyPresses", name: "Key Presses", color: "--chart-3" },
   { dataKey: "leftClicks", name: "Left Clicks", color: "--chart-1" },
   { dataKey: "rightClicks", name: "Right Clicks", color: "--chart-2" },
-  { dataKey: "keyPresses", name: "Key Presses", color: "--chart-3" },
-  { dataKey: "movementMeters", name: "Distance (m)", color: "--chart-4" },
+  { dataKey: "movementMeters", name: "Mouse Movement (m)", color: "--chart-4" },
 ] as const;
 
 export function ActivityChart({ data, range }: ActivityChartProps) {

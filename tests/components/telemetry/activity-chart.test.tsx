@@ -32,7 +32,7 @@ describe("ActivityChart", () => {
     expect(screen.getByRole("button", { name: /Hide Left Clicks/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide Right Clicks/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide Key Presses/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Hide Distance \(m\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hide Mouse Movement \(m\)/i })).toBeInTheDocument();
   });
 
   it("hides a series when its legend item is clicked", () => {
@@ -77,12 +77,12 @@ describe("ActivityChart", () => {
   it("sets aria-pressed true for hidden series and false for visible series", () => {
     render(<ActivityChart data={buildData()} range="24h" />);
 
-    const distanceButton = screen.getByRole("button", { name: /Hide Distance \(m\)/i });
+    const distanceButton = screen.getByRole("button", { name: /Hide Mouse Movement \(m\)/i });
     expect(distanceButton).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(distanceButton);
 
-    expect(screen.getByRole("button", { name: /Show Distance \(m\)/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Show Mouse Movement \(m\)/i })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders chart axes with foreground stroke color", () => {
@@ -93,5 +93,51 @@ describe("ActivityChart", () => {
 
     expect(xAxisLine).toHaveAttribute("stroke", "var(--foreground)");
     expect(yAxisLine).toHaveAttribute("stroke", "var(--foreground)");
+  });
+
+  it("renders legend items in canonical metric order", () => {
+    const { container } = render(<ActivityChart data={buildData()} range="24h" />);
+
+    const labels = Array.from(container.querySelectorAll("button")).map((b) => b.textContent);
+
+    expect(labels).toEqual([
+      "Key Presses",
+      "Left Clicks",
+      "Right Clicks",
+      "Mouse Movement (m)",
+    ]);
+  });
+
+  it("renders series lines in canonical order", () => {
+    const { container } = render(<ActivityChart data={buildData()} range="24h" />);
+
+    // recharts builds the tooltip payload in Line render order, so the DOM order
+    // of the line curves is a faithful proxy for tooltip payload order.
+    const strokes = Array.from(container.querySelectorAll(".recharts-line-curve")).map(
+      (path) => path.getAttribute("stroke")
+    );
+
+    expect(strokes).toEqual([
+      "var(--chart-3)", // Key Presses
+      "var(--chart-1)", // Left Clicks
+      "var(--chart-2)", // Right Clicks
+      "var(--chart-4)", // Mouse Movement
+    ]);
+  });
+
+  it("keeps tooltip series order after hiding a middle series", () => {
+    const { container } = render(<ActivityChart data={buildData()} range="24h" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide Left Clicks/i }));
+
+    const strokes = Array.from(container.querySelectorAll(".recharts-line-curve")).map(
+      (path) => path.getAttribute("stroke")
+    );
+
+    expect(strokes).toEqual([
+      "var(--chart-3)", // Key Presses
+      "var(--chart-2)", // Right Clicks
+      "var(--chart-4)", // Mouse Movement
+    ]);
   });
 });
