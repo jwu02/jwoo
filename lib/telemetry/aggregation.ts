@@ -144,7 +144,7 @@ function alignToInterval(date: Date, interval: RangeConfig): Date {
   aligned.setUTCSeconds(0, 0);
   aligned.setUTCMinutes(0);
 
-  if (interval.unit === "day" || interval.unit === "week") {
+  if (interval.unit === "day" || interval.unit === "week" || interval.unit === "month") {
     aligned.setUTCHours(0);
   }
 
@@ -152,6 +152,10 @@ function alignToInterval(date: Date, interval: RangeConfig): Date {
     const day = aligned.getUTCDay();
     const daysSinceMonday = day === 0 ? 6 : day - 1;
     aligned.setUTCDate(aligned.getUTCDate() - daysSinceMonday);
+  }
+
+  if (interval.unit === "month") {
+    aligned.setUTCDate(1);
   }
 
   if (interval.unit === "hour") {
@@ -173,6 +177,9 @@ function addInterval(date: Date, interval: RangeConfig): Date {
       break;
     case "week":
       next.setUTCDate(next.getUTCDate() + interval.binSize * 7);
+      break;
+    case "month":
+      next.setUTCMonth(next.getUTCMonth() + interval.binSize);
       break;
   }
   return next;

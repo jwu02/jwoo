@@ -80,7 +80,7 @@ describe("buildTimeSeriesPipeline", () => {
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
 
-  it("uses startOfWeek monday for 1y weekly buckets", () => {
+  it("uses monthly truncation for 1y buckets", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
     const pipeline = buildTimeSeriesPipeline("1y", now);
 
@@ -88,9 +88,8 @@ describe("buildTimeSeriesPipeline", () => {
     expect(groupStage.$group._id).toEqual({
       $dateTrunc: {
         date: "$createdAt",
-        unit: "week",
+        unit: "month",
         binSize: 1,
-        startOfWeek: "monday",
       },
     });
   });
@@ -189,13 +188,19 @@ describe("generateBuckets", () => {
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
   });
 
-  it("produces weekly buckets for 1y aligned to Monday UTC", () => {
+  it("produces monthly buckets for 1y aligned to the first of the month", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("1y", now);
-    expect(buckets.length).toBe(53);
-    expect(buckets[0]).toBe("2025-08-04T00:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-03T00:00:00.000Z");
-    expect(new Date(buckets[0]).getUTCDay()).toBe(1);
-    expect(new Date(buckets[buckets.length - 1]).getUTCDay()).toBe(1);
+
+    expect(buckets.length).toBe(13);
+    expect(buckets[0]).toBe("2025-08-01T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-01T00:00:00.000Z");
+    buckets.forEach((bucket) => {
+      const date = new Date(bucket);
+      expect(date.getUTCDate()).toBe(1);
+      expect(date.getUTCHours()).toBe(0);
+      expect(date.getUTCMinutes()).toBe(0);
+      expect(date.getUTCSeconds()).toBe(0);
+    });
   });
 });
