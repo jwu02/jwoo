@@ -1,6 +1,16 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import { cloneElement } from "react";
 import { ActivityChart } from "@/components/telemetry/activity-chart";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
+
+jest.mock("recharts", () => {
+  const actual = jest.requireActual("recharts");
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children: React.ReactElement }) =>
+      cloneElement(children, { width: 800, height: 400 }),
+  };
+});
 
 function buildData(): TimeSeriesPoint[] {
   return Array.from({ length: 4 }, (_, i) => ({
@@ -51,12 +61,14 @@ describe("ActivityChart", () => {
     expect(screen.getByRole("button", { name: /Show Key Presses/i })).toBeInTheDocument();
   });
 
-  it("renders hidden legend items with reduced opacity", () => {
+  it("renders hidden legend items with reduced opacity and muted text", () => {
     render(<ActivityChart data={buildData()} range="24h" />);
 
     fireEvent.click(screen.getByRole("button", { name: /Hide Right Clicks/i }));
 
-    expect(screen.getByRole("button", { name: /Show Right Clicks/i })).toHaveClass("opacity-50");
+    const hiddenButton = screen.getByRole("button", { name: /Show Right Clicks/i });
+    expect(hiddenButton).toHaveClass("opacity-50");
+    expect(hiddenButton).toHaveClass("text-muted-foreground");
   });
 
   it("sets aria-pressed true for hidden series and false for visible series", () => {
@@ -68,5 +80,15 @@ describe("ActivityChart", () => {
     fireEvent.click(distanceButton);
 
     expect(screen.getByRole("button", { name: /Show Distance \(m\)/i })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders chart axes with foreground stroke color", () => {
+    const { container } = render(<ActivityChart data={buildData()} range="24h" />);
+
+    const xAxisLine = container.querySelector(".recharts-xAxis .recharts-cartesian-axis-line");
+    const yAxisLine = container.querySelector(".recharts-yAxis .recharts-cartesian-axis-line");
+
+    expect(xAxisLine).toHaveAttribute("stroke", "var(--foreground)");
+    expect(yAxisLine).toHaveAttribute("stroke", "var(--foreground)");
   });
 });
