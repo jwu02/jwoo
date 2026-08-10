@@ -83,11 +83,6 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
     });
   };
 
-  const visibleSeries = useMemo(
-    () => SERIES.filter((series) => !hidden.has(series.dataKey)),
-    [hidden]
-  );
-
   return (
     <div className="w-full rounded-xl border border-border bg-card p-4">
       <div className="h-80">
@@ -111,7 +106,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
             <Tooltip
               content={(props) => <ActivityChartTooltip {...props} range={range} />}
             />
-            {visibleSeries.map((series) => (
+            {SERIES.map((series) => (
               <Line
                 key={series.dataKey}
                 type="monotone"
@@ -121,6 +116,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4 }}
+                hide={hidden.has(series.dataKey)}
               />
             ))}
           </LineChart>

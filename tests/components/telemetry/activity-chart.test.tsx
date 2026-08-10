@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { cloneElement } from "react";
 import { ActivityChart } from "@/components/telemetry/activity-chart";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
@@ -15,6 +15,34 @@ jest.mock("recharts", () => {
   };
 });
 
+const fakeRect = {
+  width: 800,
+  height: 400,
+  left: 0,
+  top: 0,
+  right: 800,
+  bottom: 400,
+  x: 0,
+  y: 0,
+  toJSON: () => {},
+};
+
+// recharts maps mouse events to data indices using the wrapper's bounding
+// rect. jsdom reports a zero rect, so stub a real one and let the raf-throttled
+// tooltip settle before reading the rendered tooltip.
+async function readTooltipItems() {
+  const wrapper = document.querySelector(".recharts-wrapper")!;
+  fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  });
+  const tooltip = document.querySelector(".recharts-tooltip-wrapper");
+  if (!tooltip) return [];
+  return within(tooltip as HTMLElement)
+    .queryAllByRole("listitem")
+    .map((li) => li.textContent);
+}
+
 function buildData(): TimeSeriesPoint[] {
   return Array.from({ length: 4 }, (_, i) => ({
     bucket: new Date(Date.UTC(2025, 7, 9, i * 6)).toISOString(),
@@ -24,6 +52,16 @@ function buildData(): TimeSeriesPoint[] {
     movementMeters: i * 100,
   }));
 }
+
+beforeAll(() => {
+  jest
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockImplementation(() => fakeRect as DOMRect);
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
 
 describe("ActivityChart", () => {
   it("renders a legend item for each series", () => {
@@ -138,6 +176,21 @@ describe("ActivityChart", () => {
       "var(--chart-3)", // Key Presses
       "var(--chart-2)", // Right Clicks
       "var(--chart-4)", // Mouse Movement
+    ]);
+  });
+
+  it("keeps tooltip series order after re-showing a hidden middle series", async () => {
+    render(<ActivityChart data={buildData()} range="24h" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide Left Clicks/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Show Left Clicks/i }));
+
+    const items = await readTooltipItems();
+    expect(items.map((item) => item.split(":")[0])).toEqual([
+      "Key Presses",
+      "Left Clicks",
+      "Right Clicks",
+      "Mouse Movement (m)",
     ]);
   });
 });
