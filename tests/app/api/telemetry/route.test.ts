@@ -5,6 +5,7 @@ import { GET } from "@/app/api/telemetry/route";
 
 jest.mock("@/lib/telemetry/db", () => ({
   getTelemetryCollection: jest.fn(),
+  getKeyboardHeatmapCollection: jest.fn(),
 }));
 
 jest.mock("@/lib/telemetry/aggregation", () => ({
@@ -13,14 +14,16 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchTimeSeries: jest.fn(),
 }));
 
-import { getTelemetryCollection } from "@/lib/telemetry/db";
+import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/telemetry/db";
 import { fetchTotals, fetchKeyCounts, fetchTimeSeries } from "@/lib/telemetry/aggregation";
 
-const mockCollection = {} as never;
+const mockTelemetryCollection = {} as never;
+const mockKeyboardCollection = {} as never;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (getTelemetryCollection as jest.Mock).mockReturnValue(mockCollection);
+  (getTelemetryCollection as jest.Mock).mockReturnValue(mockTelemetryCollection);
+  (getKeyboardHeatmapCollection as jest.Mock).mockReturnValue(mockKeyboardCollection);
 });
 
 describe("GET /api/telemetry", () => {
@@ -47,6 +50,9 @@ describe("GET /api/telemetry", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
+    expect(fetchTotals).toHaveBeenCalledWith(mockTelemetryCollection);
+    expect(fetchKeyCounts).toHaveBeenCalledWith(mockKeyboardCollection);
+    expect(fetchTimeSeries).toHaveBeenCalledWith(mockTelemetryCollection, "24h");
     expect(json).toEqual({
       totals: {
         leftClicks: 10,

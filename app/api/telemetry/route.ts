@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTelemetryCollection } from "@/lib/telemetry/db";
+import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/telemetry/db";
 import {
   fetchTotals,
   fetchKeyCounts,
@@ -29,11 +29,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const collection = getTelemetryCollection();
+    const telemetryCollection = getTelemetryCollection();
+    const keyboardCollection = getKeyboardHeatmapCollection();
     const [totals, keys, timeSeries] = await Promise.all([
-      fetchTotals(collection),
-      fetchKeyCounts(collection),
-      fetchTimeSeries(collection, rangeParam),
+      fetchTotals(telemetryCollection),
+      fetchKeyCounts(keyboardCollection),
+      fetchTimeSeries(telemetryCollection, rangeParam),
     ]);
 
     const response: TelemetryResponse = {

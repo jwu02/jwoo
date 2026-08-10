@@ -7,9 +7,9 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
     {
       $group: {
         _id: null,
-        leftClicks: { $sum: "$mouse.leftClicks" },
-        rightClicks: { $sum: "$mouse.rightClicks" },
-        movementMeters: { $sum: "$mouse.movementMeters" },
+        leftClicks: { $sum: "$leftClicks" },
+        rightClicks: { $sum: "$rightClicks" },
+        movementMeters: { $sum: "$movementMeters" },
       },
     },
   ];
@@ -17,12 +17,22 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
 
 export function buildKeyCountsPipeline(): Record<string, unknown>[] {
   return [
-    { $project: { keysArray: { $objectToArray: "$keys" } } },
-    { $unwind: "$keysArray" },
+    {
+      $project: {
+        pairs: {
+          $filter: {
+            input: { $objectToArray: "$$ROOT" },
+            as: "field",
+            cond: { $not: { $in: ["$$field.k", ["_id", "createdAt"]] } },
+          },
+        },
+      },
+    },
+    { $unwind: "$pairs" },
     {
       $group: {
-        _id: "$keysArray.k",
-        count: { $sum: "$keysArray.v" },
+        _id: "$pairs.k",
+        count: { $sum: "$pairs.v" },
       },
     },
   ];
@@ -47,20 +57,10 @@ export function buildTimeSeriesPipeline(
             ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
           },
         },
-        leftClicks: { $sum: "$mouse.leftClicks" },
-        rightClicks: { $sum: "$mouse.rightClicks" },
-        movementMeters: { $sum: "$mouse.movementMeters" },
-        keyPresses: {
-          $sum: {
-            $sum: {
-              $map: {
-                input: { $objectToArray: "$keys" },
-                as: "kv",
-                in: "$$kv.v",
-              },
-            },
-          },
-        },
+        leftClicks: { $sum: "$leftClicks" },
+        rightClicks: { $sum: "$rightClicks" },
+        movementMeters: { $sum: "$movementMeters" },
+        keyPresses: { $sum: "$keysPressed" },
       },
     },
     { $sort: { _id: 1 } },

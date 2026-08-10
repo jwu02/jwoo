@@ -18,15 +18,15 @@ function makeMockCollection(aggregateResult: unknown[] = []): Collection {
 }
 
 describe("buildTotalsPipeline", () => {
-  it("sums mouse fields", () => {
+  it("sums top-level telemetry fields", () => {
     const pipeline = buildTotalsPipeline();
     expect(pipeline).toEqual([
       {
         $group: {
           _id: null,
-          leftClicks: { $sum: "$mouse.leftClicks" },
-          rightClicks: { $sum: "$mouse.rightClicks" },
-          movementMeters: { $sum: "$mouse.movementMeters" },
+          leftClicks: { $sum: "$leftClicks" },
+          rightClicks: { $sum: "$rightClicks" },
+          movementMeters: { $sum: "$movementMeters" },
         },
       },
     ]);
@@ -34,15 +34,25 @@ describe("buildTotalsPipeline", () => {
 });
 
 describe("buildKeyCountsPipeline", () => {
-  it("unwinds keys and sums per label", () => {
+  it("unwinds top-level keyboard_heatmap fields and sums per label", () => {
     const pipeline = buildKeyCountsPipeline();
     expect(pipeline).toEqual([
-      { $project: { keysArray: { $objectToArray: "$keys" } } },
-      { $unwind: "$keysArray" },
+      {
+        $project: {
+          pairs: {
+            $filter: {
+              input: { $objectToArray: "$$ROOT" },
+              as: "field",
+              cond: { $not: { $in: ["$$field.k", ["_id", "createdAt"]] } },
+            },
+          },
+        },
+      },
+      { $unwind: "$pairs" },
       {
         $group: {
-          _id: "$keysArray.k",
-          count: { $sum: "$keysArray.v" },
+          _id: "$pairs.k",
+          count: { $sum: "$pairs.v" },
         },
       },
     ]);
@@ -62,9 +72,10 @@ describe("buildTimeSeriesPipeline", () => {
     expect(groupStage.$group._id).toEqual({
       $dateTrunc: { date: "$createdAt", unit: "hour", binSize: 1 },
     });
-    expect(groupStage.$group.leftClicks).toEqual({ $sum: "$mouse.leftClicks" });
-    expect(groupStage.$group.rightClicks).toEqual({ $sum: "$mouse.rightClicks" });
-    expect(groupStage.$group.movementMeters).toEqual({ $sum: "$mouse.movementMeters" });
+    expect(groupStage.$group.leftClicks).toEqual({ $sum: "$leftClicks" });
+    expect(groupStage.$group.rightClicks).toEqual({ $sum: "$rightClicks" });
+    expect(groupStage.$group.movementMeters).toEqual({ $sum: "$movementMeters" });
+    expect(groupStage.$group.keyPresses).toEqual({ $sum: "$keysPressed" });
 
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
