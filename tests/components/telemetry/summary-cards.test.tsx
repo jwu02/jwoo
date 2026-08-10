@@ -16,4 +16,18 @@ describe("SummaryCards", () => {
     expect(screen.getByText(/1,234\.56/)).toBeInTheDocument();
     expect(screen.getByText("50,000")).toBeInTheDocument();
   });
+
+  it("renders cards in canonical order with Mouse Movement label", () => {
+    const { container } = render(<SummaryCards totals={totals} />);
+
+    const cards = Array.from(container.querySelectorAll(".grid > div"));
+    const labels = cards.map((card) => card.querySelector("span")?.textContent);
+
+    expect(labels).toEqual([
+      "Key Presses",
+      "Left Clicks",
+      "Right Clicks",
+      "Mouse Movement",
+    ]);
+  });
 });

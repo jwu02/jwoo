@@ -15,6 +15,11 @@ function formatNumber(value: number, decimals = 0): string {
 export function SummaryCards({ totals }: SummaryCardsProps) {
   const items = [
     {
+      label: "Key Presses",
+      value: totals.totalKeyPresses,
+      icon: Keyboard,
+    },
+    {
       label: "Left Clicks",
       value: totals.leftClicks,
       icon: MousePointerClick,
@@ -25,15 +30,10 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       icon: MousePointer,
     },
     {
-      label: "Mouse Distance",
+      label: "Mouse Movement",
       value: totals.movementMeters,
       unit: "m",
       icon: Ruler,
-    },
-    {
-      label: "Key Presses",
-      value: totals.totalKeyPresses,
-      icon: Keyboard,
     },
   ];
 
