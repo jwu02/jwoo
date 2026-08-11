@@ -25,7 +25,7 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
   }
 
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center self-start">
       <svg
         viewBox="0 0 160 240"
         className="h-48 w-32 drop-shadow-sm"

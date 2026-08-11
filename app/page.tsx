@@ -94,12 +94,12 @@ export default function HomePage() {
         <div className="space-y-8">
           <SummaryCards totals={data.totals} />
 
-          <div className="grid gap-8 md:grid-cols-[240px_1fr]">
+          <div className="grid gap-8 md:grid-cols-[1fr_240px]">
+            <KeyboardHeatmap keys={data.keys} />
             <MouseVisual
               leftClicks={data.totals.leftClicks}
               rightClicks={data.totals.rightClicks}
             />
-            <KeyboardHeatmap keys={data.keys} />
           </div>
 
           <div>
