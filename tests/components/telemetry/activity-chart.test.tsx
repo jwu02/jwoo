@@ -193,4 +193,16 @@ describe("ActivityChart", () => {
       "Mouse Movement (m)",
     ]);
   });
+
+  it("rounds mouse movement to a whole number in the tooltip", async () => {
+    const fractional = buildData().map((point) => ({
+      ...point,
+      movementMeters: 10.56,
+    }));
+    render(<ActivityChart data={fractional} range="24h" />);
+
+    const items = await readTooltipItems();
+    expect(items.some((item) => item.includes("Mouse Movement (m): 11"))).toBe(true);
+    expect(items.some((item) => item.includes("10.56"))).toBe(false);
+  });
 });

@@ -42,7 +42,10 @@ function ActivityChartTooltip({
               style={{ backgroundColor: entry.color }}
             />
             <span style={{ color: "var(--foreground)" }}>
-              {entry.name}: {entry.value}
+              {entry.name}:{" "}
+              {entry.dataKey === "movementMeters" && typeof entry.value === "number"
+                ? Math.round(entry.value)
+                : entry.value}
             </span>
           </li>
         ))}

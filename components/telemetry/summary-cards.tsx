@@ -33,6 +33,7 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       label: "Mouse Movement",
       value: totals.movementMeters,
       unit: "m",
+      decimals: 0,
       icon: Ruler,
     },
   ];
@@ -51,7 +52,7 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
             </span>
           </div>
           <div className="mt-2 text-2xl font-semibold tabular-nums">
-            {item.unit ? formatNumber(item.value, 2) : formatNumber(item.value)}
+            {formatNumber(item.value, item.decimals ?? 0)}
             {item.unit ? (
               <span className="ml-1 text-sm font-normal text-muted-foreground">
                 {item.unit}
