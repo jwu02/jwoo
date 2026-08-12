@@ -82,4 +82,23 @@ describe("KeyboardHeatmap", () => {
       expect(getLed()).toHaveAttribute("fill", "oklch(0.96 0 0)");
     });
   });
+
+  describe("tooltip breakdown", () => {
+    it("renders each contributing label and its count as separate, non-colon-joined elements", () => {
+      render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} />);
+
+      // The 2 key aggregates to 8 presses (5 + 3); hover to open its tooltip.
+      fireEvent.mouseEnter(screen.getByRole("button", { name: "2: 8 presses" }));
+
+      const tooltip = screen.getByText("8 presses").parentElement!;
+      // Breakdown is sorted by count descending, so the "2 → 5" row comes first.
+      const row = within(tooltip).getByText("2").closest("div")!;
+
+      const spans = row.querySelectorAll("span");
+      expect(spans).toHaveLength(2);
+      expect(spans[0]).toHaveTextContent("2");
+      expect(spans[1]).toHaveTextContent("5");
+      expect(row.textContent).not.toContain(":");
+    });
+  });
 });

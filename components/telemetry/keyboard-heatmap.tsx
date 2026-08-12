@@ -292,8 +292,9 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               {hoveredBreakdown.length > 1 && (
                 <div className="mt-1 text-[10px] text-muted-foreground">
                   {hoveredBreakdown.map(({ label, count }) => (
-                    <div key={label}>
-                      {label}: {formatNumber(count)}
+                    <div key={label} className="flex justify-between gap-3">
+                      <span>{label}</span>
+                      <span className="tabular-nums">{formatNumber(count)}</span>
                     </div>
                   ))}
                 </div>
