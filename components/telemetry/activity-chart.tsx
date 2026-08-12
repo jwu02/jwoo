@@ -125,7 +125,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               onClick={() => toggleSeries(series.dataKey)}
               aria-pressed={isHidden}
               aria-label={isHidden ? `Show ${series.name}` : `Hide ${series.name}`}
-              className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm font-medium transition-colors hover:bg-muted ${
+              className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
                 isHidden ? "text-muted-foreground opacity-50" : "text-foreground"
               }`}
             >

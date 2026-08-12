@@ -19,7 +19,7 @@ export function RangeSelector({ value, onChange }: RangeSelectorProps) {
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+          className={`rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors ${
             value === option.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"

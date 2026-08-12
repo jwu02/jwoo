@@ -16,7 +16,7 @@ export function ErrorBanner({ message, onRetry }: ErrorBannerProps) {
         <button
           type="button"
           onClick={onRetry}
-          className="font-medium underline underline-offset-4 hover:no-underline"
+          className="font-medium underline underline-offset-4 outline-none hover:no-underline"
         >
           Retry
         </button>

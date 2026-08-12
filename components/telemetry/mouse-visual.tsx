@@ -47,7 +47,7 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
         {/* Left button region */}
         <path
           d="M 12 80 Q 12 12 80 12 L 80 80 Z"
-          className={`cursor-pointer transition-colors ${
+          className={`cursor-pointer outline-none transition-colors ${
             hovered === "left" ? "fill-primary/20" : "fill-transparent"
           }`}
           onMouseEnter={() => setHovered("left")}
@@ -64,7 +64,7 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
         {/* Right button region */}
         <path
           d="M 148 80 Q 148 12 80 12 L 80 80 Z"
-          className={`cursor-pointer transition-colors ${
+          className={`cursor-pointer outline-none transition-colors ${
             hovered === "right" ? "fill-primary/20" : "fill-transparent"
           }`}
           onMouseEnter={() => setHovered("right")}
@@ -95,7 +95,7 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
           width="24"
           height="50"
           rx="12"
-          className={`cursor-pointer stroke-border transition-colors ${
+          className={`cursor-pointer stroke-border outline-none transition-colors ${
             hovered === "wheel" ? "fill-primary/20" : "fill-muted"
           }`}
           strokeWidth="2"

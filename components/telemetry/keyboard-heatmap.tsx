@@ -122,7 +122,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               onFocus={(event) => showTooltip(key.id, event)}
               onBlur={hideTooltip}
               tabIndex={isInteractive ? 0 : -1}
-              className={isInteractive ? "cursor-pointer" : ""}
+              className={isInteractive ? "cursor-pointer outline-none" : "outline-none"}
               role="button"
               aria-label={`${key.id}: ${formatNumber(count)} presses`}
             >
@@ -135,7 +135,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                 fill={fill}
                 stroke={isHovered ? "hsl(var(--primary))" : "hsl(var(--border))"}
                 strokeWidth={isHovered ? 1.5 : 0.75}
-                className="transition-colors"
+                className="transition-colors outline-none"
               />
               {/* Only render text if key is wide/tall enough */}
               {key.width >= 30 && key.height >= 16 && keycapText && (
