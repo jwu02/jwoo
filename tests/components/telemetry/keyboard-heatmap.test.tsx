@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap";
 
 describe("KeyboardHeatmap", () => {
@@ -49,5 +49,37 @@ describe("KeyboardHeatmap", () => {
 
     const threeKey = screen.getByRole("button", { name: "3: 0 presses" });
     expect(within(threeKey).getByText("£")).toBeInTheDocument();
+  });
+
+  describe("Caps Lock LED", () => {
+    // The LED circle is the only circle inside the Caps Lock key.
+    function getLed() {
+      const capsKey = screen.getByRole("button", { name: "Caps Lock: 0 presses" });
+      return capsKey.querySelector("circle")!;
+    }
+
+    it("renders off by default, the same color as the keycap text", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      expect(getLed()).toHaveAttribute("fill", "oklch(0.96 0 0)");
+    });
+
+    it("turns green when clicked", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Caps Lock: 0 presses" }));
+
+      expect(getLed()).toHaveAttribute("fill", "oklch(0.65 0.18 145)");
+    });
+
+    it("returns to off when clicked a second time", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const capsKey = screen.getByRole("button", { name: "Caps Lock: 0 presses" });
+      fireEvent.click(capsKey);
+      fireEvent.click(capsKey);
+
+      expect(getLed()).toHaveAttribute("fill", "oklch(0.96 0 0)");
+    });
   });
 });

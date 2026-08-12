@@ -45,6 +45,9 @@ function fitLabel(
 
 export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
+  // Whether the Caps Lock LED is lit. Purely presentational (like a real
+  // keycap LED), toggled by clicking the key.
+  const [capsLockOn, setCapsLockOn] = useState(false);
   // Anchor point for the tooltip, in container-content coordinates.  The final
   // position is computed in a layout effect once the tooltip's rendered size
   // is known, so it can be clamped/flipped to stay inside the visible area.
@@ -159,6 +162,11 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               onMouseLeave={hideTooltip}
               onFocus={(event) => showTooltip(key.id, event)}
               onBlur={hideTooltip}
+              onClick={
+                key.id === "Caps Lock"
+                  ? () => setCapsLockOn((on) => !on)
+                  : undefined
+              }
               tabIndex={0}
               className="cursor-pointer outline-none"
               role="button"
@@ -236,7 +244,9 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   cx={key.x + 8}
                   cy={key.y + 7}
                   r={3}
-                  fill="oklch(0.65 0.18 145)"
+                  // Off state matches the keycap text colour; on state is the
+                  // same green as a real Caps Lock LED.
+                  fill={capsLockOn ? "oklch(0.65 0.18 145)" : "oklch(0.96 0 0)"}
                   className="pointer-events-none"
                 />
               )}
