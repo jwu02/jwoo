@@ -13,14 +13,9 @@ import {
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
-import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
+import { formatTick } from "@/lib/telemetry/chart-format";
 
-function ActivityChartTooltip({
-  active,
-  payload,
-  label,
-  range,
-}: TooltipContentProps & { range: TelemetryRange }) {
+function ActivityChartTooltip({ active, payload }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
@@ -31,9 +26,6 @@ function ActivityChartTooltip({
         borderColor: "var(--border)",
       }}
     >
-      <p className="mb-1 font-medium" style={{ color: "var(--foreground)" }}>
-        {formatTooltip(String(label ?? ""), range)}
-      </p>
       <ul className="space-y-1">
         {payload.map((entry, index) => (
           <li key={index} className="flex items-center gap-2">
@@ -106,9 +98,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
-            <Tooltip
-              content={(props) => <ActivityChartTooltip {...props} range={range} />}
-            />
+            <Tooltip content={ActivityChartTooltip} />
             {SERIES.map((series) => (
               <Line
                 key={series.dataKey}
