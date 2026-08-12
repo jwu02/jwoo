@@ -81,7 +81,7 @@ describe("buildTimeSeriesPipeline", () => {
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
 
-  it("uses monthly truncation for 1y buckets", () => {
+  it("uses weekly truncation for 1y buckets", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
     const pipeline = buildTimeSeriesPipeline("1y", now);
 
@@ -89,8 +89,9 @@ describe("buildTimeSeriesPipeline", () => {
     expect(groupStage.$group._id).toEqual({
       $dateTrunc: {
         date: "$createdAt",
-        unit: "month",
+        unit: "week",
         binSize: 1,
+        startOfWeek: "monday",
       },
     });
   });
@@ -183,24 +184,30 @@ describe("generateBuckets", () => {
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
   });
 
-  it("produces 29 six-hour buckets for 7d aligned to 6-hour boundaries", () => {
+  it("produces 15 twelve-hour buckets for 7d aligned to midnight and noon", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("7d", now);
-    expect(buckets.length).toBe(29);
+    expect(buckets.length).toBe(15);
     expect(buckets[0]).toBe("2026-08-02T12:00:00.000Z");
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
+    buckets.forEach((bucket) => {
+      const date = new Date(bucket);
+      expect(date.getUTCHours() % 12).toBe(0);
+      expect(date.getUTCMinutes()).toBe(0);
+      expect(date.getUTCSeconds()).toBe(0);
+    });
   });
 
-  it("produces monthly buckets for 1y aligned to the first of the month", () => {
+  it("produces weekly buckets for 1y aligned to Monday", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("1y", now);
 
-    expect(buckets.length).toBe(13);
-    expect(buckets[0]).toBe("2025-08-01T00:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-01T00:00:00.000Z");
+    expect(buckets.length).toBe(53);
+    expect(buckets[0]).toBe("2025-08-04T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-03T00:00:00.000Z");
     buckets.forEach((bucket) => {
       const date = new Date(bucket);
-      expect(date.getUTCDate()).toBe(1);
+      expect(date.getUTCDay()).toBe(1); // Monday
       expect(date.getUTCHours()).toBe(0);
       expect(date.getUTCMinutes()).toBe(0);
       expect(date.getUTCSeconds()).toBe(0);

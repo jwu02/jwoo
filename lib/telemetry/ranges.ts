@@ -23,8 +23,8 @@ export function getBucketInterval(range: TelemetryRange): RangeConfig {
     case "24h":
       return { unit: "hour", binSize: 1 };
     case "7d":
-      return { unit: "hour", binSize: 6 };
+      return { unit: "hour", binSize: 12 };
     case "1y":
-      return { unit: "month", binSize: 1 };
+      return { unit: "week", binSize: 1 };
   }
 }

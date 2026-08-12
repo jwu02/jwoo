@@ -146,12 +146,23 @@ function generateBuckets(range: TelemetryRange, now: Date): string[] {
 
 export { generateBuckets };
 
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
 function alignToInterval(date: Date, interval: RangeConfig): Date {
   const aligned = new Date(date);
   aligned.setUTCSeconds(0, 0);
   aligned.setUTCMinutes(0);
 
-  if (interval.unit === "day" || interval.unit === "week" || interval.unit === "month") {
+  if (interval.unit === "day") {
+    // binSize > 1 must anchor at the UTC epoch to match MongoDB $dateTrunc,
+    // which also floors day bins relative to 1970-01-01.
+    const daysSinceEpoch = Math.floor(aligned.getTime() / MILLISECONDS_PER_DAY);
+    const floored = daysSinceEpoch - (daysSinceEpoch % interval.binSize);
+    aligned.setTime(floored * MILLISECONDS_PER_DAY);
+    return aligned;
+  }
+
+  if (interval.unit === "week" || interval.unit === "month") {
     aligned.setUTCHours(0);
   }
 

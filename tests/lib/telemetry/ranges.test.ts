@@ -24,8 +24,8 @@ describe("getRangeStart", () => {
 describe("getBucketInterval", () => {
   it.each([
     ["24h", { unit: "hour", binSize: 1 }],
-    ["7d", { unit: "hour", binSize: 6 }],
-    ["1y", { unit: "month", binSize: 1 }],
+    ["7d", { unit: "hour", binSize: 12 }],
+    ["1y", { unit: "week", binSize: 1 }],
   ] as [TelemetryRange, { unit: string; binSize: number }][])(
     "returns the correct interval for %s",
     (range, expected) => {
