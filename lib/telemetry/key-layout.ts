@@ -7,6 +7,8 @@ export interface PhysicalKeyDef {
   displayLabel: string;
   /** Small shifted character rendered in the upper-left corner of the keycap */
   shiftLabel?: string;
+  /** Small option-modified character rendered on the right side of the keycap */
+  optionLabel?: string;
   /** Position and size in SVG viewBox coordinates */
   x: number;
   y: number;
@@ -117,9 +119,9 @@ const R1_ROW: PhysicalKeyDef[] = [
     labels: ["Section", "Grave", "§", "±"] },
   { id: "1", displayLabel: "1", shiftLabel: "!", x: kx(1), y: R1_Y, width: K, height: KH,
     labels: symbols("1", "!") },
-  { id: "2", displayLabel: "2", shiftLabel: "@", x: kx(2), y: R1_Y, width: K, height: KH,
+  { id: "2", displayLabel: "2", shiftLabel: "@", optionLabel: "€", x: kx(2), y: R1_Y, width: K, height: KH,
     labels: symbols("2", "@", "€") },
-  { id: "3", displayLabel: "3", shiftLabel: "£", x: kx(3), y: R1_Y, width: K, height: KH,
+  { id: "3", displayLabel: "3", shiftLabel: "£", optionLabel: "#", x: kx(3), y: R1_Y, width: K, height: KH,
     labels: symbols("3", "£", "#") },
   { id: "4", displayLabel: "4", shiftLabel: "$", x: kx(4), y: R1_Y, width: K, height: KH,
     labels: symbols("4", "$") },

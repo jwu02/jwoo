@@ -110,6 +110,22 @@ describe("PHYSICAL_KEYS", () => {
     const leftShift = PHYSICAL_KEYS.find((key) => key.id === "Left Shift");
     expect(leftShift?.shiftLabel).toBeUndefined();
   });
+
+  it("adds option labels on the 2 and 3 keys", () => {
+    const two = PHYSICAL_KEYS.find((key) => key.id === "2");
+    expect(two?.optionLabel).toBe("€");
+
+    const three = PHYSICAL_KEYS.find((key) => key.id === "3");
+    expect(three?.optionLabel).toBe("#");
+  });
+
+  it("does not add option labels to other keys", () => {
+    const ids = ["1", "4", "A", "Semicolon"];
+    for (const id of ids) {
+      const key = PHYSICAL_KEYS.find((k) => k.id === id);
+      expect(key?.optionLabel).toBeUndefined();
+    }
+  });
 });
 
 describe("buildKeyCountMap", () => {
