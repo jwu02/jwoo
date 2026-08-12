@@ -59,7 +59,7 @@ The existing imports (`fireEvent, render, screen, within` from `@testing-library
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npx jest tests/components/telemetry/keyboard-heatmap.test.tsx -t "two-column"`
+Run: `npx jest tests/components/telemetry/keyboard-heatmap.test.tsx -t "non-colon-joined"`
 Expected: FAIL — the current markup is a single text node `{label}: {formatNumber(count)}`, so the row has no `span` elements and `spans` is empty (`expect(spans).toHaveLength(2)` fails), and `row.textContent` contains `":"`.
 
 - [ ] **Step 3: Implement the two-column rows**
@@ -97,7 +97,7 @@ with:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `npx jest tests/components/telemetry/keyboard-heatmap.test.tsx -t "two-column"`
+Run: `npx jest tests/components/telemetry/keyboard-heatmap.test.tsx -t "non-colon-joined"`
 Expected: PASS (2 spans, label `2`, count `5`, no `:`).
 
 - [ ] **Step 5: Run the full suite, typecheck, and lint**
