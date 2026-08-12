@@ -228,7 +228,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           ) : (
             <>
               <div className="font-medium">
-                {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
+                {hoveredKey.id}: {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
               </div>
               {hoveredBreakdown.length > 1 && (
                 <div className="mt-1 text-[10px] text-muted-foreground">
