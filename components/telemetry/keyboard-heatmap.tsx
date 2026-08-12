@@ -1,9 +1,10 @@
 // components/telemetry/keyboard-heatmap.tsx
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { KeyCounts } from "@/lib/telemetry/types";
 import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout";
+import { computeTooltipPosition } from "@/lib/telemetry/tooltip-position";
 
 interface KeyboardHeatmapProps {
   keys: KeyCounts;
@@ -44,8 +45,16 @@ function fitLabel(
 
 export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number } | null>(null);
+  // Anchor point for the tooltip, in container-content coordinates.  The final
+  // position is computed in a layout effect once the tooltip's rendered size
+  // is known, so it can be clamped/flipped to stay inside the visible area.
+  const [tooltipAnchor, setTooltipAnchor] = useState<{
+    centerX: number;
+    keyTop: number;
+    keyHeight: number;
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Aggregate raw label counts into physical-key counts
   const keyCountMap = useMemo(() => buildKeyCountMap(keys), [keys]);
@@ -84,16 +93,37 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
     const containerRect = container.getBoundingClientRect();
 
     setHovered(keyId);
-    setTooltipPos({
-      left: gRect.left - containerRect.left + gRect.width / 2 + container.scrollLeft,
-      top: gRect.top - containerRect.top + container.scrollTop - 8,
+    setTooltipAnchor({
+      centerX: gRect.left - containerRect.left + gRect.width / 2 + container.scrollLeft,
+      keyTop: gRect.top - containerRect.top + container.scrollTop,
+      keyHeight: gRect.height,
     });
   }
 
   function hideTooltip() {
     setHovered(null);
-    setTooltipPos(null);
+    setTooltipAnchor(null);
   }
+
+  // Measure the rendered tooltip and position it within the container's visible
+  // area, flipping below the key when there isn't room above (function row).
+  // Writes the computed position straight onto the tooltip element — positioning
+  // is an imperative DOM concern, so it avoids a setState round-trip.  Runs
+  // before paint, so the tooltip never flashes at an unclamped position.
+  useLayoutEffect(() => {
+    const tooltip = tooltipRef.current;
+    const container = containerRef.current;
+    if (!tooltipAnchor || !tooltip || !container) return;
+
+    const pos = computeTooltipPosition(
+      tooltipAnchor,
+      tooltip.offsetWidth,
+      tooltip.offsetHeight,
+      container
+    );
+    tooltip.style.left = `${pos.left}px`;
+    tooltip.style.top = `${pos.top}px`;
+  }, [tooltipAnchor]);
 
   return (
     <div ref={containerRef} className="relative overflow-x-auto">
@@ -218,10 +248,10 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
         })}
       </svg>
 
-      {hoveredKey && tooltipPos && (
+      {hoveredKey && tooltipAnchor && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
-          style={{ left: tooltipPos.left, top: tooltipPos.top }}
+          ref={tooltipRef}
+          className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
         >
           {hoveredKey.id === "Touch ID" ? (
             <div className="font-medium">Touch ID untracked</div>
