@@ -107,7 +107,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           const intensity = maxCount > 0 ? count / maxCount : 0;
           const fill = interpolateColor(intensity);
           const isHovered = hovered === key.id;
-          const isInteractive = count > 0;
+          const isInteractive = count > 0 || key.id === "Touch ID";
           const { text: keycapText, fontSize } = fitLabel(
             key.displayLabel,
             key.width,
@@ -223,17 +223,23 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
           style={{ left: tooltipPos.left, top: tooltipPos.top }}
         >
-          <div className="font-medium">
-            {hoveredKey.id}: {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
-          </div>
-          {hoveredBreakdown.length > 1 && (
-            <div className="mt-1 text-[10px] text-muted-foreground">
-              {hoveredBreakdown.map(({ label, count }) => (
-                <div key={label}>
-                  {label}: {formatNumber(count)}
+          {hoveredKey.id === "Touch ID" ? (
+            <div className="font-medium">Touch ID untracked</div>
+          ) : (
+            <>
+              <div className="font-medium">
+                {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
+              </div>
+              {hoveredBreakdown.length > 1 && (
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  {hoveredBreakdown.map(({ label, count }) => (
+                    <div key={label}>
+                      {label}: {formatNumber(count)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}
