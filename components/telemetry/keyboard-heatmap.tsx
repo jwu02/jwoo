@@ -124,7 +124,11 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               tabIndex={isInteractive ? 0 : -1}
               className={isInteractive ? "cursor-pointer outline-none" : "outline-none"}
               role="button"
-              aria-label={`${key.id}: ${formatNumber(count)} presses`}
+              aria-label={
+                key.id === "Touch ID"
+                  ? "Touch ID"
+                  : `${key.id}: ${formatNumber(count)} presses`
+              }
             >
               <rect
                 x={key.x}
@@ -152,6 +156,62 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                 >
                   <tspan className="font-medium">{keycapText}</tspan>
                 </text>
+              )}
+              {key.secondaryLabel && key.width >= 30 && key.height >= 16 && (
+                <text
+                  x={key.x + key.width - 5}
+                  y={key.y + 9}
+                  textAnchor="end"
+                  dominantBaseline="central"
+                  className="select-none pointer-events-none"
+                  fill="oklch(0.96 0 0)"
+                  style={{ fontSize: 8 }}
+                >
+                  {key.secondaryLabel}
+                </text>
+              )}
+              {key.id === "Caps Lock" && (
+                <circle
+                  cx={key.x + 8}
+                  cy={key.y + 7}
+                  r={3}
+                  fill="oklch(0.65 0.18 145)"
+                  className="pointer-events-none"
+                />
+              )}
+              {key.id === "Touch ID" && (
+                <g
+                  transform={`translate(${key.x + key.width / 2}, ${key.y + key.height / 2})`}
+                  className="pointer-events-none"
+                >
+                  <path
+                    d="M -7 -3 Q 0 -9 7 -3"
+                    fill="none"
+                    stroke="oklch(0.96 0 0)"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M -8 1 Q 0 -10 8 1"
+                    fill="none"
+                    stroke="oklch(0.96 0 0)"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M -6 5 Q 0 9 6 5"
+                    fill="none"
+                    stroke="oklch(0.96 0 0)"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r="1.5"
+                    fill="oklch(0.96 0 0)"
+                  />
+                </g>
               )}
             </g>
           );
