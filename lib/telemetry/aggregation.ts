@@ -10,6 +10,7 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
         leftClicks: { $sum: "$leftClicks" },
         rightClicks: { $sum: "$rightClicks" },
         movementMeters: { $sum: "$movementMeters" },
+        totalKeyPresses: { $sum: "$keysPressed" },
       },
     },
   ];
@@ -69,15 +70,21 @@ export function buildTimeSeriesPipeline(
 
 export async function fetchTotals(
   collection: Collection
-): Promise<Omit<TelemetryTotals, "totalKeyPresses">> {
+): Promise<TelemetryTotals> {
   const result = await collection.aggregate(buildTotalsPipeline()).toArray();
   const first = result[0] as
-    | { leftClicks: number; rightClicks: number; movementMeters: number }
+    | {
+        leftClicks: number;
+        rightClicks: number;
+        movementMeters: number;
+        totalKeyPresses: number;
+      }
     | undefined;
   return {
     leftClicks: first?.leftClicks ?? 0,
     rightClicks: first?.rightClicks ?? 0,
     movementMeters: first?.movementMeters ?? 0,
+    totalKeyPresses: first?.totalKeyPresses ?? 0,
   };
 }
 

@@ -32,6 +32,7 @@ describe("GET /api/telemetry", () => {
       leftClicks: 10,
       rightClicks: 2,
       movementMeters: 1.5,
+      totalKeyPresses: 25,
     });
     (fetchKeyCounts as jest.Mock).mockResolvedValue({ A: 3, Space: 7 });
     (fetchTimeSeries as jest.Mock).mockResolvedValue([
@@ -58,7 +59,7 @@ describe("GET /api/telemetry", () => {
         leftClicks: 10,
         rightClicks: 2,
         movementMeters: 1.5,
-        totalKeyPresses: 10,
+        totalKeyPresses: 25,
       },
       keys: { A: 3, Space: 7 },
       timeSeries: [

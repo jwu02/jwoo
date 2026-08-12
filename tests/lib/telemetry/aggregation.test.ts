@@ -27,6 +27,7 @@ describe("buildTotalsPipeline", () => {
           leftClicks: { $sum: "$leftClicks" },
           rightClicks: { $sum: "$rightClicks" },
           movementMeters: { $sum: "$movementMeters" },
+          totalKeyPresses: { $sum: "$keysPressed" },
         },
       },
     ]);
@@ -98,13 +99,14 @@ describe("buildTimeSeriesPipeline", () => {
 describe("fetchTotals", () => {
   it("returns totals from the aggregation result", async () => {
     const collection = makeMockCollection([
-      { leftClicks: 10, rightClicks: 2, movementMeters: 1.5 },
+      { leftClicks: 10, rightClicks: 2, movementMeters: 1.5, totalKeyPresses: 25 },
     ]);
     const result = await fetchTotals(collection);
     expect(result).toEqual({
       leftClicks: 10,
       rightClicks: 2,
       movementMeters: 1.5,
+      totalKeyPresses: 25,
     });
   });
 
@@ -115,6 +117,7 @@ describe("fetchTotals", () => {
       leftClicks: 0,
       rightClicks: 0,
       movementMeters: 0,
+      totalKeyPresses: 0,
     });
   });
 });
