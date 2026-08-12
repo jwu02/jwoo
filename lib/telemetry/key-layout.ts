@@ -5,6 +5,8 @@ export interface PhysicalKeyDef {
   id: string;
   /** Short label rendered on the key in the SVG */
   displayLabel: string;
+  /** Small shifted/option character rendered in the upper-right corner */
+  secondaryLabel?: string;
   /** Position and size in SVG viewBox coordinates */
   x: number;
   y: number;
@@ -71,10 +73,10 @@ function kx(col: number, offset = 0): number {
 }
 
 // ---------------------------------------------------------------------------
-// Row 0 — Function row (y=0, h=28 — slightly shorter than regular keys)
+// Row 0 — Function row (y=0, h=34 — slightly shorter than regular keys)
 // ---------------------------------------------------------------------------
 const F_Y = 0;
-const F_H = 28;
+const F_H = 34;
 
 // Function keys have small visual gaps at group boundaries (Esc | F1-F4 | F5-F8 | F9-F12)
 const FGAP = 8; // extra gap between function groups
@@ -113,6 +115,9 @@ const F_ROW: PhysicalKeyDef[] = [
     labels: ["F11"] },
   { id: "F12", displayLabel: "F12", x: kx(12) + FGAP * 3, y: F_Y, width: K, height: F_H,
     labels: ["F12"] },
+
+  { id: "Touch ID", displayLabel: "", x: kx(13) + FGAP * 4, y: F_Y, width: K, height: F_H,
+    labels: [] },
 ];
 
 // ---------------------------------------------------------------------------
