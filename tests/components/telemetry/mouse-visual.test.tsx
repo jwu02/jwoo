@@ -15,4 +15,13 @@ describe("MouseVisual", () => {
     fireEvent.mouseEnter(rightButton);
     expect(screen.getByText(/right: 7 clicks/i)).toBeInTheDocument();
   });
+
+  it("shows scroll wheel untracked message on hover", () => {
+    render(<MouseVisual leftClicks={42} rightClicks={7} />);
+    const wheel = screen.getByRole("button", { name: /middle click untracked/i });
+    fireEvent.mouseEnter(wheel);
+    expect(
+      screen.getByText(/middle click untracked, scroll distance untracked/i)
+    ).toBeInTheDocument();
+  });
 });

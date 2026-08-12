@@ -12,7 +12,7 @@ function formatNumber(value: number): string {
 }
 
 export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
-  const [hovered, setHovered] = useState<"left" | "right" | null>(null);
+  const [hovered, setHovered] = useState<"left" | "right" | "wheel" | null>(null);
 
   function handleKeyDown(
     event: React.KeyboardEvent<SVGPathElement>,
@@ -41,17 +41,6 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
           rx="70"
           ry="70"
           className="fill-card stroke-border"
-          strokeWidth="2"
-        />
-
-        {/* Scroll wheel */}
-        <rect
-          x="68"
-          y="50"
-          width="24"
-          height="50"
-          rx="12"
-          className="fill-muted stroke-border"
           strokeWidth="2"
         />
 
@@ -89,14 +78,35 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
           aria-describedby={hovered === "right" ? "mouse-visual-tooltip" : undefined}
         />
 
-        {/* Center dividing line */}
+        {/* Center dividing line — stops at scroll wheel top so it doesn't show through on hover */}
         <line
           x1="80"
           y1="12"
           x2="80"
-          y2="80"
+          y2="50"
           className="stroke-border"
           strokeWidth="2"
+        />
+
+        {/* Scroll wheel — rendered above buttons so it can receive hover */}
+        <rect
+          x="68"
+          y="50"
+          width="24"
+          height="50"
+          rx="12"
+          className={`cursor-pointer stroke-border transition-colors ${
+            hovered === "wheel" ? "fill-primary/20" : "fill-muted"
+          }`}
+          strokeWidth="2"
+          onMouseEnter={() => setHovered("wheel")}
+          onMouseLeave={() => setHovered(null)}
+          onFocus={() => setHovered("wheel")}
+          onBlur={() => setHovered(null)}
+          tabIndex={0}
+          role="button"
+          aria-label="Middle click untracked, Scroll distance untracked"
+          aria-describedby={hovered === "wheel" ? "mouse-visual-tooltip" : undefined}
         />
       </svg>
 
@@ -108,8 +118,10 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
         >
           {hovered === "left" ? (
             <>Left: {formatNumber(leftClicks)} clicks</>
-          ) : (
+          ) : hovered === "right" ? (
             <>Right: {formatNumber(rightClicks)} clicks</>
+          ) : (
+            <>Middle click untracked, Scroll distance untracked</>
           )}
         </div>
       )}
