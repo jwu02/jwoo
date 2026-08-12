@@ -73,7 +73,7 @@ function kx(col: number, offset = 0): number {
 }
 
 // ---------------------------------------------------------------------------
-// Row 0 — Function row (y=0, h=34 — slightly shorter than regular keys)
+// Row 0 — Function row (y=0, h=34 — same height as regular keys)
 // ---------------------------------------------------------------------------
 const F_Y = 0;
 const F_H = 34;
