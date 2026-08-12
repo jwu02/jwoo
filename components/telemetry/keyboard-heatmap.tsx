@@ -195,12 +195,11 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   <tspan className="font-medium">{keycapText}</tspan>
                 </text>
               )}
-              {/* Shift/option character sits at the top-centre, directly above
-                  the base character, like a real keycap. */}
+              {/* Shifted character sits small at the top-left, like a real keycap. */}
               {key.shiftLabel && key.width >= 30 && key.height >= 16 && (
                 <text
-                  x={key.x + key.width / 2}
-                  y={key.y + 8}
+                  x={key.x + 8}
+                  y={key.y + 9}
                   textAnchor="middle"
                   dominantBaseline="central"
                   className="select-none pointer-events-none"
@@ -208,6 +207,21 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   style={{ fontSize: 8 }}
                 >
                   {key.shiftLabel}
+                </text>
+              )}
+              {/* Option-modified character sits on the right side, level with the base
+                  character (e.g. € to the right of 2 on a UK Mac). */}
+              {key.optionLabel && key.width >= 30 && key.height >= 16 && (
+                <text
+                  x={key.x + key.width - 8}
+                  y={key.y + key.height / 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="select-none pointer-events-none"
+                  fill="oklch(0.96 0 0)"
+                  style={{ fontSize: 8 }}
+                >
+                  {key.optionLabel}
                 </text>
               )}
               {key.id === "Caps Lock" && (
