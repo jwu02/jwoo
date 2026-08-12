@@ -186,6 +186,13 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   y={key.y + key.height / 2 + 1}
                   textAnchor="middle"
                   dominantBaseline="central"
+                  // Arrow keys rotate a shared triangle glyph around the keycap
+                  // centre (labelRotation) so all four render at identical size.
+                  transform={
+                    key.labelRotation
+                      ? `rotate(${key.labelRotation} ${key.x + key.width / 2} ${key.y + key.height / 2 + 1})`
+                      : undefined
+                  }
                   // Keycaps are always dark, so use a fixed near-white fill
                   // rather than the theme foreground for legibility.
                   className="select-none pointer-events-none"
@@ -270,7 +277,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           ) : (
             <>
               <div className="font-medium">
-                {hoveredKey.id}: {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
+                {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
               </div>
               {hoveredBreakdown.length > 1 && (
                 <div className="mt-1 text-[10px] text-muted-foreground">

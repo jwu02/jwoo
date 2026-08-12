@@ -5,6 +5,13 @@ export interface PhysicalKeyDef {
   id: string;
   /** Short label rendered on the key in the SVG */
   displayLabel: string;
+  /**
+   * Degrees to rotate the keycap label around its centre. The arrow keys all
+   * share one triangle glyph (▲) rotated 0/90/180/270° so the four arrowheads
+   * render at identical size — the up/down glyphs (▲▼) are drawn wider in most
+   * fonts than ◀▶, which makes them look larger at the same point size.
+   */
+  labelRotation?: number;
   /** Small shifted character rendered in the upper-left corner of the keycap */
   shiftLabel?: string;
   /** Small option-modified character rendered on the right side of the keycap */
@@ -303,17 +310,18 @@ const ARROW_Y = R5_Y;
 const ARROW_HALF = Math.floor((KH - 2) / 2);
 
 const ARROW_KEYS: PhysicalKeyDef[] = [
-  // Left Arrow (Fn+Left = Home)
-  { id: "Left Arrow", displayLabel: "←", x: arrowLeftX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  // Left Arrow (Fn+Left = Home) — one shared triangle glyph (▲) rotated per
+  // direction so all four arrowheads render at identical size. 270° → left.
+  { id: "Left Arrow", displayLabel: "▲", labelRotation: 270, x: arrowLeftX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Left Arrow", "Home"] },
   // Up Arrow (half-height top, Fn+Up = Page Up)
-  { id: "Up Arrow", displayLabel: "↑", x: arrowStackX, y: ARROW_Y, width: K, height: ARROW_HALF,
+  { id: "Up Arrow", displayLabel: "▲", x: arrowStackX, y: ARROW_Y, width: K, height: ARROW_HALF,
     labels: ["Up Arrow", "Page Up"] },
   // Down Arrow (half-height bottom, Fn+Down = Page Down)
-  { id: "Down Arrow", displayLabel: "↓", x: arrowStackX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  { id: "Down Arrow", displayLabel: "▲", labelRotation: 180, x: arrowStackX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Down Arrow", "Page Down"] },
   // Right Arrow (Fn+Right = End)
-  { id: "Right Arrow", displayLabel: "→", x: arrowRightX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  { id: "Right Arrow", displayLabel: "▲", labelRotation: 90, x: arrowRightX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Right Arrow", "End"] },
 ];
 
