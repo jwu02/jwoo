@@ -132,12 +132,20 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
         className="min-w-[650px]"
         aria-label="Keyboard heatmap"
       >
+        <defs>
+          {/* Recessed-look gradient for the Touch ID key: darker centre fading
+              to a lighter rim so the circle reads as a concave depression. */}
+          <radialGradient id="touchid-recess" cx="50%" cy="42%" r="72%">
+            <stop offset="0%" stopColor="oklch(0.15 0 0)" />
+            <stop offset="70%" stopColor="oklch(0.22 0 0)" />
+            <stop offset="100%" stopColor="oklch(0.31 0 0)" />
+          </radialGradient>
+        </defs>
         {PHYSICAL_KEYS.map((key) => {
           const count = keyCountMap.get(key.id) ?? 0;
           const intensity = maxCount > 0 ? count / maxCount : 0;
           const fill = interpolateColor(intensity);
           const isHovered = hovered === key.id;
-          const isInteractive = count > 0 || key.id === "Touch ID";
           const { text: keycapText, fontSize } = fitLabel(
             key.displayLabel,
             key.width,
@@ -151,8 +159,8 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               onMouseLeave={hideTooltip}
               onFocus={(event) => showTooltip(key.id, event)}
               onBlur={hideTooltip}
-              tabIndex={isInteractive ? 0 : -1}
-              className={isInteractive ? "cursor-pointer outline-none" : "outline-none"}
+              tabIndex={0}
+              className="cursor-pointer outline-none"
               role="button"
               aria-label={
                 key.id === "Touch ID"
@@ -187,11 +195,13 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   <tspan className="font-medium">{keycapText}</tspan>
                 </text>
               )}
+              {/* Shift/option character sits at the top-centre, directly above
+                  the base character, like a real keycap. */}
               {key.secondaryLabel && key.width >= 30 && key.height >= 16 && (
                 <text
-                  x={key.x + key.width - 5}
-                  y={key.y + 9}
-                  textAnchor="end"
+                  x={key.x + key.width / 2}
+                  y={key.y + 8}
+                  textAnchor="middle"
                   dominantBaseline="central"
                   className="select-none pointer-events-none"
                   fill="oklch(0.96 0 0)"
@@ -214,32 +224,20 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   transform={`translate(${key.x + key.width / 2}, ${key.y + key.height / 2})`}
                   className="pointer-events-none"
                 >
-                  <path
-                    d="M -7 -3 Q 0 -9 7 -3"
-                    fill="none"
-                    stroke="oklch(0.96 0 0)"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M -8 1 Q 0 -10 8 1"
-                    fill="none"
-                    stroke="oklch(0.96 0 0)"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M -6 5 Q 0 9 6 5"
-                    fill="none"
-                    stroke="oklch(0.96 0 0)"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
                   <circle
-                    cx="0"
-                    cy="0"
-                    r="1.5"
-                    fill="oklch(0.96 0 0)"
+                    r={11}
+                    fill="url(#touchid-recess)"
+                    stroke="oklch(0.32 0 0)"
+                    strokeWidth="0.75"
+                  />
+                  {/* Soft top highlight to sell the concave, caved-in look */}
+                  <path
+                    d="M -8 -4 A 9 9 0 0 1 8 -4"
+                    fill="none"
+                    stroke="oklch(0.92 0 0)"
+                    strokeOpacity="0.1"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
                   />
                 </g>
               )}

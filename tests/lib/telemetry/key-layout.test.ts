@@ -184,21 +184,23 @@ describe("buildKeyCountMap", () => {
     expect(result.has("UnknownKey")).toBe(false);
   });
 
-  it("handles UK-specific symbol mappings", () => {
-    // UK Mac: shift+3 = £, shift+' = @, shift+; = :
+  it("maps shifted symbols onto their physical keys", () => {
+    // UK Mac base with @/" swapped to US-style: shift+2 = @, shift+' = "
     const keys: KeyCounts = {
       "3": 10,
       "£": 5,
       "#": 2, // option+3 on UK Mac
       "'": 8,
-      "@": 4, // shift+' on UK Mac
+      '"': 4, // shift+' → " on the Quote key
       ";": 12,
       ":": 3, // shift+; on UK Mac
+      "@": 6, // shift+2 → @ on the "2" key
     };
     const result = buildKeyCountMap(keys);
     expect(result.get("3")).toBe(17);
     expect(result.get("Quote")).toBe(12);
     expect(result.get("Semicolon")).toBe(15);
+    expect(result.get("2")).toBe(6);
   });
 });
 
