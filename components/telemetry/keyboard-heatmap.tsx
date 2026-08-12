@@ -32,7 +32,7 @@ function fitLabel(
 ): { text: string; fontSize: number } {
   if (displayLabel.length === 0) return { text: "", fontSize: 10 };
   const fontSize = height <= 28 ? 9 : 11;
-  // Approximate average glyph advance for Geist at this size.
+  // Approximate average glyph advance for Roboto Mono at this size.
   const charWidth = fontSize * 0.6;
   const maxChars = Math.max(1, Math.floor((width - 8) / charWidth));
   const text =
