@@ -98,6 +98,8 @@ describe("KeyboardHeatmap", () => {
       expect(spans).toHaveLength(2);
       expect(spans[0]).toHaveTextContent("2");
       expect(spans[1]).toHaveTextContent("5");
+      expect(row).toHaveClass("flex justify-between gap-3");
+      expect(spans[1]).toHaveClass("tabular-nums");
       expect(row.textContent).not.toContain(":");
     });
   });
