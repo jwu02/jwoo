@@ -197,7 +197,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
               )}
               {/* Shift/option character sits at the top-centre, directly above
                   the base character, like a real keycap. */}
-              {key.secondaryLabel && key.width >= 30 && key.height >= 16 && (
+              {key.shiftLabel && key.width >= 30 && key.height >= 16 && (
                 <text
                   x={key.x + key.width / 2}
                   y={key.y + 8}
@@ -207,7 +207,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   fill="oklch(0.96 0 0)"
                   style={{ fontSize: 8 }}
                 >
-                  {key.secondaryLabel}
+                  {key.shiftLabel}
                 </text>
               )}
               {key.id === "Caps Lock" && (

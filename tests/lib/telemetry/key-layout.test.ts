@@ -94,21 +94,21 @@ describe("PHYSICAL_KEYS", () => {
 
   it("renders secondary labels on shifted symbol keys", () => {
     const one = PHYSICAL_KEYS.find((key) => key.id === "1");
-    expect(one?.secondaryLabel).toBe("!");
+    expect(one?.shiftLabel).toBe("!");
 
     const section = PHYSICAL_KEYS.find((key) => key.id === "Section");
-    expect(section?.secondaryLabel).toBe("±");
+    expect(section?.shiftLabel).toBe("±");
 
     const slash = PHYSICAL_KEYS.find((key) => key.id === "Slash");
-    expect(slash?.secondaryLabel).toBe("?");
+    expect(slash?.shiftLabel).toBe("?");
   });
 
   it("does not add secondary labels to letters or modifiers", () => {
     const a = PHYSICAL_KEYS.find((key) => key.id === "A");
-    expect(a?.secondaryLabel).toBeUndefined();
+    expect(a?.shiftLabel).toBeUndefined();
 
     const leftShift = PHYSICAL_KEYS.find((key) => key.id === "Left Shift");
-    expect(leftShift?.secondaryLabel).toBeUndefined();
+    expect(leftShift?.shiftLabel).toBeUndefined();
   });
 });
 

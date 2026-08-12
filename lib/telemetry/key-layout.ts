@@ -5,8 +5,8 @@ export interface PhysicalKeyDef {
   id: string;
   /** Short label rendered on the key in the SVG */
   displayLabel: string;
-  /** Small shifted/option character rendered in the upper-right corner */
-  secondaryLabel?: string;
+  /** Small shifted character rendered in the upper-left corner of the keycap */
+  shiftLabel?: string;
   /** Position and size in SVG viewBox coordinates */
   x: number;
   y: number;
@@ -113,31 +113,31 @@ const R1_Y = F_Y + F_H + G;
 
 const R1_ROW: PhysicalKeyDef[] = [
   // § / ±  (labelled "Section" in keymap, "Grave" on US keyboards)
-  { id: "Section", displayLabel: "§", secondaryLabel: "±", x: kx(0), y: R1_Y, width: K, height: KH,
+  { id: "Section", displayLabel: "§", shiftLabel: "±", x: kx(0), y: R1_Y, width: K, height: KH,
     labels: ["Section", "Grave", "§", "±"] },
-  { id: "1", displayLabel: "1", secondaryLabel: "!", x: kx(1), y: R1_Y, width: K, height: KH,
+  { id: "1", displayLabel: "1", shiftLabel: "!", x: kx(1), y: R1_Y, width: K, height: KH,
     labels: symbols("1", "!") },
-  { id: "2", displayLabel: "2", secondaryLabel: "@", x: kx(2), y: R1_Y, width: K, height: KH,
+  { id: "2", displayLabel: "2", shiftLabel: "@", x: kx(2), y: R1_Y, width: K, height: KH,
     labels: symbols("2", "@", "€") },
-  { id: "3", displayLabel: "3", secondaryLabel: "£", x: kx(3), y: R1_Y, width: K, height: KH,
+  { id: "3", displayLabel: "3", shiftLabel: "£", x: kx(3), y: R1_Y, width: K, height: KH,
     labels: symbols("3", "£", "#") },
-  { id: "4", displayLabel: "4", secondaryLabel: "$", x: kx(4), y: R1_Y, width: K, height: KH,
+  { id: "4", displayLabel: "4", shiftLabel: "$", x: kx(4), y: R1_Y, width: K, height: KH,
     labels: symbols("4", "$") },
-  { id: "5", displayLabel: "5", secondaryLabel: "%", x: kx(5), y: R1_Y, width: K, height: KH,
+  { id: "5", displayLabel: "5", shiftLabel: "%", x: kx(5), y: R1_Y, width: K, height: KH,
     labels: symbols("5", "%") },
-  { id: "6", displayLabel: "6", secondaryLabel: "^", x: kx(6), y: R1_Y, width: K, height: KH,
+  { id: "6", displayLabel: "6", shiftLabel: "^", x: kx(6), y: R1_Y, width: K, height: KH,
     labels: symbols("6", "^") },
-  { id: "7", displayLabel: "7", secondaryLabel: "&", x: kx(7), y: R1_Y, width: K, height: KH,
+  { id: "7", displayLabel: "7", shiftLabel: "&", x: kx(7), y: R1_Y, width: K, height: KH,
     labels: symbols("7", "&") },
-  { id: "8", displayLabel: "8", secondaryLabel: "*", x: kx(8), y: R1_Y, width: K, height: KH,
+  { id: "8", displayLabel: "8", shiftLabel: "*", x: kx(8), y: R1_Y, width: K, height: KH,
     labels: symbols("8", "*") },
-  { id: "9", displayLabel: "9", secondaryLabel: "(", x: kx(9), y: R1_Y, width: K, height: KH,
+  { id: "9", displayLabel: "9", shiftLabel: "(", x: kx(9), y: R1_Y, width: K, height: KH,
     labels: symbols("9", "(") },
-  { id: "0", displayLabel: "0", secondaryLabel: ")", x: kx(10), y: R1_Y, width: K, height: KH,
+  { id: "0", displayLabel: "0", shiftLabel: ")", x: kx(10), y: R1_Y, width: K, height: KH,
     labels: symbols("0", ")") },
-  { id: "Minus", displayLabel: "-", secondaryLabel: "_", x: kx(11), y: R1_Y, width: K, height: KH,
+  { id: "Minus", displayLabel: "-", shiftLabel: "_", x: kx(11), y: R1_Y, width: K, height: KH,
     labels: ["Minus", "-", "_"] },
-  { id: "Equal", displayLabel: "=", secondaryLabel: "+", x: kx(12), y: R1_Y, width: K, height: KH,
+  { id: "Equal", displayLabel: "=", shiftLabel: "+", x: kx(12), y: R1_Y, width: K, height: KH,
     labels: ["Equal", "=", "+"] },
   // Delete / Backspace — ~2u wide
   { id: "Delete", displayLabel: "delete", x: kx(13), y: R1_Y, width: K * 2 + G, height: KH,
@@ -164,13 +164,13 @@ const R2_ROW: PhysicalKeyDef[] = [
     labels: letters(c),
   })),
   // Left Bracket [  (UK: shift = {)
-  { id: "Left Bracket", displayLabel: "[", secondaryLabel: "{", x: kx(11) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
+  { id: "Left Bracket", displayLabel: "[", shiftLabel: "{", x: kx(11) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
     labels: ["Left Bracket", "[", "{"] },
   // Right Bracket ]  (UK: shift = })
-  { id: "Right Bracket", displayLabel: "]", secondaryLabel: "}", x: kx(12) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
+  { id: "Right Bracket", displayLabel: "]", shiftLabel: "}", x: kx(12) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
     labels: ["Right Bracket", "]", "}"] },
   // Backslash \  (to the right of ], above Return)
-  { id: "Backslash", displayLabel: "\\", secondaryLabel: "|", x: kx(13) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
+  { id: "Backslash", displayLabel: "\\", shiftLabel: "|", x: kx(13) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
     labels: ["Backslash", "\\", "|"] },
 ];
 
@@ -194,10 +194,10 @@ const R3_ROW: PhysicalKeyDef[] = [
     labels: letters(c),
   })),
   // Semicolon ; (UK: shift = :)
-  { id: "Semicolon", displayLabel: ";", secondaryLabel: ":", x: kx(10) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
+  { id: "Semicolon", displayLabel: ";", shiftLabel: ":", x: kx(10) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
     labels: ["Semicolon", ";", ":"] },
   // Quote ' (shift = " — @/" swapped to US-style)
-  { id: "Quote", displayLabel: "'", secondaryLabel: '"', x: kx(11) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
+  { id: "Quote", displayLabel: "'", shiftLabel: '"', x: kx(11) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
     labels: ["Quote", "'", '"'] },
   // Return / Enter — ~2.25u
   { id: "Return", displayLabel: "return", x: kx(12) + K * 0.75 + G * 0.75, y: R3_Y, width: K * 2.25 + G * 1.25, height: KH,
@@ -220,7 +220,7 @@ const R4_ROW: PhysicalKeyDef[] = [
   { id: "Left Shift", displayLabel: "shift", x: kx(0), y: R4_Y, width: K * 1.5, height: KH,
     labels: ["Left Shift"] },
   // ISO extra key — backtick / tilde, between Left Shift and Z
-  { id: "Backtick", displayLabel: "`", secondaryLabel: "~", x: kx(0) + K * 1.5 + G, y: R4_Y, width: K, height: KH,
+  { id: "Backtick", displayLabel: "`", shiftLabel: "~", x: kx(0) + K * 1.5 + G, y: R4_Y, width: K, height: KH,
     labels: ["`", "~"] },
   // Letters Z-M
   ...[..."ZXCVBNM"].map((c, i) => ({
@@ -233,13 +233,13 @@ const R4_ROW: PhysicalKeyDef[] = [
     labels: letters(c),
   })),
   // Comma , (UK: shift = <)
-  { id: "Comma", displayLabel: ",", secondaryLabel: "<", x: kx(8) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
+  { id: "Comma", displayLabel: ",", shiftLabel: "<", x: kx(8) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
     labels: ["Comma", ",", "<"] },
   // Period . (UK: shift = >)
-  { id: "Period", displayLabel: ".", secondaryLabel: ">", x: kx(9) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
+  { id: "Period", displayLabel: ".", shiftLabel: ">", x: kx(9) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
     labels: ["Period", ".", ">"] },
   // Slash / (UK: shift = ?)
-  { id: "Slash", displayLabel: "/", secondaryLabel: "?", x: kx(10) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
+  { id: "Slash", displayLabel: "/", shiftLabel: "?", x: kx(10) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
     labels: ["Slash", "/", "?"] },
   // Right Shift — ~2.5u, narrowed so the row keeps its right edge at 626
   { id: "Right Shift", displayLabel: "shift", x: kx(11) + R4_LETTER_OFFSET, y: R4_Y, width: K * 2.5 + G * 2, height: KH,
