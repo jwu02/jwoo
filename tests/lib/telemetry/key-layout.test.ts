@@ -92,7 +92,7 @@ describe("PHYSICAL_KEYS", () => {
     }
   });
 
-  it("renders secondary labels on shifted symbol keys", () => {
+  it("has shift labels on shifted symbol keys", () => {
     const one = PHYSICAL_KEYS.find((key) => key.id === "1");
     expect(one?.shiftLabel).toBe("!");
 
@@ -103,7 +103,7 @@ describe("PHYSICAL_KEYS", () => {
     expect(slash?.shiftLabel).toBe("?");
   });
 
-  it("does not add secondary labels to letters or modifiers", () => {
+  it("does not add shift labels to letters or modifiers", () => {
     const a = PHYSICAL_KEYS.find((key) => key.id === "A");
     expect(a?.shiftLabel).toBeUndefined();
 
@@ -119,12 +119,11 @@ describe("PHYSICAL_KEYS", () => {
     expect(three?.optionLabel).toBe("#");
   });
 
-  it("does not add option labels to other keys", () => {
-    const ids = ["1", "4", "A", "Semicolon"];
-    for (const id of ids) {
-      const key = PHYSICAL_KEYS.find((k) => k.id === id);
-      expect(key?.optionLabel).toBeUndefined();
-    }
+  it("sets option labels on exactly the 2 and 3 keys", () => {
+    const idsWithOption = PHYSICAL_KEYS.filter((key) => key.optionLabel)
+      .map((key) => key.id)
+      .sort();
+    expect(idsWithOption).toEqual(["2", "3"]);
   });
 });
 
