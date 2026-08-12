@@ -7,8 +7,10 @@ describe("PHYSICAL_KEYS", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("every key has at least one data label", () => {
+  it("every tracked key has at least one data label", () => {
     for (const key of PHYSICAL_KEYS) {
+      // Touch ID is a physical key with no telemetry data labels.
+      if (key.id === "Touch ID") continue;
       expect(key.labels.length).toBeGreaterThan(0);
     }
   });
@@ -67,6 +69,46 @@ describe("PHYSICAL_KEYS", () => {
     expect(ids).not.toContain("Keypad 0");
     expect(ids).not.toContain("Keypad 9");
     expect(ids).not.toContain("Keypad Enter");
+  });
+
+  it("includes a Touch ID key to the right of F12", () => {
+    const touchId = PHYSICAL_KEYS.find((key) => key.id === "Touch ID");
+    expect(touchId).toBeDefined();
+    expect(touchId!.width).toBe(38);
+    expect(touchId!.height).toBe(34);
+
+    const f12 = PHYSICAL_KEYS.find((key) => key.id === "F12");
+    expect(f12).toBeDefined();
+    expect(touchId!.x).toBeGreaterThan(f12!.x);
+  });
+
+  it("has function keys the same height as standard keys", () => {
+    const functionKeys = PHYSICAL_KEYS.filter((key) =>
+      /^F(1[0-2]|[1-9])$/.test(key.id)
+    );
+    expect(functionKeys.length).toBe(12);
+    for (const key of functionKeys) {
+      expect(key.height).toBe(34);
+    }
+  });
+
+  it("renders secondary labels on shifted symbol keys", () => {
+    const one = PHYSICAL_KEYS.find((key) => key.id === "1");
+    expect(one?.secondaryLabel).toBe("!");
+
+    const section = PHYSICAL_KEYS.find((key) => key.id === "Section");
+    expect(section?.secondaryLabel).toBe("±");
+
+    const slash = PHYSICAL_KEYS.find((key) => key.id === "Slash");
+    expect(slash?.secondaryLabel).toBe("?");
+  });
+
+  it("does not add secondary labels to letters or modifiers", () => {
+    const a = PHYSICAL_KEYS.find((key) => key.id === "A");
+    expect(a?.secondaryLabel).toBeUndefined();
+
+    const leftShift = PHYSICAL_KEYS.find((key) => key.id === "Left Shift");
+    expect(leftShift?.secondaryLabel).toBeUndefined();
   });
 });
 
