@@ -57,7 +57,10 @@ export default function KnowledgeGraphPage() {
 
     function tick(now: number) {
       if (startTimeRef.current === null) {
-        startTimeRef.current = now - (currentTimeRef.current - minTime);
+        const offsetFraction =
+          (currentTimeRef.current - minTime) / (maxTime - minTime);
+        startTimeRef.current =
+          now - offsetFraction * PLAYBACK_DURATION_MS;
       }
 
       const elapsed = now - startTimeRef.current;

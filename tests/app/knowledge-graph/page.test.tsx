@@ -21,7 +21,12 @@ describe("KnowledgeGraphPage", () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Knowledge Graph/i)).toBeInTheDocument();
+      // Unique to the loaded branch: PlaybackControls renders a Pause button
+      // while the timeline auto-plays (the h1 "Knowledge Graph" appears in
+      // every branch, so it cannot distinguish loaded from loading/error).
+      expect(
+        screen.getByRole("button", { name: /pause/i })
+      ).toBeInTheDocument();
     });
 
     expect(global.fetch).toHaveBeenCalledWith("/api/knowledge-graph");
