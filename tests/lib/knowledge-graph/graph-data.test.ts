@@ -2,6 +2,7 @@ import {
   buildGraph,
   computeDegrees,
   computeFitTransform,
+  computeRoughInitialTransform,
   getVisibleEdges,
   getVisibleNodes,
 } from "@/lib/knowledge-graph/graph-data";
@@ -139,6 +140,72 @@ describe("computeFitTransform", () => {
       k: 1,
       x: 400,
       y: 300,
+    });
+  });
+});
+
+describe("computeRoughInitialTransform", () => {
+  const width = 800;
+  const height = 600;
+
+  it("centers the seeded centroid and leaves generous margin", () => {
+    // Spread occupies 0.3 × 600 = 180px of the smaller dimension:
+    // 180 / (2 · √(300²+300²)) ≈ 0.2121.
+    const nodes = [
+      { x: -300, y: -300 },
+      { x: 300, y: 300 },
+    ];
+
+    const t = computeRoughInitialTransform(nodes, width, height);
+    expect(t.k).toBeCloseTo(0.2121, 3);
+    expect(t.x).toBe(400);
+    expect(t.y).toBe(300);
+  });
+
+  it("translates to an off-center centroid", () => {
+    const nodes = [
+      { x: 100, y: 100 },
+      { x: 500, y: 500 },
+    ];
+
+    // Centroid (300,300), maxRadius √(200²+200²) ≈ 282.84 → k ≈ 0.3182.
+    const t = computeRoughInitialTransform(nodes, width, height);
+    expect(t.k).toBeCloseTo(0.3182, 3);
+    expect(t.x).toBeCloseTo(400 - t.k * 300, 3);
+    expect(t.y).toBeCloseTo(300 - t.k * 300, 3);
+  });
+
+  it("clamps tiny graphs to natural scale", () => {
+    const nodes = [
+      { x: -5, y: -5 },
+      { x: 5, y: 5 },
+    ];
+
+    expect(computeRoughInitialTransform(nodes, width, height)).toEqual({
+      k: 1,
+      x: 400,
+      y: 300,
+    });
+  });
+
+  it("clamps enormous graphs to the minimum zoom", () => {
+    const nodes = [
+      { x: -500_000, y: -500_000 },
+      { x: 500_000, y: 500_000 },
+    ];
+
+    expect(computeRoughInitialTransform(nodes, width, height)).toEqual({
+      k: 0.1,
+      x: 400,
+      y: 300,
+    });
+  });
+
+  it("centers a lone node at natural scale", () => {
+    expect(computeRoughInitialTransform([{ x: 100, y: 100 }], width, height)).toEqual({
+      k: 1,
+      x: 300,
+      y: 200,
     });
   });
 });

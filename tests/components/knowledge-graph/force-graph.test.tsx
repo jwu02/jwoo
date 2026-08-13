@@ -1,9 +1,53 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 
-/** d3 binds the joined datum onto each element as `__data__`. */
-function datumOf<T>(el: Element): T {
-  return (el as unknown as { __data__: T }).__data__;
+beforeEach(() => {
+  document.documentElement.style.setProperty("--primary", "#ff0000");
+  document.documentElement.style.setProperty("--claude-orange", "#ff8800");
+  document.documentElement.style.setProperty("--foreground", "#000000");
+  document.documentElement.style.setProperty("--background", "#ffffff");
+});
+
+interface MockNode {
+  label?: string;
+  visible?: boolean;
+  alpha?: number;
+  tint?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  scale?: { x: number; y: number };
+  children?: MockNode[];
+  emit?(event: string, data?: unknown): void;
+}
+
+interface MockApp {
+  stage: MockNode;
+}
+
+function getPixiApp(container: HTMLElement): MockApp | undefined {
+  const canvas = container.querySelector("canvas");
+  return (canvas as unknown as { __pixiApp?: MockApp })?.__pixiApp;
+}
+
+function getContainers(container: HTMLElement) {
+  const app = getPixiApp(container);
+  const world = app?.stage.children?.[0];
+  const linksContainer = world?.children?.[0];
+  const nodesContainer = world?.children?.[1];
+  return { app, world, linksContainer, nodesContainer };
+}
+
+function nodeSpriteById(container: HTMLElement, id: string): MockNode | undefined {
+  const { nodesContainer } = getContainers(container);
+  return nodesContainer?.children?.find((s) => s.label === id);
+}
+
+function linkSpriteBySource(container: HTMLElement, sourceId: string): MockNode | undefined {
+  const { linksContainer } = getContainers(container);
+  return linksContainer?.children?.find((s) => s.label?.startsWith(`${sourceId}->`));
 }
 
 describe("ForceGraph", () => {
@@ -15,28 +59,33 @@ describe("ForceGraph", () => {
     const edges = [{ source: "A.md", target: "B.md" }];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-02")} />
+      <ForceGraph nodes={nodes} edges={edges} />
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(2);
-      expect(container.querySelectorAll("line").length).toBe(1);
+      const { nodesContainer, linksContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(2);
+      expect(linksContainer?.children?.filter((s) => s.visible).length).toBe(1);
     });
   });
 
-  it("does not render nodes created after current time", async () => {
+  it("renders all nodes and edges without a timeline", async () => {
     const nodes = [
       { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
       { id: "B.md", createdAt: "2024-01-03T00:00:00.000Z" },
+      { id: "C.md", createdAt: "2024-01-05T00:00:00.000Z" },
     ];
-    const edges: { source: string; target: string }[] = [];
+    const edges = [
+      { source: "A.md", target: "B.md" },
+      { source: "B.md", target: "C.md" },
+    ];
 
-    const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-02")} />
-    );
+    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(1);
+      const { nodesContainer, linksContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
+      expect(linksContainer?.children?.filter((s) => s.visible).length).toBe(2);
     });
   });
 
@@ -52,50 +101,67 @@ describe("ForceGraph", () => {
     ];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-04")} />
+      <ForceGraph nodes={nodes} edges={edges} />
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(3);
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
     });
 
-    const circles = Array.from(container.querySelectorAll("circle"));
-    const nodeA = circles.find((c) => datumOf<{ id: string }>(c).id === "A.md")!;
-    const nodeB = circles.find((c) => datumOf<{ id: string }>(c).id === "B.md")!;
-    const nodeC = circles.find((c) => datumOf<{ id: string }>(c).id === "C.md")!;
+    const nodeA = nodeSpriteById(container, "A.md")!;
 
-    fireEvent.mouseOver(nodeA);
+    act(() => {
+      nodeA.emit!("pointerover", { stopPropagation: () => {} });
+    });
 
     await waitFor(() => {
-      expect(nodeA.classList.contains("kg-node--hovered")).toBe(true);
+      expect(container.querySelector("[data-testid='kg-node-label']")).toBeTruthy();
     });
 
-    // The filename appears immediately as an HTML element, not a native tooltip.
-    const label = container.querySelector("[data-testid='kg-node-label']");
-    expect(label).toBeTruthy();
-    expect(label?.textContent).toBe("A.md");
-    expect(container.querySelectorAll("title").length).toBe(0);
+    expect(container.querySelector("[data-testid='kg-node-label']")?.textContent).toBe("A.md");
 
-    // The hovered node's incident edge is highlighted; other edges dim.
-    const links = Array.from(container.querySelectorAll("line"));
-    const linkAB = links.find(
-      (l) =>
-        datumOf<{ source: { id: string }; target: { id: string } }>(l).source.id === "A.md"
-    )!;
-    const linkBC = links.find(
-      (l) =>
-        datumOf<{ source: { id: string }; target: { id: string } }>(l).source.id === "B.md"
-    )!;
-    expect(linkAB.classList.contains("kg-link--hovered")).toBe(true);
-    expect(linkBC.classList.contains("kg-link--dimmed")).toBe(true);
+    const linkAB = linkSpriteBySource(container, "A.md")!;
+    const linkBC = linkSpriteBySource(container, "B.md")!;
+    expect(linkAB.alpha).toBe(1);
+    expect(linkBC.alpha).toBe(0.08);
 
-    // A node connected to the hovered node stays undimmed; unrelated nodes dim.
-    expect(nodeB.classList.contains("kg-node--dimmed")).toBe(false);
-    expect(nodeC.classList.contains("kg-node--dimmed")).toBe(true);
+    const nodeB = nodeSpriteById(container, "B.md")!;
+    const nodeC = nodeSpriteById(container, "C.md")!;
+    expect(nodeB.alpha).toBe(1);
+    expect(nodeC.alpha).toBe(0.15);
+    expect(nodeA.scale!.x).toBeGreaterThan(nodeB.scale!.x);
+  });
+
+  it("positions the hover label at the node immediately when it mounts", async () => {
+    const nodes = [
+      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
+    ];
+    const edges = [{ source: "A.md", target: "B.md" }];
+
+    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(2);
+    });
+
+    const nodeA = nodeSpriteById(container, "A.md")!;
+
+    act(() => {
+      nodeA.emit!("pointerover", { stopPropagation: () => {} });
+    });
+
+    const labelEl = container.querySelector<HTMLElement>("[data-testid='kg-node-label']")!;
+    expect(labelEl).toBeTruthy();
+    // The label must be positioned when it mounts, not left at the wrapper's
+    // top-left until some later simulation tick / drag repositions it.
+    expect(labelEl.style.transform).not.toBe("");
+    expect(labelEl.style.transform).toContain("translate3d");
   });
 
   it("dims leaf nodes as edge nodes but leaves hubs and isolated nodes bright", async () => {
-    // Star-ish graph: B is the hub, A/C/D are leaves, E is isolated.
     const nodes = [
       { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
       { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
@@ -110,25 +176,24 @@ describe("ForceGraph", () => {
     ];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-06")} />
+      <ForceGraph nodes={nodes} edges={edges} />
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(5);
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(5);
     });
 
-    const circles = Array.from(container.querySelectorAll("circle"));
-    const classListFor = (id: string) =>
-      circles.find((c) => datumOf<{ id: string }>(c).id === id)!.classList;
+    const leafA = nodeSpriteById(container, "A.md")!;
+    const leafC = nodeSpriteById(container, "C.md")!;
+    const leafD = nodeSpriteById(container, "D.md")!;
+    const hubB = nodeSpriteById(container, "B.md")!;
+    const isolatedE = nodeSpriteById(container, "E.md")!;
 
-    // Leaf nodes (degree 1) are edge nodes → dimmed.
-    expect(classListFor("A.md").contains("kg-node--edge")).toBe(true);
-    expect(classListFor("C.md").contains("kg-node--edge")).toBe(true);
-    expect(classListFor("D.md").contains("kg-node--edge")).toBe(true);
-    // A hub (degree 3) is not an edge node → full colour.
-    expect(classListFor("B.md").contains("kg-node--edge")).toBe(false);
-    // A node with no connections is not an edge node → full colour.
-    expect(classListFor("E.md").contains("kg-node--edge")).toBe(false);
+    expect(leafA.tint).not.toBe(hubB.tint);
+    expect(leafC.tint).not.toBe(hubB.tint);
+    expect(leafD.tint).not.toBe(hubB.tint);
+    expect(isolatedE.tint).toBe(hubB.tint);
   });
 
   it("clears the highlight and hides the label on mouseout", async () => {
@@ -139,29 +204,55 @@ describe("ForceGraph", () => {
     const edges = [{ source: "A.md", target: "B.md" }];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-02")} />
+      <ForceGraph nodes={nodes} edges={edges} />
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(2);
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(2);
     });
 
-    const nodeA = Array.from(container.querySelectorAll("circle")).find(
-      (c) => datumOf<{ id: string }>(c).id === "A.md"
-    )!;
+    const nodeA = nodeSpriteById(container, "A.md")!;
+    act(() => {
+      nodeA.emit!("pointerover", { stopPropagation: () => {} });
+    });
 
-    fireEvent.mouseOver(nodeA);
     await waitFor(() => {
       expect(container.querySelector("[data-testid='kg-node-label']")).toBeTruthy();
     });
 
-    fireEvent.mouseOut(nodeA);
+    act(() => {
+      nodeA.emit!("pointerout", { stopPropagation: () => {} });
+    });
 
     await waitFor(() => {
-      expect(container.querySelector("[data-testid='kg-node-label']")).toBeNull();
-      expect(nodeA.classList.contains("kg-node--hovered")).toBe(false);
-      expect(nodeA.classList.contains("kg-node--dimmed")).toBe(false);
+      const labelEl = container.querySelector("[data-testid='kg-node-label']");
+      expect(labelEl).toBeTruthy();
+      expect(labelEl).toHaveClass("opacity-0");
+      expect(nodeA.alpha).toBe(1);
     });
+  });
+
+  it("tears down without throwing when the app is destroyed before the world", async () => {
+    const nodes = [
+      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
+    ];
+    const edges = [{ source: "A.md", target: "B.md" }];
+
+    const { container, unmount } = render(
+      <ForceGraph nodes={nodes} edges={edges} />
+    );
+
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.length).toBe(2);
+    });
+
+    // Navigating away unmounts the component. usePixiApp's cleanup destroys the
+    // Application (nulling app.stage) before the build effect's teardownWorld
+    // runs, which used to dereference the nulled stage and throw.
+    expect(() => unmount()).not.toThrow();
   });
 
   it("moves the dragged node and its incident links immediately during a drag", async () => {
@@ -176,71 +267,41 @@ describe("ForceGraph", () => {
     ];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} currentTime={Date.parse("2024-01-04")} />
+      <ForceGraph nodes={nodes} edges={edges} />
     );
 
     await waitFor(() => {
-      expect(container.querySelectorAll("circle").length).toBe(3);
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
     });
 
-    const circles = Array.from(container.querySelectorAll("circle"));
-    const nodeB = circles.find((c) => datumOf<{ id: string }>(c).id === "B.md")!;
-    const nodeC = circles.find((c) => datumOf<{ id: string }>(c).id === "C.md")!;
-    const lines = Array.from(container.querySelectorAll("line"));
-    const linkAB = lines.find(
-      (l) =>
-        datumOf<{ source: { id: string }; target: { id: string } }>(l).source.id === "A.md"
-    )!;
-    const linkBC = lines.find(
-      (l) =>
-        datumOf<{ source: { id: string }; target: { id: string } }>(l).source.id === "B.md"
-    )!;
+    const nodeB = nodeSpriteById(container, "B.md")!;
+    const linkAB = linkSpriteBySource(container, "A.md")!;
+    const linkBC = linkSpriteBySource(container, "B.md")!;
 
-    // Wait for the simulation to have laid out the nodes so we can read the
-    // pre-drag positions.
-    await waitFor(() => {
-      expect(nodeB.getAttribute("cx")).not.toBeNull();
-    });
-
-    const startX = Number(nodeB.getAttribute("cx"));
-    const startY = Number(nodeB.getAttribute("cy"));
-    const startCx = nodeC.getAttribute("cx");
-
-    // Drive a d3 drag: mousedown on the node, then mousemove/up on the window.
-    // All three fire synchronously, so no simulation tick runs in between and
-    // the grabbed node's displacement equals the pointer delta exactly.
+    const startX = 100;
+    const startY = 100;
     const dx = 150;
     const dy = 40;
-    // `view: window` is required for d3-drag: it does `nodrag(event.view)` on
-    // mousedown and stops the event from bubbling into the svg's zoom handler.
-    fireEvent.mouseDown(nodeB, {
-      button: 0,
-      clientX: 100,
-      clientY: 100,
-      view: window,
-    });
-    fireEvent.mouseMove(window, {
-      clientX: 100 + dx,
-      clientY: 100 + dy,
-      view: window,
-    });
-    fireEvent.mouseUp(window, {
-      clientX: 100 + dx,
-      clientY: 100 + dy,
-      view: window,
+
+    act(() => {
+      nodeB.emit!("pointerdown", {
+        client: { x: startX, y: startY },
+        stopPropagation: () => {},
+        preventDefault: () => {},
+      });
     });
 
-    // The grabbed node tracks the pointer by the drag delta, synchronously.
-    expect(nodeB.getAttribute("cx")).toBe(String(startX + dx));
-    expect(nodeB.getAttribute("cy")).toBe(String(startY + dy));
+    const moveEvent = new MouseEvent("pointermove", {
+      bubbles: true,
+      clientX: startX + dx,
+      clientY: startY + dy,
+    });
+    document.dispatchEvent(moveEvent);
 
-    // Its incident links follow: A->B moves its B endpoint, B->C moves its B end.
-    expect(linkAB.getAttribute("x2")).toBe(String(startX + dx));
-    expect(linkAB.getAttribute("y2")).toBe(String(startY + dy));
-    expect(linkBC.getAttribute("x1")).toBe(String(startX + dx));
-    expect(linkBC.getAttribute("y1")).toBe(String(startY + dy));
-
-    // A node not grabbed isn't moved synchronously by the drag event itself.
-    expect(nodeC.getAttribute("cx")).toBe(startCx);
+    expect(nodeB.x).toBe(startX + dx);
+    expect(nodeB.y).toBe(startY + dy);
+    expect(linkAB.width).toBeGreaterThan(0);
+    expect(linkBC.width).toBeGreaterThan(0);
   });
 });

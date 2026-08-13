@@ -105,3 +105,41 @@ export function computeFitTransform(
     y: viewportHeight / 2 - k * centerY,
   };
 }
+
+// A deliberately loose initial framing for the first paint, before the force
+// layout has run. It centers the seeded centroid and scales so the node spread
+// occupies `margin` of the smaller viewport dimension, clamped to a sane zoom
+// range. Unlike computeFitTransform it does not chase exact bounds — the layout
+// is about to change, so a rough frame is enough; the precise fit runs once the
+// simulation settles.
+export function computeRoughInitialTransform(
+  nodes: Array<{ x?: number; y?: number }>,
+  viewportWidth: number,
+  viewportHeight: number,
+  margin = 0.3
+): { k: number; x: number; y: number } {
+  const positioned = nodes.filter((n) => n.x !== undefined && n.y !== undefined);
+  if (positioned.length === 0) return { k: 1, x: 0, y: 0 };
+
+  const centroidX = positioned.reduce((sum, n) => sum + n.x!, 0) / positioned.length;
+  const centroidY = positioned.reduce((sum, n) => sum + n.y!, 0) / positioned.length;
+  let maxRadius = 0;
+  for (const n of positioned) {
+    maxRadius = Math.max(maxRadius, Math.hypot(n.x! - centroidX, n.y! - centroidY));
+  }
+
+  // A single node (or coincident nodes) has no spread — center it at natural size.
+  if (maxRadius === 0) {
+    return { k: 1, x: viewportWidth / 2 - centroidX, y: viewportHeight / 2 - centroidY };
+  }
+
+  const k = Math.max(
+    0.1,
+    Math.min(1, (margin * Math.min(viewportWidth, viewportHeight)) / (2 * maxRadius))
+  );
+  return {
+    k,
+    x: viewportWidth / 2 - k * centroidX,
+    y: viewportHeight / 2 - k * centroidY,
+  };
+}

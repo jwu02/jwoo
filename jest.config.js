@@ -9,6 +9,7 @@ const customJestConfig = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   testEnvironment: "jest-environment-jsdom",
   moduleNameMapper: {
+    "^pixi\\.js$": "<rootDir>/__mocks__/pixi.js",
     "^@/(.*)$": "<rootDir>/$1",
   },
   // Nested git worktrees live under .claude/worktrees/; the parent checkout's

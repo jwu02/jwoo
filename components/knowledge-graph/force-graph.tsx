@@ -2,106 +2,110 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
+import type { FederatedPointerEvent } from "pixi.js";
 import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 import {
   computeDegrees,
   computeFitTransform,
-  getVisibleEdges,
-  getVisibleNodes,
+  computeRoughInitialTransform,
 } from "@/lib/knowledge-graph/graph-data";
+import { usePixiApp } from "./use-pixi-app";
 
 interface ForceGraphProps {
   nodes: KnowledgeGraphNode[];
   edges: KnowledgeGraphEdge[];
-  currentTime: number;
 }
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
-type GraphLink = KnowledgeGraphEdge & d3.SimulationLinkDatum<GraphNode>;
-type ResolvedGraphLink = KnowledgeGraphEdge & { source: GraphNode; target: GraphNode };
+type GraphLink = KnowledgeGraphEdge & d3.SimulationLinkDatum<GraphNode> & { source: GraphNode; target: GraphNode };
 
 const NODE_BASE_RADIUS = 4;
-const LABEL_GAP = 6;
+const CIRCLE_TEXTURE_RADIUS = 8;
 
-export function ForceGraph({ nodes, edges, currentTime }: ForceGraphProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
-  const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
-  const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
-  const degreesRef = useRef<Map<string, number>>(new Map());
-  const lastSignatureRef = useRef<string | null>(null);
-  const hoveredIdRef = useRef<string | null>(null);
-  const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
-  const nodeSelectionRef = useRef<
-    d3.Selection<SVGCircleElement, GraphNode, SVGGElement, unknown> | null
-  >(null);
-  const linkSelectionRef = useRef<
-    d3.Selection<SVGLineElement, ResolvedGraphLink, SVGGElement, unknown> | null
-  >(null);
-  // Precomputed collide radii (by node id) so the collide force doesn't do a
-  // Map lookup + Math.sqrt per node on every tick.
-  const collideRadiusRef = useRef<Map<string, number>>(new Map());
-  // Node id -> incident links, and "source->target" key -> its <line> element.
-  // Let the drag handler move the grabbed node's links in O(degree) without
-  // scanning the whole edge set on every pointer move.
-  const incidentEdgesRef = useRef<Map<string, ResolvedGraphLink[]>>(new Map());
-  const linkElementsRef = useRef<Map<string, SVGLineElement>>(new Map());
+// Single source of truth for the degree → radius mapping (node size, collide
+// radius, label offset) so retuning the size model touches one place.
+function nodeRadius(degree: number): number {
+  return NODE_BASE_RADIUS + Math.sqrt(degree);
+}
 
+// The subset of FederatedPointerEvent the sprite handlers touch, so the drag
+// and hover handlers are typed instead of duck-cast to an inline shape.
+type NodePointerEvent = Pick<
+  FederatedPointerEvent,
+  "client" | "stopPropagation" | "preventDefault"
+>;
+
+function cssVarToPixiColor(varName: string, PIXI: typeof import("pixi.js")): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  // A 2D canvas context accepts any CSS color (oklch, lab, hsl, hex, named…)
+  // and lets us read the exact RGB it resolves to — `getComputedStyle().color`
+  // serializes to `lab(...)` in modern browsers, which PIXI.Color cannot parse.
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = raw || "black";
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return (r << 16) | (g << 8) | b;
+  }
+  // jsdom has no 2D canvas, but it serializes computed colors as rgb(...),
+  // which PIXI.Color can parse.
+  const probe = document.createElement("div");
+  probe.style.color = raw || "black";
+  document.body.appendChild(probe);
+  const rgb = getComputedStyle(probe).color;
+  document.body.removeChild(probe);
+  return new PIXI.Color(rgb).toNumber();
+}
+
+function mixColors(c1: number, c2: number, t: number): number {
+  const r1 = (c1 >> 16) & 255;
+  const g1 = (c1 >> 8) & 255;
+  const b1 = c1 & 255;
+  const r2 = (c2 >> 16) & 255;
+  const g2 = (c2 >> 8) & 255;
+  const b2 = c2 & 255;
+  const r = Math.round(r1 * (1 - t) + r2 * t);
+  const g = Math.round(g1 * (1 - t) + g2 * t);
+  const b = Math.round(b1 * (1 - t) + b2 * t);
+  return (r << 16) | (g << 8) | b;
+}
+
+export function ForceGraph({ nodes, edges }: ForceGraphProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const visibleNodes = useMemo(
-    () => getVisibleNodes(nodes, currentTime),
-    [nodes, currentTime]
-  );
-  const visibleEdges = useMemo(
-    () => getVisibleEdges(edges, visibleNodes),
-    [edges, visibleNodes]
-  );
-  const degrees = useMemo(
-    () => computeDegrees(visibleNodes, visibleEdges),
-    [visibleNodes, visibleEdges]
-  );
+  const labelRef = useRef<HTMLDivElement>(null);
 
-  // Highlight the hovered node and its incident links in the accent colour.
-  // Nodes directly connected to it stay undimmed so the neighbourhood reads as
-  // context; unrelated nodes and edges fade out (Obsidian-style). Reads only
-  // refs, so it is stable and safe to call from d3 event handlers and joins.
-  const applyHover = useCallback(() => {
-    const hovered = hoveredIdRef.current;
-    const nodes = nodeSelectionRef.current;
-    const links = linkSelectionRef.current;
-    if (!nodes || !links) return;
+  const graphNodes = useMemo<GraphNode[]>(() => nodes.map((node) => ({ ...node })), [nodes]);
+  const graphEdges = useMemo(() => edges.map((edge) => ({ ...edge })), [edges]);
+  const degrees = useMemo(() => computeDegrees(graphNodes, graphEdges), [graphNodes, graphEdges]);
 
-    const neighbors = new Set<string>();
-    if (hovered !== null) {
-      for (const d of links.data()) {
-        if (d.source.id === hovered) neighbors.add(d.target.id);
-        if (d.target.id === hovered) neighbors.add(d.source.id);
-      }
-    }
+  const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
+  const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
+  const degreesRef = useRef<Map<string, number>>(degrees);
+  const nodeRadiusRef = useRef<Map<string, number>>(new Map());
+  const adjacencyRef = useRef<Map<string, Set<string>>>(new Map());
+  const incidentLinksRef = useRef<Map<string, GraphLink[]>>(new Map());
+  const nodeSpritesRef = useRef<Map<string, import("pixi.js").Sprite>>(new Map());
+  const linkSpritesRef = useRef<Map<GraphLink, import("pixi.js").Sprite>>(new Map());
+  const worldContainerRef = useRef<import("pixi.js").Container | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
+  const dragNodeRef = useRef<GraphNode | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<HTMLDivElement, unknown> | null>(null);
+  const zoomSelectionRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null);
+  const userInteractedRef = useRef(false);
+  const colorsRef = useRef({ node: 0, edge: 0, hover: 0, link: 0, bg: 0 });
 
-    nodes
-      .classed("kg-node--hovered", (d: GraphNode) => d.id === hovered)
-      .classed(
-        "kg-node--dimmed",
-        (d: GraphNode) => hovered !== null && d.id !== hovered && !neighbors.has(d.id)
-      );
+  useEffect(() => {
+    degreesRef.current = degrees;
+  }, [degrees]);
 
-    links
-      .classed(
-        "kg-link--hovered",
-        (d: ResolvedGraphLink) =>
-          hovered !== null && (d.source.id === hovered || d.target.id === hovered)
-      )
-      .classed(
-        "kg-link--dimmed",
-        (d: ResolvedGraphLink) =>
-          hovered !== null && d.source.id !== hovered && d.target.id !== hovered
-      );
-  }, []);
-
-  // Place the HTML filename label just under the hovered node, converting the
-  // node's graph coords to screen coords via the current zoom transform.
   const positionLabel = useCallback(() => {
     const label = labelRef.current;
     const hovered = hoveredIdRef.current;
@@ -111,294 +115,396 @@ export function ForceGraph({ nodes, edges, currentTime }: ForceGraphProps) {
     const transform = zoomTransformRef.current;
     const screenX = node.x * transform.k + transform.x;
     const screenY = node.y * transform.k + transform.y;
-    const radius = NODE_BASE_RADIUS + Math.sqrt(degreesRef.current.get(hovered) ?? 0);
-    label.style.left = `${screenX}px`;
-    label.style.top = `${screenY + radius + LABEL_GAP}px`;
+    const radius = nodeRadiusRef.current.get(hovered) ?? NODE_BASE_RADIUS;
+    label.style.transform = `translate3d(${screenX}px, ${screenY + radius + 6}px, 0) translateX(-50%)`;
   }, []);
 
-  // Position the label once it has mounted so it appears under the node
-  // immediately on hover; ticks and zoom keep it pinned afterwards.
+  const updateLinkSprite = useCallback(
+    (sprite: import("pixi.js").Sprite, source: GraphNode, target: GraphNode) => {
+      const x1 = source.x ?? 0;
+      const y1 = source.y ?? 0;
+      const x2 = target.x ?? 0;
+      const y2 = target.y ?? 0;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 0.001;
+      sprite.x = x1;
+      sprite.y = y1;
+      sprite.width = len;
+      sprite.rotation = Math.atan2(dy, dx);
+    },
+    []
+  );
+
+  const applyHover = useCallback(() => {
+    const hovered = hoveredIdRef.current;
+    const nodeSprites = nodeSpritesRef.current;
+    const linkSprites = linkSpritesRef.current;
+    const adjacency = adjacencyRef.current;
+    const colors = colorsRef.current;
+    const degreeMap = degreesRef.current;
+    const radii = nodeRadiusRef.current;
+    // Every node is seeded a Set in the index, so the lookups below never miss.
+    const neighborIds = hovered !== null ? adjacency.get(hovered) : undefined;
+
+    for (const [id, sprite] of nodeSprites) {
+      const isHovered = id === hovered;
+      const isDimmed = hovered !== null && !isHovered && !neighborIds?.has(id);
+      const degree = degreeMap.get(id) ?? 0;
+      const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / CIRCLE_TEXTURE_RADIUS;
+      sprite.tint = isHovered ? colors.hover : degree === 1 ? colors.edge : colors.node;
+      sprite.alpha = isDimmed ? 0.15 : 1;
+      sprite.scale.set(baseScale * (isHovered ? 1.3 : 1));
+    }
+
+    for (const [link, sprite] of linkSprites) {
+      const isIncident =
+        hovered !== null && (link.source.id === hovered || link.target.id === hovered);
+      sprite.tint = isIncident ? colors.hover : colors.link;
+      sprite.alpha = hovered === null ? 0.15 : isIncident ? 1 : 0.08;
+    }
+  }, []);
+
+  const startDrag = useCallback(
+    (event: NodePointerEvent, node: GraphNode) => {
+      event.stopPropagation();
+      event.preventDefault();
+      if (dragNodeRef.current) return;
+
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const simulation = simulationRef.current;
+      if (simulation) simulation.alphaTarget(0.3).restart();
+
+      dragNodeRef.current = node;
+      const t = zoomTransformRef.current;
+      const toGraphX = (clientX: number) => (clientX - rect.left - t.x) / t.k;
+      const toGraphY = (clientY: number) => (clientY - rect.top - t.y) / t.k;
+      node.fx = toGraphX(event.client.x);
+      node.fy = toGraphY(event.client.y);
+
+      const handleMove = (e: PointerEvent) => {
+        const dragged = dragNodeRef.current;
+        const sim = simulationRef.current;
+        if (!dragged) return;
+        const gx = toGraphX(e.clientX);
+        const gy = toGraphY(e.clientY);
+        dragged.fx = gx;
+        dragged.fy = gy;
+        dragged.x = gx;
+        dragged.y = gy;
+
+        const sprite = nodeSpritesRef.current.get(dragged.id);
+        if (sprite) {
+          sprite.x = gx;
+          sprite.y = gy;
+        }
+        const incident = incidentLinksRef.current.get(dragged.id);
+        if (incident) {
+          for (const link of incident) {
+            const linkSprite = linkSpritesRef.current.get(link);
+            if (linkSprite) updateLinkSprite(linkSprite, link.source, link.target);
+          }
+        }
+        positionLabel();
+
+        if (sim && sim.alpha() < 0.1) sim.alphaTarget(0.3).restart();
+      };
+
+      const handleUp = () => {
+        dragCleanupRef.current = null;
+        const sim = simulationRef.current;
+        if (sim) sim.alphaTarget(0);
+        const dragged = dragNodeRef.current;
+        if (dragged) {
+          dragged.fx = undefined;
+          dragged.fy = undefined;
+        }
+        dragNodeRef.current = null;
+        document.removeEventListener("pointermove", handleMove);
+        document.removeEventListener("pointerup", handleUp);
+      };
+
+      // Tracked so a rebuild/unmount mid-drag can still detach the listeners;
+      // handleUp() is idempotent for the not-dragging case.
+      dragCleanupRef.current = handleUp;
+      document.addEventListener("pointermove", handleMove);
+      document.addEventListener("pointerup", handleUp);
+    },
+    [updateLinkSprite, positionLabel]
+  );
+
+  // Build the Pixi scene and d3-force simulation once per data set.
   useEffect(() => {
-    positionLabel();
-  }, [hoveredId, positionLabel]);
+    if (!app || graphNodes.length === 0) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const { clientWidth, clientHeight } = wrapper;
 
-  // Build the SVG shell, zoom, and force simulation once per graph data set.
-  // The simulation lays out the full graph so node positions stay stable while
-  // `currentTime` advances; node/edge visibility is toggled by the effect below
-  // instead of wiping (`svg.selectAll("*").remove()`) and rebuilding the graph.
+    const teardownWorld = () => {
+      dragCleanupRef.current?.();
+      simulationRef.current?.stop();
+      simulationRef.current = null;
+      const world = worldContainerRef.current;
+      if (world) {
+        // On unmount, usePixiApp's cleanup destroys the Application before this
+        // effect's cleanup runs. Application.destroy() nulls app.stage and has
+        // already destroyed the world (children + textures) along with the
+        // stage, so guard against dereferencing the nulled stage.
+        if (app?.stage) {
+          app.stage.removeChild(world);
+          world.destroy({ children: true, texture: true });
+        }
+        worldContainerRef.current = null;
+      }
+      nodeSpritesRef.current = new Map();
+      linkSpritesRef.current = new Map();
+    };
+
+    let cancelled = false;
+    const build = async () => {
+      const PIXI = await import("pixi.js");
+      if (cancelled) return;
+
+      const node = cssVarToPixiColor("--primary", PIXI);
+      const bg = cssVarToPixiColor("--background", PIXI);
+      colorsRef.current = {
+        node,
+        hover: cssVarToPixiColor("--claude-orange", PIXI),
+        link: cssVarToPixiColor("--foreground", PIXI),
+        bg,
+        edge: mixColors(node, bg, 0.4),
+      };
+
+      // The effect cleanup tears the previous world down on rebuild; this call
+      // is defensive for the async gap between a cancelled build and the next.
+      teardownWorld();
+      hoveredIdRef.current = null;
+      setHoveredId(null);
+      dragNodeRef.current = null;
+      userInteractedRef.current = false;
+
+      const world = new PIXI.Container();
+      worldContainerRef.current = world;
+      app.stage.addChild(world);
+
+      const linksContainer = new PIXI.Container();
+      const nodesContainer = new PIXI.Container();
+      world.addChild(linksContainer);
+      world.addChild(nodesContainer);
+
+      const circleGraphics = new PIXI.Graphics();
+      circleGraphics.circle(0, 0, CIRCLE_TEXTURE_RADIUS).fill(0xffffff);
+      const circleTexture = app.renderer.generateTexture(circleGraphics);
+      circleGraphics.destroy();
+
+      // The simulation mutates these in place; graphNodes/graphEdges are the
+      // memoized clones of the props, so the props themselves are never touched.
+      const simNodes: GraphNode[] = graphNodes;
+      const nodesById = new Map(simNodes.map((node) => [node.id, node]));
+      nodesByIdRef.current = nodesById;
+
+      const simLinks: GraphLink[] = graphEdges.map(
+        (edge) =>
+          ({
+            source: nodesById.get(edge.source)!,
+            target: nodesById.get(edge.target)!,
+          }) as GraphLink
+      );
+
+      const adjacency = new Map<string, Set<string>>();
+      const incident = new Map<string, GraphLink[]>();
+      for (const node of simNodes) adjacency.set(node.id, new Set());
+      for (const link of simLinks) {
+        adjacency.get(link.source.id)!.add(link.target.id);
+        adjacency.get(link.target.id)!.add(link.source.id);
+        const fromSource = incident.get(link.source.id) ?? [];
+        fromSource.push(link);
+        incident.set(link.source.id, fromSource);
+        const fromTarget = incident.get(link.target.id) ?? [];
+        fromTarget.push(link);
+        incident.set(link.target.id, fromTarget);
+      }
+      adjacencyRef.current = adjacency;
+      incidentLinksRef.current = incident;
+
+      const nodeSprites = new Map<string, import("pixi.js").Sprite>();
+      const nodeSpriteArr: import("pixi.js").Sprite[] = [];
+      const nodeRadii = new Map<string, number>();
+      for (const node of simNodes) {
+        const degree = degrees.get(node.id) ?? 0;
+        const radius = nodeRadius(degree);
+        nodeRadii.set(node.id, radius);
+        const sprite = new PIXI.Sprite(circleTexture);
+        sprite.label = node.id;
+        sprite.anchor.set(0.5);
+        sprite.eventMode = "static";
+        sprite.cursor = "pointer";
+        sprite.scale.set(radius / CIRCLE_TEXTURE_RADIUS);
+        sprite.tint = degree === 1 ? colorsRef.current.edge : colorsRef.current.node;
+        sprite.alpha = 1;
+        nodesContainer.addChild(sprite);
+        nodeSprites.set(node.id, sprite);
+        nodeSpriteArr.push(sprite);
+
+        sprite.on("pointerover", (e: FederatedPointerEvent) => {
+          e.stopPropagation();
+          if (dragNodeRef.current?.id === node.id) return;
+          hoveredIdRef.current = node.id;
+          setHoveredId(node.id);
+          applyHover();
+          positionLabel();
+        });
+        sprite.on("pointerout", (e: FederatedPointerEvent) => {
+          e.stopPropagation();
+          if (dragNodeRef.current?.id === node.id) return;
+          hoveredIdRef.current = null;
+          setHoveredId(null);
+          applyHover();
+        });
+        sprite.on("pointerdown", (e: FederatedPointerEvent) => {
+          startDrag(e, node);
+        });
+      }
+      nodeSpritesRef.current = nodeSprites;
+      nodeRadiusRef.current = nodeRadii;
+
+      const linkSprites = new Map<GraphLink, import("pixi.js").Sprite>();
+      const linkSpriteArr: import("pixi.js").Sprite[] = [];
+      for (const link of simLinks) {
+        const sprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+        sprite.label = `${link.source.id}->${link.target.id}`;
+        sprite.anchor.set(0, 0.5);
+        sprite.height = 1;
+        sprite.tint = colorsRef.current.link;
+        sprite.alpha = 0.15;
+        linksContainer.addChild(sprite);
+        linkSprites.set(link, sprite);
+        linkSpriteArr.push(sprite);
+      }
+      linkSpritesRef.current = linkSprites;
+
+      const simulation = d3
+        .forceSimulation<GraphNode>(simNodes)
+        .force(
+          "link",
+          d3.forceLink<GraphNode, GraphLink>(simLinks).id((d: GraphNode) => d.id).distance(60)
+        )
+        .force("charge", d3.forceManyBody().strength(-120))
+        .force("center", d3.forceCenter(clientWidth / 2, clientHeight / 2))
+        .force("x", d3.forceX<GraphNode>(clientWidth / 2).strength(0.06))
+        .force("y", d3.forceY<GraphNode>(clientHeight / 2).strength(0.06))
+        .force(
+          "collide",
+          d3.forceCollide<GraphNode>().radius((d: GraphNode) => nodeRadiusRef.current.get(d.id) ?? NODE_BASE_RADIUS)
+        );
+      simulationRef.current = simulation;
+
+      let initialFitDone = false;
+      const fitView = () => {
+        const fit = computeFitTransform(simNodes, clientWidth, clientHeight, 60);
+        const t = d3.zoomIdentity.translate(fit.x, fit.y).scale(fit.k);
+        if (!userInteractedRef.current && zoomSelectionRef.current && zoomBehaviorRef.current) {
+          zoomSelectionRef.current.transition().duration(500).call(zoomBehaviorRef.current.transform, t);
+        }
+      };
+
+      simulation.on("tick", () => {
+        // Sprites are kept in arrays aligned 1:1 with the sim data, so the hot
+        // per-tick path is plain index lookups instead of string-keyed Map gets.
+        for (let i = 0; i < simNodes.length; i++) {
+          const sprite = nodeSpriteArr[i];
+          sprite.x = simNodes[i].x ?? 0;
+          sprite.y = simNodes[i].y ?? 0;
+        }
+        for (let i = 0; i < simLinks.length; i++) {
+          const link = simLinks[i];
+          updateLinkSprite(linkSpriteArr[i], link.source, link.target);
+        }
+        positionLabel();
+
+        // Snap to a rough initial frame on the first tick. d3 seeded every node
+        // with a phyllotaxis position when the simulation was constructed, so
+        // center on the seeded centroid right away. It is intentionally loose —
+        // the layout is about to change, so a rough frame is enough; the precise
+        // fit runs once the simulation settles.
+        if (!initialFitDone) {
+          initialFitDone = true;
+          const rough = computeRoughInitialTransform(simNodes, clientWidth, clientHeight);
+          const t = d3.zoomIdentity.translate(rough.x, rough.y).scale(rough.k);
+          if (!userInteractedRef.current && zoomSelectionRef.current && zoomBehaviorRef.current) {
+            zoomSelectionRef.current.call(zoomBehaviorRef.current.transform, t);
+          }
+        }
+      });
+
+      // Re-fit once the layout has fully settled. The first fit framed the
+      // initial circle, which the forces then spread beyond; "end" fires when
+      // alpha drops below alphaMin (positions are final), so this corrective
+      // fit guarantees the resting layout is fully in view.
+      simulation.on("end", fitView);
+    };
+
+    build();
+
+    return () => {
+      cancelled = true;
+      teardownWorld();
+    };
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, startDrag, updateLinkSprite]);
+
+  // d3-zoom drives the Pixi world container transform.
   useEffect(() => {
-    if (!svgRef.current) return;
-
-    const svg = d3.select(svgRef.current);
-    const width = svgRef.current.clientWidth || 800;
-    const height = svgRef.current.clientHeight || 600;
-
-    // Fits the camera to the whole graph once the layout settles. Local to
-    // this effect, so it resets (refits) only when a new data set rebuilds the
-    // simulation — never during playback or drag.
-    let fitDone = false;
-
-    svg.selectAll("*").remove();
-
-    const g = svg.append("g");
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
     const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
+      .zoom<HTMLDivElement, unknown>()
       .scaleExtent([0.1, 4])
       .on("zoom", (event) => {
-        // A user-driven zoom (wheel/pinch/pan) carries a sourceEvent and
-        // cancels the initial fit transition so it can't fight the gesture.
-        if (event.sourceEvent) svg.interrupt();
-        zoomTransformRef.current = {
-          x: event.transform.x,
-          y: event.transform.y,
-          k: event.transform.k,
-        };
-        g.attr("transform", event.transform.toString());
+        if (event.sourceEvent) {
+          userInteractedRef.current = true;
+          zoomSelectionRef.current?.interrupt();
+        }
+        zoomTransformRef.current = { x: event.transform.x, y: event.transform.y, k: event.transform.k };
+        const world = worldContainerRef.current;
+        if (world) {
+          world.position.set(event.transform.x, event.transform.y);
+          world.scale.set(event.transform.k);
+        }
         positionLabel();
       });
 
-    svg.call(zoom);
-
-    const simulationNodes: GraphNode[] = nodes.map((node) => ({ ...node }));
-    const simulationLinks: GraphLink[] = edges.map((edge) => ({ ...edge }));
-
-    nodesByIdRef.current = new Map(simulationNodes.map((node) => [node.id, node]));
-
-    const simulation = d3
-      .forceSimulation(simulationNodes)
-      .force(
-        "link",
-        d3
-          .forceLink<GraphNode, GraphLink>(simulationLinks)
-          .id((d: GraphNode) => d.id)
-          .distance(60)
-      )
-      .force("charge", d3.forceManyBody().strength(-120))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("x", d3.forceX<GraphNode>(width / 2).strength(0.06))
-      .force("y", d3.forceY<GraphNode>(height / 2).strength(0.06))
-      .force(
-        "collide",
-        d3.forceCollide<GraphNode>().radius(
-          (d: GraphNode) => collideRadiusRef.current.get(d.id) ?? 5
-        )
-      );
-
-    simulationRef.current = simulation;
-
-    const linkGroup = g.append("g");
-    const nodeGroup = g.append("g");
-
-    linkSelectionRef.current = linkGroup.selectAll<SVGLineElement, ResolvedGraphLink>("line");
-    nodeSelectionRef.current = nodeGroup.selectAll<SVGCircleElement, GraphNode>("circle");
-
-    simulation.on("tick", () => {
-      // Write each element's geometry in a single pass (native setAttribute)
-      // instead of one chained .attr() pass per attribute — at large graph
-      // sizes the selection iterations + function calls add up per frame.
-      const links = linkSelectionRef.current;
-      if (links) {
-        links.each(function (d) {
-          this.setAttribute("x1", String(d.source.x ?? 0));
-          this.setAttribute("y1", String(d.source.y ?? 0));
-          this.setAttribute("x2", String(d.target.x ?? 0));
-          this.setAttribute("y2", String(d.target.y ?? 0));
-        });
-      }
-
-      const nodes = nodeSelectionRef.current;
-      if (nodes) {
-        nodes.each(function (d) {
-          this.setAttribute("cx", String(d.x ?? 0));
-          this.setAttribute("cy", String(d.y ?? 0));
-        });
-      }
-
-      positionLabel();
-
-      // Once the layout has settled, zoom out so the whole (eventual) graph is
-      // in view instead of the handful of nodes around the centre filling the
-      // screen. Runs once per data set and eases in over 500ms.
-      if (!fitDone && simulation.alpha() < 0.05) {
-        fitDone = true;
-        const fit = computeFitTransform(simulation.nodes(), width, height, 60);
-        const t = d3.zoomIdentity.translate(fit.x, fit.y).scale(fit.k);
-        svg.transition().duration(500).call(zoom.transform, t);
-      }
-    });
+    const selection = d3.select(wrapper).call(zoom);
+    zoomBehaviorRef.current = zoom;
+    zoomSelectionRef.current = selection;
 
     return () => {
-      simulation.stop();
-      simulationRef.current = null;
-      lastSignatureRef.current = null;
-      hoveredIdRef.current = null;
-      setHoveredId(null);
+      selection.on(".zoom", null);
+      zoomBehaviorRef.current = null;
+      zoomSelectionRef.current = null;
     };
-  }, [nodes, edges, positionLabel]);
-
-  // Join the currently-visible nodes and edges onto the existing selections
-  // (enter/exit) as `currentTime` advances. The simulation itself is never
-  // recreated here, and the join is skipped when the visible set is unchanged,
-  // so the layout can settle while the timeline plays instead of being wiped
-  // and rebuilt on every frame.
-  useEffect(() => {
-    degreesRef.current = degrees;
-    collideRadiusRef.current = new Map(
-      [...degrees].map(([id, degree]) => [id, 5 + Math.sqrt(degree) * 2])
-    );
-
-    const simulation = simulationRef.current;
-    const nodesById = nodesByIdRef.current;
-    const nodeSelection = nodeSelectionRef.current;
-    const linkSelection = linkSelectionRef.current;
-    if (!simulation || !nodeSelection || !linkSelection) return;
-
-    const visibleSimNodes: GraphNode[] = visibleNodes
-      .map((node) => nodesById.get(node.id))
-      .filter((node): node is GraphNode => node !== undefined);
-
-    const visibleSimLinks: ResolvedGraphLink[] = visibleEdges
-      .map((edge) => {
-        const source = nodesById.get(edge.source);
-        const target = nodesById.get(edge.target);
-        if (source === undefined || target === undefined) return null;
-        return { ...edge, source, target };
-      })
-      .filter((link): link is ResolvedGraphLink => link !== null);
-
-    const signature =
-      visibleSimNodes.map((node) => node.id).join(",") +
-      "|" +
-      visibleSimLinks.map((link) => `${link.source.id}->${link.target.id}`).join(",");
-
-    if (signature === lastSignatureRef.current) return;
-    lastSignatureRef.current = signature;
-
-    const joinedLinks = linkSelection
-      .data(visibleSimLinks, (d: ResolvedGraphLink) => `${d.source.id}->${d.target.id}`)
-      .join<SVGLineElement>("line")
-      .classed("kg-link", true)
-      .attr("stroke-width", 1);
-    linkSelectionRef.current = joinedLinks;
-
-    // Index the joined links so the drag handler can move a node's incident
-    // edges in O(degree) without scanning the whole edge set on every pointer
-    // move.
-    const incidentEdges = new Map<string, ResolvedGraphLink[]>();
-    const linkElements = new Map<string, SVGLineElement>();
-    joinedLinks.each(function (d) {
-      linkElements.set(`${d.source.id}->${d.target.id}`, this);
-      const fromSource = incidentEdges.get(d.source.id);
-      if (fromSource) fromSource.push(d);
-      else incidentEdges.set(d.source.id, [d]);
-      const fromTarget = incidentEdges.get(d.target.id);
-      if (fromTarget) fromTarget.push(d);
-      else incidentEdges.set(d.target.id, [d]);
-    });
-    incidentEdgesRef.current = incidentEdges;
-    linkElementsRef.current = linkElements;
-
-    nodeSelectionRef.current = nodeSelection
-      .data(visibleSimNodes, (d: GraphNode) => d.id)
-      .join<SVGCircleElement>("circle")
-      .classed("kg-node", true)
-      // Edge nodes are the leaves of the visible graph — exactly one
-      // connection — and render slightly dimmed so hubs stand out. A hub
-      // (degree >= 2) or an isolated node (degree 0) keeps full colour.
-      .classed("kg-node--edge", (d: GraphNode) => (degrees.get(d.id) ?? 0) === 1)
-      .attr("r", (d: GraphNode) => NODE_BASE_RADIUS + Math.sqrt(degrees.get(d.id) ?? 0))
-      .attr("stroke", "var(--background)")
-      .attr("stroke-width", 1.5)
-      .on("mouseover", (_event, d) => {
-        hoveredIdRef.current = d.id;
-        setHoveredId(d.id);
-        applyHover();
-        positionLabel();
-      })
-      .on("mouseout", () => {
-        hoveredIdRef.current = null;
-        setHoveredId(null);
-        applyHover();
-      })
-      .call(
-        d3
-          .drag<SVGCircleElement, GraphNode>()
-          .on("start", function (event, d) {
-            // Reheat the simulation so neighbouring nodes keep easing toward
-            // the dragged node while it moves; pin the node so the forces
-            // don't yank it away from the pointer.
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", function (event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-            d.x = event.x;
-            d.y = event.y;
-
-            // Move the grabbed node and its incident links synchronously so the
-            // drag tracks the pointer instead of waiting on a simulation tick.
-            d3.select<SVGCircleElement, GraphNode>(this)
-              .attr("cx", event.x)
-              .attr("cy", event.y);
-
-            const incident = incidentEdgesRef.current.get(d.id);
-            if (incident) {
-              for (const link of incident) {
-                const el = linkElementsRef.current.get(
-                  `${link.source.id}->${link.target.id}`
-                );
-                if (!el) continue;
-                el.setAttribute("x1", String(link.source.x ?? 0));
-                el.setAttribute("y1", String(link.source.y ?? 0));
-                el.setAttribute("x2", String(link.target.x ?? 0));
-                el.setAttribute("y2", String(link.target.y ?? 0));
-              }
-            }
-
-            positionLabel();
-          })
-          .on("end", function (event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = undefined;
-            d.fy = undefined;
-            positionLabel();
-          })
-      );
-
-    // If the hovered node is no longer visible (e.g. playback moved past its
-    // removal), drop the highlight so a ghost label isn't left behind.
-    if (
-      hoveredIdRef.current !== null &&
-      !visibleSimNodes.some((node) => node.id === hoveredIdRef.current)
-    ) {
-      hoveredIdRef.current = null;
-      setHoveredId(null);
-    }
-    applyHover();
-    positionLabel();
-
-    simulation.alpha(0.3).restart();
-  }, [visibleNodes, visibleEdges, degrees, applyHover, positionLabel]);
+  }, [positionLabel]);
 
   return (
-    <div className="relative h-full w-full">
-      <svg
-        ref={svgRef}
-        className="h-full w-full touch-none"
-        style={{ color: "var(--foreground)" }}
-      />
-      {hoveredId !== null && (
-        <div
-          ref={labelRef}
-          data-testid="kg-node-label"
-          className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-primary [text-shadow:0_0_3px_var(--background),0_0_3px_var(--background)]"
-        >
-          {hoveredId}
-        </div>
-      )}
+    <div
+      ref={wrapperRef}
+      className="relative h-full w-full overflow-hidden touch-none"
+      data-testid="kg-graph-wrapper"
+    >
+      {/* Always mounted so positionLabel() (called from pointerover before any
+          React commit) always finds the element; visibility is CSS-gated. */}
+      <div
+        ref={labelRef}
+        data-testid="kg-node-label"
+        aria-hidden={hoveredId === null}
+        className={`pointer-events-none absolute left-0 top-0 z-10 whitespace-nowrap text-xs font-medium text-primary transition-opacity [text-shadow:0_0_3px_var(--background),0_0_3px_var(--background)] ${
+          hoveredId === null ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        {hoveredId}
+      </div>
     </div>
   );
 }
