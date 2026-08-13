@@ -11,6 +11,9 @@ const customJestConfig = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
+  // Nested git worktrees live under .claude/worktrees/; the parent checkout's
+  // Jest must not discover their duplicate test files.
+  testPathIgnorePatterns: ["<rootDir>/.claude/worktrees/"],
 };
 
 export default createJestConfig(customJestConfig);
