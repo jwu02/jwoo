@@ -21,6 +21,10 @@ function getClient(): MongoClient {
   return global._mongoClient;
 }
 
+export function getMongoClient(): MongoClient {
+  return getClient();
+}
+
 export function getTelemetryCollection(): Collection {
   const client = getClient();
   const db: Db = client.db(DB_NAME);

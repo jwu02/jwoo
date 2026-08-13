@@ -1,4 +1,4 @@
-import { Activity } from "lucide-react"
+import { Activity, Circle } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,23 @@ export default function HomePage() {
             >
               <Activity data-icon="inline-start" />
               View dashboard
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Circle />
+            </div>
+            <CardTitle>Knowledge Graph</CardTitle>
+            <CardDescription>
+              Explore Obsidian-style note connections.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button render={<Link href="/knowledge-graph" />} nativeButton={false}>
+              <Circle data-icon="inline-start" />
+              Open graph
             </Button>
           </CardContent>
         </Card>
