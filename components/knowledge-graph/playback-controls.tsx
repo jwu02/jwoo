@@ -40,6 +40,7 @@ export function PlaybackControls({
       <div className="min-w-[100px] text-sm tabular-nums">{formatDate(currentTime)}</div>
       <input
         type="range"
+        aria-label="Timeline"
         min={minTime}
         max={maxTime}
         value={currentTime}

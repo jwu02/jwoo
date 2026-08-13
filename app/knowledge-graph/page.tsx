@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { PlaybackControls } from "@/components/knowledge-graph/playback-controls";
 import { ErrorBanner } from "@/components/telemetry/error-banner";
@@ -36,24 +36,38 @@ export default function KnowledgeGraphPage() {
     setCurrentTime(minTime);
   }
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch("/api/knowledge-graph");
-        if (!response.ok) throw new Error("Failed to load knowledge graph");
-        const json = await response.json();
-        setData(json);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch("/api/knowledge-graph");
+      if (!response.ok) throw new Error("Failed to load knowledge graph");
+      const json = await response.json();
+      setData(json);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, []);
 
   useEffect(() => {
-    if (!isPlaying || minTime === 0 || maxTime === 0) return;
+    const timeoutId = setTimeout(() => load(), 0);
+    return () => clearTimeout(timeoutId);
+  }, [load]);
+
+  useEffect(() => {
+    if (maxTime === minTime) {
+      // Degenerate timeline: either no data has loaded yet (0/0) or the whole
+      // graph sits at a single point in time. Once real data is present there
+      // is nothing to animate, so stop "playing" rather than leave a Pause
+      // button that implies a running animation.
+      if (data && isPlaying) {
+        const timeoutId = setTimeout(() => setIsPlaying(false), 0);
+        return () => clearTimeout(timeoutId);
+      }
+      return;
+    }
+    if (!isPlaying) return;
 
     function tick(now: number) {
       if (startTimeRef.current === null) {
@@ -80,7 +94,7 @@ export default function KnowledgeGraphPage() {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isPlaying, minTime, maxTime]);
+  }, [data, isPlaying, minTime, maxTime]);
 
   function handleTimeChange(time: number) {
     startTimeRef.current = null;
@@ -116,7 +130,7 @@ export default function KnowledgeGraphPage() {
     return (
       <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
         <h1 className="mb-4 text-2xl font-bold">Knowledge Graph</h1>
-        <ErrorBanner message={error} />
+        <ErrorBanner message={error} onRetry={load} />
       </div>
     );
   }

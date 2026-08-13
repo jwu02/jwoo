@@ -5,17 +5,21 @@ import type {
 } from "./types";
 
 export function buildGraph(docs: NoteDoc[]) {
-  const nodeIds = new Set(docs.map((doc) => doc.filename));
+  // Skip malformed docs (e.g. missing `createdAt`) instead of letting the
+  // whole graph 500. A doc without a creation date cannot be placed on the
+  // timeline, and its links would be dangling without a source node.
+  const validDocs = docs.filter((doc) => doc.createdAt instanceof Date);
+  const nodeIds = new Set(validDocs.map((doc) => doc.filename));
 
-  const nodes: KnowledgeGraphNode[] = docs
+  const nodes: KnowledgeGraphNode[] = validDocs
     .map((doc) => ({
       id: doc.filename,
       createdAt: doc.createdAt.toISOString(),
     }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-  const edges: KnowledgeGraphEdge[] = docs.flatMap((doc) =>
-    doc.links
+  const edges: KnowledgeGraphEdge[] = validDocs.flatMap((doc) =>
+    (doc.links ?? [])
       .filter((target) => nodeIds.has(target))
       .map((target) => ({ source: doc.filename, target }))
   );

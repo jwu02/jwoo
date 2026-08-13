@@ -9,10 +9,6 @@ jest.mock("@/lib/knowledge-graph/db", () => ({
 
 import { getNotesCollection } from "@/lib/knowledge-graph/db";
 
-function createRequest() {
-  return new Request("http://localhost/api/knowledge-graph");
-}
-
 describe("GET /api/knowledge-graph", () => {
   it("returns nodes and edges from the notes collection", async () => {
     const toArray = jest.fn().mockResolvedValue([
@@ -21,7 +17,7 @@ describe("GET /api/knowledge-graph", () => {
     ]);
     (getNotesCollection as jest.Mock).mockResolvedValue({ find: () => ({ toArray }) });
 
-    const response = await GET(createRequest());
+    const response = await GET();
     const json = await response.json();
 
     expect(response.status).toBe(200);
@@ -41,7 +37,7 @@ describe("GET /api/knowledge-graph", () => {
     ]);
     (getNotesCollection as jest.Mock).mockResolvedValue({ find: () => ({ toArray }) });
 
-    const response = await GET(createRequest());
+    const response = await GET();
     const json = await response.json();
 
     expect(json.edges).toEqual([]);
@@ -50,7 +46,7 @@ describe("GET /api/knowledge-graph", () => {
   it("returns 500 on database errors", async () => {
     (getNotesCollection as jest.Mock).mockRejectedValue(new Error("db down"));
 
-    const response = await GET(createRequest());
+    const response = await GET();
     const json = await response.json();
 
     expect(response.status).toBe(500);
