@@ -1,7 +1,7 @@
 import { TelemetryRange } from "./types";
 
 export interface RangeConfig {
-  unit: "hour" | "day" | "week" | "month";
+  unit: "minute" | "hour" | "day" | "week" | "month";
   binSize: number;
 }
 
@@ -21,10 +21,10 @@ export function getRangeStart(range: TelemetryRange, now = new Date()): Date {
 export function getBucketInterval(range: TelemetryRange): RangeConfig {
   switch (range) {
     case "24h":
-      return { unit: "hour", binSize: 1 };
+      return { unit: "minute", binSize: 30 };
     case "7d":
-      return { unit: "hour", binSize: 12 };
+      return { unit: "hour", binSize: 1 };
     case "1y":
-      return { unit: "week", binSize: 1 };
+      return { unit: "day", binSize: 1 };
   }
 }

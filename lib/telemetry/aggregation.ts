@@ -151,7 +151,16 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 function alignToInterval(date: Date, interval: RangeConfig): Date {
   const aligned = new Date(date);
   aligned.setUTCSeconds(0, 0);
-  aligned.setUTCMinutes(0);
+
+  if (interval.unit === "minute") {
+    // Floor to the bin boundary, mirroring MongoDB $dateTrunc (which anchors
+    // at the UTC epoch, so 30-minute bins land on :00 and :30).
+    aligned.setUTCMinutes(
+      aligned.getUTCMinutes() - (aligned.getUTCMinutes() % interval.binSize)
+    );
+  } else {
+    aligned.setUTCMinutes(0);
+  }
 
   if (interval.unit === "day") {
     // binSize > 1 must anchor at the UTC epoch to match MongoDB $dateTrunc,
@@ -187,6 +196,9 @@ function alignToInterval(date: Date, interval: RangeConfig): Date {
 function addInterval(date: Date, interval: RangeConfig): Date {
   const next = new Date(date);
   switch (interval.unit) {
+    case "minute":
+      next.setUTCMinutes(next.getUTCMinutes() + interval.binSize);
+      break;
     case "hour":
       next.setUTCHours(next.getUTCHours() + interval.binSize);
       break;

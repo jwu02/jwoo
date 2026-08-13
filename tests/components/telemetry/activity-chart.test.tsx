@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { cloneElement } from "react";
 import { ActivityChart } from "@/components/telemetry/activity-chart";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
+import { formatTooltip } from "@/lib/telemetry/chart-format";
 
 jest.mock("recharts", () => {
   const actual = jest.requireActual("recharts");
@@ -204,5 +205,22 @@ describe("ActivityChart", () => {
     const items = await readTooltipItems();
     expect(items.some((item) => item.includes("Mouse Movement (m): 11"))).toBe(true);
     expect(items.some((item) => item.includes("10.56"))).toBe(false);
+  });
+
+  it("shows a formatted datetime header in the tooltip", async () => {
+    render(<ActivityChart data={buildData()} range="24h" />);
+
+    const wrapper = document.querySelector(".recharts-wrapper")!;
+    fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    const tooltip = document.querySelector(".recharts-tooltip-wrapper");
+    expect(tooltip).not.toBeNull();
+
+    const header = within(tooltip as HTMLElement).getByRole("paragraph");
+    const expectedLabels = buildData().map((p) => formatTooltip(p.bucket, "24h"));
+    expect(expectedLabels).toContain(header.textContent);
   });
 });

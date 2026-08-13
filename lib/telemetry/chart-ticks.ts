@@ -8,22 +8,21 @@ export function getTicksForRange(
 
   switch (range) {
     case "24h": {
-      // Hourly buckets; label every 3 hours.
+      // 30-minute buckets; label the :00 bucket of every 3rd hour.
       return buckets.filter((bucket) => {
         const date = new Date(bucket);
-        return date.getUTCHours() % 3 === 0;
+        return date.getUTCMinutes() === 0 && date.getUTCHours() % 3 === 0;
       });
     }
     case "7d": {
-      // Twelve-hour buckets; label once per day at midnight.
+      // Hourly buckets; label once per day at midnight.
       return buckets.filter((bucket) => {
         const date = new Date(bucket);
         return date.getUTCHours() === 0;
       });
     }
     case "1y": {
-      // Weekly buckets; label the first bucket of each month. The first of the
-      // month isn't always a bucket boundary, so pick the first bucket per month.
+      // Daily buckets; label the first bucket of each month (the 1st).
       const ticks: string[] = [];
       let lastMonth = -1;
       for (const bucket of buckets) {

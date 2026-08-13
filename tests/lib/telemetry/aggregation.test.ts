@@ -71,7 +71,7 @@ describe("buildTimeSeriesPipeline", () => {
 
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
     expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$createdAt", unit: "hour", binSize: 1 },
+      $dateTrunc: { date: "$createdAt", unit: "minute", binSize: 30 },
     });
     expect(groupStage.$group.leftClicks).toEqual({ $sum: "$leftClicks" });
     expect(groupStage.$group.rightClicks).toEqual({ $sum: "$rightClicks" });
@@ -81,18 +81,13 @@ describe("buildTimeSeriesPipeline", () => {
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
 
-  it("uses weekly truncation for 1y buckets", () => {
+  it("uses daily truncation for 1y buckets", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
     const pipeline = buildTimeSeriesPipeline("1y", now);
 
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
     expect(groupStage.$group._id).toEqual({
-      $dateTrunc: {
-        date: "$createdAt",
-        unit: "week",
-        binSize: 1,
-        startOfWeek: "monday",
-      },
+      $dateTrunc: { date: "$createdAt", unit: "day", binSize: 1 },
     });
   });
 });
@@ -176,38 +171,41 @@ describe("generateBuckets", () => {
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T17:00:00.000Z");
   });
 
-  it("produces 25 hourly buckets for 24h including the current hour", () => {
+  it("produces 49 thirty-minute buckets for 24h including the current half hour", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
     const buckets = generateBuckets("24h", now);
-    expect(buckets.length).toBe(25);
+    expect(buckets.length).toBe(49);
     expect(buckets[0]).toBe("2026-08-08T12:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
-  });
-
-  it("produces 15 twelve-hour buckets for 7d aligned to midnight and noon", () => {
-    const now = new Date("2026-08-09T14:30:00.000Z");
-    const buckets = generateBuckets("7d", now);
-    expect(buckets.length).toBe(15);
-    expect(buckets[0]).toBe("2026-08-02T12:00:00.000Z");
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
     buckets.forEach((bucket) => {
       const date = new Date(bucket);
-      expect(date.getUTCHours() % 12).toBe(0);
+      expect(date.getUTCMinutes() % 30).toBe(0);
+      expect(date.getUTCSeconds()).toBe(0);
+    });
+  });
+
+  it("produces 169 hourly buckets for 7d aligned to the hour", () => {
+    const now = new Date("2026-08-09T14:30:00.000Z");
+    const buckets = generateBuckets("7d", now);
+    expect(buckets.length).toBe(169);
+    expect(buckets[0]).toBe("2026-08-02T14:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T14:00:00.000Z");
+    buckets.forEach((bucket) => {
+      const date = new Date(bucket);
       expect(date.getUTCMinutes()).toBe(0);
       expect(date.getUTCSeconds()).toBe(0);
     });
   });
 
-  it("produces weekly buckets for 1y aligned to Monday", () => {
+  it("produces daily buckets for 1y aligned to UTC midnight", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
     const buckets = generateBuckets("1y", now);
 
-    expect(buckets.length).toBe(53);
-    expect(buckets[0]).toBe("2025-08-04T00:00:00.000Z");
-    expect(buckets[buckets.length - 1]).toBe("2026-08-03T00:00:00.000Z");
+    expect(buckets.length).toBe(366);
+    expect(buckets[0]).toBe("2025-08-09T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T00:00:00.000Z");
     buckets.forEach((bucket) => {
       const date = new Date(bucket);
-      expect(date.getUTCDay()).toBe(1); // Monday
       expect(date.getUTCHours()).toBe(0);
       expect(date.getUTCMinutes()).toBe(0);
       expect(date.getUTCSeconds()).toBe(0);

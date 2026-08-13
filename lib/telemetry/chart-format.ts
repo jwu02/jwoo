@@ -37,14 +37,18 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
         hour12: false,
       });
     case "7d":
-      return date.toLocaleDateString("en-US", {
+      return date.toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
     case "1y":
       return date.toLocaleDateString("en-US", {
         month: "short",
+        day: "numeric",
         year: "numeric",
       });
   }

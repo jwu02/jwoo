@@ -25,11 +25,11 @@ describe("formatTooltip", () => {
     expect(formatTooltip(bucket, "24h")).toBe("8/9/2025, 11:00");
   });
 
-  it("formats 7d tooltip as month, day, and year", () => {
-    expect(formatTooltip(bucket, "7d")).toBe("Aug 9, 2025");
+  it("formats 7d tooltip as month, day, year, and 24-hour time", () => {
+    expect(formatTooltip(bucket, "7d")).toBe("Aug 9, 2025, 11:00");
   });
 
-  it("formats 1y tooltip as month and year", () => {
-    expect(formatTooltip(bucket, "1y")).toBe("Aug 2025");
+  it("formats 1y tooltip as month, day, and year", () => {
+    expect(formatTooltip(bucket, "1y")).toBe("Aug 9, 2025");
   });
 });
