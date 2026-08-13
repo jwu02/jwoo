@@ -1,115 +1,49 @@
-"use client";
+import { Activity } from "lucide-react"
+import Link from "next/link"
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { SummaryCards } from "@/components/telemetry/summary-cards";
-import { MouseVisual } from "@/components/telemetry/mouse-visual";
-import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap";
-import { RangeSelector } from "@/components/telemetry/range-selector";
-import { ActivityChart } from "@/components/telemetry/activity-chart";
-import { ErrorBanner } from "@/components/telemetry/error-banner";
-import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types";
-
-const POLL_INTERVAL_MS = 60_000;
-
-async function fetchTelemetry(
-  range: TelemetryRange,
-  signal?: AbortSignal
-): Promise<TelemetryResponse> {
-  const response = await fetch(`/api/telemetry?range=${range}`, { signal });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `HTTP ${response.status}`);
-  }
-  return response.json();
-}
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 export default function HomePage() {
-  const [range, setRange] = useState<TelemetryRange>("24h");
-  const [data, setData] = useState<TelemetryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  const load = useCallback(
-    async (isBackground = false) => {
-      if (!isBackground) setLoading(true);
-      setError(null);
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      try {
-        const result = await fetchTelemetry(range, controller.signal);
-        setData(result);
-        setLastUpdated(new Date());
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load telemetry"
-        );
-      } finally {
-        if (!isBackground) setLoading(false);
-      }
-    },
-    [range]
-  );
-
-  useEffect(() => {
-    const timeout = setTimeout(() => load(), 0);
-    const interval = setInterval(() => load(true), POLL_INTERVAL_MS);
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-      abortControllerRef.current?.abort();
-    };
-  }, [load]);
-
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Activity Telemetry
-          </h1>
-          {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
-        </div>
-      </div>
+    <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
+      <section className="flex max-w-2xl flex-col gap-4">
+        <h1 className="text-4xl font-semibold tracking-tight">
+          Hello, I&apos;m jwoo.
+        </h1>
+        <p className="text-muted-foreground">
+          A personal site — a home for my tools and projects.
+        </p>
+      </section>
 
-      {error && <ErrorBanner message={error} onRetry={() => load()} />}
-
-      {loading && !data ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
-            ))}
-          </div>
-          <div className="h-80 animate-pulse rounded-xl bg-muted" />
-        </div>
-      ) : data ? (
-        <div className="space-y-8">
-          <SummaryCards totals={data.totals} />
-
-          <div className="grid gap-8 md:grid-cols-[1fr_240px]">
-            <KeyboardHeatmap keys={data.keys} />
-            <MouseVisual
-              leftClicks={data.totals.leftClicks}
-              rightClicks={data.totals.rightClicks}
-            />
-          </div>
-
-          <div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <RangeSelector value={range} onChange={setRange} />
+      <section className="mt-12 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Activity />
             </div>
-            <ActivityChart data={data.timeSeries} range={range} />
-          </div>
-        </div>
-      ) : null}
-    </main>
-  );
+            <CardTitle>Activity Telemetry</CardTitle>
+            <CardDescription>
+              Live mouse and keyboard activity collected from this machine.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              render={<Link href="/activity-telemetry" />}
+              nativeButton={false}
+            >
+              <Activity data-icon="inline-start" />
+              View dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  )
 }
