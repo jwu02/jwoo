@@ -1,6 +1,6 @@
 "use client"
 
-import { Activity, Home, Radar } from "lucide-react"
+import { Activity, Circle, Home, Radar } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -19,6 +19,7 @@ import {
 const NAV_ITEMS = [
   { title: "Home", url: "/", icon: Home },
   { title: "Activity Telemetry", url: "/activity-telemetry", icon: Activity },
+  { title: "Knowledge Graph", url: "/knowledge-graph", icon: Circle },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
