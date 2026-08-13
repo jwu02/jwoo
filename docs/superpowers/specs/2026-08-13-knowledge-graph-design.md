@@ -46,7 +46,8 @@ Document schema:
 {
   filename: string;   // e.g. "Projects/My Project.md"
   createdAt: Date;    // file birthtime
-  links: string[];    // outgoing [[...]] targets, e.g. ["Another Note"]
+  links: string[];    // resolved outgoing [[...]] target filenames,
+                      // e.g. ["Another Note.md"]
 }
 ```
 
@@ -105,7 +106,6 @@ New files:
 
 ```
 components/knowledge-graph/
-├── knowledge-graph-page.tsx   // data fetching + page layout
 ├── force-graph.tsx            // D3 force simulation + SVG rendering
 └── playback-controls.tsx      // slider + play/pause
 ```
@@ -159,8 +159,8 @@ Goal: match Obsidian’s graph view while fitting the site’s light/dark theme.
   light/dark mode automatically.
 - **Nodes:** small circles. Default color is a muted accent (`var(--primary)` or a
   chart color). Hover brightens the node.
-- **Node size:** scales slightly with the number of connections so hub notes stand
-  out.
+- **Node size:** scales slightly with total degree (incoming + outgoing edges)
+  so hub notes stand out.
 - **Edges:** thin 1px lines at low opacity (`var(--foreground)` at ~15–20%
   opacity).
 - **Labels:** normally hidden to reduce clutter. On hover, a tooltip shows the
@@ -186,8 +186,8 @@ Goal: match Obsidian’s graph view while fitting the site’s light/dark theme.
 - `app/api/knowledge-graph/route.ts` — API route returning nodes and edges.
 - `lib/knowledge-graph/types.ts` — shared types for the graph.
 - `lib/knowledge-graph/db.ts` — `getNotesCollection()` helper.
-- `app/knowledge-graph/page.tsx` — client page.
-- `components/knowledge-graph/knowledge-graph-page.tsx` — data fetching + layout.
+- `app/knowledge-graph/page.tsx` — client page that fetches data and composes the
+  graph + controls.
 - `components/knowledge-graph/force-graph.tsx` — D3 force simulation and SVG
   rendering.
 - `components/knowledge-graph/playback-controls.tsx` — slider and play/pause/reset.
