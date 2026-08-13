@@ -81,10 +81,12 @@ export function ForceGraph({ nodes, edges, currentTime }: ForceGraphProps) {
         d3
           .forceLink<GraphNode, GraphLink>(simulationLinks)
           .id((d: GraphNode) => d.id)
-          .distance(80)
+          .distance(60)
       )
-      .force("charge", d3.forceManyBody().strength(-200))
+      .force("charge", d3.forceManyBody().strength(-120))
       .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("x", d3.forceX<GraphNode>(width / 2).strength(0.06))
+      .force("y", d3.forceY<GraphNode>(height / 2).strength(0.06))
       .force(
         "collide",
         d3.forceCollide<GraphNode>().radius(
