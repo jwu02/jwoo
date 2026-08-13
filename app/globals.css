@@ -72,6 +72,7 @@
     --chart-4: #E69F00;
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
+    --claude-orange: #d97757;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -114,6 +115,7 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --claude-orange: #d97757;
 }
 
 @layer base {
@@ -126,4 +128,37 @@
   html {
     @apply font-sans;
     }
+}
+
+/* Knowledge graph hover highlighting (Obsidian-style). d3 joins classes onto
+   the SVG elements directly, so these are plain selectors rather than
+   Tailwind utilities. */
+.kg-node {
+  fill: var(--primary);
+  cursor: pointer;
+  transition: fill 120ms ease, opacity 120ms ease;
+}
+/* Edge nodes (leaf nodes with exactly one connection) render slightly
+   dimmed so hubs and isolated notes stand out. Defined before --hovered
+   so the hover colour still wins in the cascade. */
+.kg-node--edge {
+  fill: color-mix(in oklab, var(--primary) 40%, var(--background));
+}
+.kg-node--hovered {
+  fill: var(--claude-orange);
+}
+.kg-node--dimmed {
+  opacity: 0.15;
+}
+.kg-link {
+  stroke: currentColor;
+  stroke-opacity: 0.15;
+  transition: stroke 120ms ease, stroke-opacity 120ms ease, opacity 120ms ease;
+}
+.kg-link--hovered {
+  stroke: var(--claude-orange);
+  stroke-opacity: 1;
+}
+.kg-link--dimmed {
+  opacity: 0.08;
 }

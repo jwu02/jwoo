@@ -1,6 +1,7 @@
 import {
   buildGraph,
   computeDegrees,
+  computeFitTransform,
   getVisibleEdges,
   getVisibleNodes,
 } from "@/lib/knowledge-graph/graph-data";
@@ -70,5 +71,74 @@ describe("computeDegrees", () => {
         ["B.md", 2],
       ])
     );
+  });
+});
+
+describe("computeFitTransform", () => {
+  const width = 800;
+  const height = 600;
+  const padding = 60;
+
+  it("scales a large graph down to fit the viewport and centers it", () => {
+    const nodes = [
+      { x: -1000, y: -1000 },
+      { x: 1000, y: 1000 },
+    ];
+
+    // 2000x2000 content into 680x480 of usable space → 0.24 scale, centered.
+    expect(computeFitTransform(nodes, width, height, padding)).toEqual({
+      k: 0.24,
+      x: 400,
+      y: 300,
+    });
+  });
+
+  it("centers a non-origin bounding box", () => {
+    const nodes = [
+      { x: 200, y: 300 },
+      { x: 400, y: 500 },
+    ];
+
+    // 200x200 content centered on (300,400) → 2.4 scale.
+    expect(computeFitTransform(nodes, width, height, padding)).toEqual({
+      k: 2.4,
+      x: -320,
+      y: -660,
+    });
+  });
+
+  it("clamps the scale to the zoom scaleExtent", () => {
+    const tiny = [
+      { x: -5, y: -5 },
+      { x: 5, y: 5 },
+    ];
+    const enormous = [
+      { x: -500_000, y: -500_000 },
+      { x: 500_000, y: 500_000 },
+    ];
+
+    expect(computeFitTransform(tiny, width, height, padding).k).toBe(4);
+    expect(computeFitTransform(enormous, width, height, padding).k).toBe(0.1);
+  });
+
+  it("keeps a single-node graph at natural scale rather than zooming in", () => {
+    const nodes = [{ x: 100, y: 100 }];
+
+    expect(computeFitTransform(nodes, width, height, padding)).toEqual({
+      k: 1,
+      x: 300,
+      y: 200,
+    });
+  });
+
+  it("ignores nodes that have not been positioned yet", () => {
+    const nodes = [{ x: 0, y: 0 }, {}];
+
+    // Only the positioned node contributes → degenerate → natural scale.
+    expect(computeFitTransform(nodes, width, height, padding)).toEqual({
+      k: 1,
+      x: 400,
+      y: 300,
+    });
   });
 });

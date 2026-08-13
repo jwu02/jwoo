@@ -118,7 +118,6 @@ export default function KnowledgeGraphPage() {
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] flex-col">
-        <h1 className="px-6 pt-6 text-2xl font-bold">Knowledge Graph</h1>
         <div className="flex flex-1 items-center justify-center">
           Loading knowledge graph…
         </div>
@@ -129,7 +128,6 @@ export default function KnowledgeGraphPage() {
   if (error) {
     return (
       <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
-        <h1 className="mb-4 text-2xl font-bold">Knowledge Graph</h1>
         <ErrorBanner message={error} onRetry={load} />
       </div>
     );
@@ -138,7 +136,6 @@ export default function KnowledgeGraphPage() {
   if (!data || data.nodes.length === 0) {
     return (
       <div className="flex h-[calc(100vh-4rem)] flex-col">
-        <h1 className="px-6 pt-6 text-2xl font-bold">Knowledge Graph</h1>
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
           No notes synced yet.
         </div>
@@ -148,8 +145,7 @@ export default function KnowledgeGraphPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <h1 className="px-6 pt-6 text-2xl font-bold">Knowledge Graph</h1>
-      <div className="flex-1 overflow-hidden px-6 pb-2">
+      <div className="flex-1 overflow-hidden px-6 pb-2 pt-6">
         <ForceGraph nodes={data.nodes} edges={data.edges} currentTime={currentTime} />
       </div>
       <div className="border-t border-border p-4">
