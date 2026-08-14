@@ -140,6 +140,8 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --muted-foreground: oklch(0.556 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --theme-1: oklch(0 0 0);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -147,14 +149,19 @@
   line-height: 1.25;
 }
 
+/* @page is deliberately global: pure CSS cannot route-scope it, so it applies
+   to the whole site's print output (A4 is the target). */
 @page {
   size: A4;
   margin: 0;
 }
 
+/* Hide the site chrome only when printing the resume sheet (the site's only
+   print use-case). @page above is deliberately global — A4 is the target
+   output size. */
 @media print {
-  aside[data-slot="sidebar"],
-  header {
+  body:has(.resume-page) [data-slot="sidebar"],
+  body:has(.resume-page) header {
     display: none !important;
   }
 }

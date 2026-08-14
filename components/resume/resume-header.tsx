@@ -11,7 +11,7 @@ export function ResumeHeader({ data }: { data: ResumeData }) {
           width={125}
           height={125}
           className="rounded-full"
-          alt="Tony Wu"
+          alt={data.header.name}
         />
       </div>
       <div>
