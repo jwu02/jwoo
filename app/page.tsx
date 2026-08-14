@@ -1,4 +1,4 @@
-import { Activity, Circle } from "lucide-react"
+import { Activity, Circle, FileText } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -57,6 +57,23 @@ export default function HomePage() {
             <Button render={<Link href="/knowledge-graph" />} nativeButton={false}>
               <Circle data-icon="inline-start" />
               Open graph
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <FileText />
+            </div>
+            <CardTitle>Resume</CardTitle>
+            <CardDescription>
+              My CV as an exact A4 sheet — English and 中文.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button render={<Link href="/resume" />} nativeButton={false}>
+              <FileText data-icon="inline-start" />
+              View resume
             </Button>
           </CardContent>
         </Card>
