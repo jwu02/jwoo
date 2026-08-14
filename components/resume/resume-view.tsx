@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 import { getResumeData } from "@/lib/resume/locale-data"
 import type { Locale } from "@/lib/resume/types"
 import { LanguageToggle } from "./language-toggle"
@@ -8,20 +8,28 @@ import { ResumeA4Page } from "./resume-a4-page"
 
 const RESUME_LOCALE_KEY = "resume:locale"
 
+function subscribe(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange)
+  return () => window.removeEventListener("storage", onStoreChange)
+}
+
+function getSnapshot(): Locale {
+  return window.localStorage.getItem(RESUME_LOCALE_KEY) === "zh" ? "zh" : "en"
+}
+
+function getServerSnapshot(): Locale {
+  return "en"
+}
+
 export function ResumeView() {
-  const [locale, setLocale] = useState<Locale>("en")
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(RESUME_LOCALE_KEY)
-    if (stored === "zh" || stored === "en") setLocale(stored)
-  }, [])
-
-  const data = getResumeData(locale)
+  const locale = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   const handleChange = (next: Locale) => {
-    setLocale(next)
     window.localStorage.setItem(RESUME_LOCALE_KEY, next)
+    window.dispatchEvent(new Event("storage"))
   }
+
+  const data = getResumeData(locale)
 
   return (
     <div className="flex flex-col">
