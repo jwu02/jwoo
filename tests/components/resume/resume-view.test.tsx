@@ -25,9 +25,9 @@ describe("ResumeView", () => {
     expect(screen.getByText("Tony Wu")).toBeInTheDocument()
   })
 
-  it("reads a persisted locale on mount", () => {
+  it("reads a persisted locale on mount", async () => {
     window.localStorage.setItem("resume:locale", "zh")
     render(<ResumeView />)
-    expect(screen.getByText("吴家聪")).toBeInTheDocument()
+    expect(await screen.findByText("吴家聪")).toBeInTheDocument()
   })
 })

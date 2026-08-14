@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { getResumeData } from "@/lib/resume/locale-data"
 import type { Locale } from "@/lib/resume/types"
 import { LanguageToggle } from "./language-toggle"
@@ -8,13 +8,14 @@ import { ResumeA4Page } from "./resume-a4-page"
 
 const RESUME_LOCALE_KEY = "resume:locale"
 
-function readInitialLocale(): Locale {
-  if (typeof window === "undefined") return "en"
-  return window.localStorage.getItem(RESUME_LOCALE_KEY) === "zh" ? "zh" : "en"
-}
-
 export function ResumeView() {
-  const [locale, setLocale] = useState<Locale>(readInitialLocale)
+  const [locale, setLocale] = useState<Locale>("en")
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(RESUME_LOCALE_KEY)
+    if (stored === "zh" || stored === "en") setLocale(stored)
+  }, [])
+
   const data = getResumeData(locale)
 
   const handleChange = (next: Locale) => {
