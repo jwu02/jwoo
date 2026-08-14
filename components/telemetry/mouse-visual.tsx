@@ -25,13 +25,23 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
   }
 
   return (
-    <div className="relative flex flex-col items-center self-start">
+    <div className="relative flex flex-col items-center self-center">
       <svg
         viewBox="0 0 160 240"
-        className="h-48 w-32 drop-shadow-sm"
+        className="h-64 w-40 drop-shadow-sm"
         role="img"
         aria-label="Physical mouse with left and right click counts"
       >
+        <defs>
+          {/* Hover highlight: primary tint strongest at the top of the click
+              areas, fading to transparent so it blends into the mouse body
+              near the bottom. */}
+          <linearGradient id="mouse-button-hover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
         {/* Mouse body */}
         <rect
           x="10"
@@ -46,10 +56,14 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
 
         {/* Left button region */}
         <path
-          d="M 12 80 Q 12 12 80 12 L 80 80 Z"
-          className={`cursor-pointer outline-none transition-colors ${
-            hovered === "left" ? "fill-primary/20" : "fill-transparent"
-          }`}
+          d="M 12 100 L 12 80 A 68 68 0 0 1 80 12 L 80 100 Z"
+          className="pointer-events-none transition-opacity"
+          fill="url(#mouse-button-hover)"
+          opacity={hovered === "left" ? 1 : 0}
+        />
+        <path
+          d="M 12 100 L 12 80 A 68 68 0 0 1 80 12 L 80 100 Z"
+          className="cursor-pointer fill-transparent outline-none"
           onMouseEnter={() => setHovered("left")}
           onMouseLeave={() => setHovered(null)}
           onFocus={() => setHovered("left")}
@@ -63,10 +77,14 @@ export function MouseVisual({ leftClicks, rightClicks }: MouseVisualProps) {
 
         {/* Right button region */}
         <path
-          d="M 148 80 Q 148 12 80 12 L 80 80 Z"
-          className={`cursor-pointer outline-none transition-colors ${
-            hovered === "right" ? "fill-primary/20" : "fill-transparent"
-          }`}
+          d="M 148 100 L 148 80 A 68 68 0 0 0 80 12 L 80 100 Z"
+          className="pointer-events-none transition-opacity"
+          fill="url(#mouse-button-hover)"
+          opacity={hovered === "right" ? 1 : 0}
+        />
+        <path
+          d="M 148 100 L 148 80 A 68 68 0 0 0 80 12 L 80 100 Z"
+          className="cursor-pointer fill-transparent outline-none"
           onMouseEnter={() => setHovered("right")}
           onMouseLeave={() => setHovered(null)}
           onFocus={() => setHovered("right")}
