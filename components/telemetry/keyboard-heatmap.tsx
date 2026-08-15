@@ -10,7 +10,21 @@ import {
   Command,
   CornerDownLeft,
   Delete,
+  Globe,
+  LayoutTemplate,
+  Mic,
+  Moon,
   Option,
+  Pause,
+  Play,
+  Search,
+  StepBack,
+  StepForward,
+  Sun,
+  SunDim,
+  Volume,
+  Volume1,
+  Volume2,
   type LucideIcon,
 } from "lucide-react";
 import { KeyCounts } from "@/lib/telemetry/types";
@@ -32,11 +46,16 @@ const KEY_ICONS: Record<string, LucideIcon> = {
   "Right Option": Option,
   "Left Cmd": Command,
   "Right Cmd": Command,
+  Fn: Globe,
 };
 
 // Keycap icon size in SVG viewBox units — matched to the label text height
 // (11px) so the glyphs read at the same visual weight as the keycap text.
 const ICON_SIZE = 11;
+
+// Keys that pair a glyph with a text label (modifier words and fn) use a
+// smaller glyph than the standalone key icons, so the label reads larger.
+const MODIFIER_ICON_SIZE = 8;
 
 // Full modifier names printed under the modifier icons (⌃ ⌥ ⌘).
 const KEY_ICON_LABELS: Record<string, string> = {
@@ -63,10 +82,55 @@ const KEY_ICON_POSITIONS: Record<string, IconPosition> = {
   "Right Option": "top-left",
   "Left Cmd": "top-right",
   "Right Cmd": "top-left",
+  Fn: "bottom-left",
 };
 
 // Inset of a pinned icon from the keycap edge, in viewBox units.
 const ICON_PAD = 6;
+
+// Half the vertical gap between the stacked shift/main characters on a
+// multi-character keycap: shift sits STACK_OFFSET above the key's vertical
+// centre, main STACK_OFFSET below it, so the pair is symmetric about the
+// centre line.
+const STACK_OFFSET = 8;
+
+// Function-row media/symbol keys (F1–F12) render a lucide icon at the top of
+// the keycap with the F-number printed small below — echoing a Mac function
+// row, but keeping the F-number for reference. F8 shows the composed
+// play/pause pair (▶ ❚❚) that matches the physical media key.
+const FUNCTION_KEYS: Record<string, LucideIcon> = {
+  F1: SunDim,
+  F2: Sun,
+  F3: LayoutTemplate,
+  F4: Search,
+  F5: Mic,
+  F6: Moon,
+  F7: StepBack,
+  F8: Play, // replaced at render by the composed play + pause glyphs
+  F9: StepForward,
+  F10: Volume,
+  F11: Volume1,
+  F12: Volume2,
+};
+
+// Function-row icon size: larger than the F-number caption below it, but a
+// step below the standalone key icons (11) so the row reads as secondary.
+const FUNCTION_ICON_SIZE = 10;
+
+// F-number caption printed under the function-row icon, smaller than the icon
+// and smaller than the old centred 11px label.
+const FUNCTION_TEXT_SIZE = 7;
+
+// Text labels pinned to a keycap corner instead of the centre (e.g. esc sits
+// low-left, fn high-right like on a real keycap). Insets match the
+// shift/option accent insets; fn also drops to the modifier-word text size.
+const KEY_TEXT_POSITIONS: Record<string, "bottom-left" | "top-right"> = {
+  Esc: "bottom-left",
+  Fn: "top-right",
+};
+
+// Home-row keys with a raised tactile bump (F and J), like on a real keycap.
+const TACTILE_KEYS: ReadonlySet<string> = new Set(["F", "J"]);
 
 interface KeyboardHeatmapProps {
   keys: KeyCounts;
@@ -216,21 +280,46 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           const fill = interpolateColor(intensity);
           const isHovered = hovered === key.id;
           const Icon = KEY_ICONS[key.id];
+          const FunctionIcon = FUNCTION_KEYS[key.id];
           const iconLabel = KEY_ICON_LABELS[key.id];
           const iconPosition = KEY_ICON_POSITIONS[key.id];
+          const hasTextLabel =
+            iconLabel !== undefined || key.id === "Fn";
+          const iconSize = hasTextLabel ? MODIFIER_ICON_SIZE : ICON_SIZE;
           const iconX =
             iconPosition === "top-left" || iconPosition === "bottom-left"
               ? key.x + ICON_PAD
-              : key.x + key.width - ICON_PAD - ICON_SIZE;
+              : key.x + key.width - ICON_PAD - iconSize;
           const iconY =
             iconPosition === "top-left" || iconPosition === "top-right"
               ? key.y + ICON_PAD
-              : key.y + key.height - ICON_PAD - ICON_SIZE;
+              : key.y + key.height - ICON_PAD - iconSize;
           const { text: keycapText, fontSize } = fitLabel(
             key.displayLabel,
             key.width,
             key.height
           );
+          const textPosition = KEY_TEXT_POSITIONS[key.id];
+          // Multi-character keycaps (a printed shift/option set) stack the
+          // shift above the main label; the main then drops below centre so
+          // the pair reads as symmetric.
+          const isStacked = key.shiftLabel !== undefined;
+          let labelX = key.x + key.width / 2;
+          let labelY = isStacked
+            ? key.y + key.height / 2 + STACK_OFFSET
+            : key.y + key.height / 2 + 1;
+          let labelAnchor: "start" | "middle" | "end" = "middle";
+          let labelFontSize = fontSize;
+          if (textPosition === "bottom-left") {
+            labelX = key.x + 8;
+            labelY = key.y + key.height - 9;
+            labelAnchor = "start";
+          } else if (textPosition === "top-right") {
+            labelX = key.x + key.width - 8;
+            labelY = key.y + 9;
+            labelAnchor = "end";
+            labelFontSize = 9;
+          }
 
           return (
             <g
@@ -264,6 +353,32 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                 strokeWidth={isHovered ? 1.5 : 0.75}
                 className="transition-colors outline-none"
               />
+              {/* Hover highlight: a var(--primary) wash that fades in over the
+                  keycap, echoing the tint used on the mouse visual regions. */}
+              <rect
+                x={key.x}
+                y={key.y}
+                width={key.width}
+                height={key.height}
+                rx={key.height <= 28 ? 3 : 4}
+                fill="var(--primary)"
+                opacity={isHovered ? 0.2 : 0}
+                className="keycap-hover pointer-events-none transition-opacity"
+              />
+              {/* Home-row tactile bump on F and J: a subtle raised ridge near
+                  the bottom edge of the keycap. */}
+              {TACTILE_KEYS.has(key.id) && (
+                <rect
+                  x={key.x + key.width / 2 - 4}
+                  y={key.y + key.height - 8}
+                  width={8}
+                  height={2.5}
+                  rx={1.25}
+                  className="tactile-marker pointer-events-none"
+                  fill="oklch(0.96 0 0)"
+                  fillOpacity={0.35}
+                />
+              )}
               {/* Icon keys render a lucide glyph instead of the text label,
                   pinned to the keycap corner from KEY_ICON_POSITIONS. */}
               {Icon && (
@@ -272,13 +387,61 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   className="pointer-events-none"
                 >
                   <Icon
-                    size={ICON_SIZE}
+                    size={iconSize}
                     strokeWidth={2}
                     color="oklch(0.96 0 0)"
                   />
                 </g>
               )}
-              {/* Modifier keys print their full name centred at the bottom */}
+              {/* Function-row keys render their media/symbol icon at the top of
+                  the keycap with the F-number caption below. F8 composes the
+                  play/pause pair side by side (▶ ❚❚). */}
+              {FunctionIcon && (
+                <>
+                  {key.id === "F8" ? (
+                    <g
+                      transform={`translate(${key.x + key.width / 2 - FUNCTION_ICON_SIZE}, ${key.y + 5})`}
+                      className="pointer-events-none"
+                    >
+                      <Play
+                        size={FUNCTION_ICON_SIZE}
+                        strokeWidth={2}
+                        color="oklch(0.96 0 0)"
+                      />
+                      <Pause
+                        size={FUNCTION_ICON_SIZE}
+                        strokeWidth={2}
+                        color="oklch(0.96 0 0)"
+                        transform={`translate(${FUNCTION_ICON_SIZE}, 0)`}
+                      />
+                    </g>
+                  ) : (
+                    <g
+                      transform={`translate(${key.x + key.width / 2 - FUNCTION_ICON_SIZE / 2}, ${key.y + 5})`}
+                      className="pointer-events-none"
+                    >
+                      <FunctionIcon
+                        size={FUNCTION_ICON_SIZE}
+                        strokeWidth={2}
+                        color="oklch(0.96 0 0)"
+                      />
+                    </g>
+                  )}
+                  <text
+                    x={key.x + key.width / 2}
+                    y={key.y + key.height - 7}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="select-none pointer-events-none"
+                    fill="oklch(0.96 0 0)"
+                    style={{ fontSize: FUNCTION_TEXT_SIZE }}
+                  >
+                    {key.displayLabel}
+                  </text>
+                </>
+              )}
+              {/* Modifier keys print their full name centred at the bottom,
+                  at a larger size than the glyph above it */}
               {iconLabel && (
                 <text
                   x={key.x + key.width / 2}
@@ -287,17 +450,25 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   dominantBaseline="central"
                   className="select-none pointer-events-none"
                   fill="oklch(0.96 0 0)"
-                  style={{ fontSize: 7 }}
+                  style={{ fontSize: 9 }}
                 >
                   {iconLabel}
                 </text>
               )}
               {/* Only render text if key is wide/tall enough and has no icon */}
-              {!Icon && key.width >= 30 && key.height >= 16 && keycapText && (
+              {/* A key with an icon skips the text label unless it pins one to
+                  a corner too (Fn keeps its "fn" next to the globe). Function
+                  keys skip it entirely — their F-number renders under the
+                  function-row icon. */}
+              {!FunctionIcon &&
+                (!Icon || textPosition) &&
+                key.width >= 30 &&
+                key.height >= 16 &&
+                keycapText && (
                 <text
-                  x={key.x + key.width / 2}
-                  y={key.y + key.height / 2 + 1}
-                  textAnchor="middle"
+                  x={labelX}
+                  y={labelY}
+                  textAnchor={labelAnchor}
                   dominantBaseline="central"
                   // Arrow keys rotate a shared triangle glyph around the keycap
                   // centre (labelRotation) so all four render at identical size.
@@ -310,36 +481,43 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   // rather than the theme foreground for legibility.
                   className="select-none pointer-events-none"
                   fill="oklch(0.96 0 0)"
-                  style={{ fontSize }}
+                  style={{ fontSize: labelFontSize }}
                 >
                   <tspan className="font-medium">{keycapText}</tspan>
                 </text>
               )}
-              {/* Shifted character sits small at the top-left, like a real keycap. */}
+              {/* Shifted character sits above the base, both centred
+                  horizontally so the pair reads as stacked (shift on top,
+                  main on bottom). */}
               {key.shiftLabel && key.width >= 30 && key.height >= 16 && (
                 <text
-                  x={key.x + 8}
-                  y={key.y + 9}
+                  x={key.x + key.width / 2}
+                  y={key.y + key.height / 2 - STACK_OFFSET}
                   textAnchor="middle"
                   dominantBaseline="central"
                   className="select-none pointer-events-none"
                   fill="oklch(0.96 0 0)"
-                  style={{ fontSize: 8 }}
+                  style={{ fontSize: labelFontSize }}
                 >
                   {key.shiftLabel}
                 </text>
               )}
-              {/* Option-modified character sits on the right side, level with the base
-                  character (e.g. € to the right of 2 on a UK Mac). */}
+              {/* Option-modified character sits on the right side of the main
+                  (bottom) character, level with it (e.g. € to the right of 2
+                  on a UK Mac). */}
               {key.optionLabel && key.width >= 30 && key.height >= 16 && (
                 <text
                   x={key.x + key.width - 8}
-                  y={key.y + key.height / 2}
+                  y={
+                    isStacked
+                      ? key.y + key.height / 2 + STACK_OFFSET
+                      : key.y + key.height / 2
+                  }
                   textAnchor="middle"
                   dominantBaseline="central"
                   className="select-none pointer-events-none"
                   fill="oklch(0.96 0 0)"
-                  style={{ fontSize: 8 }}
+                  style={{ fontSize: labelFontSize }}
                 >
                   {key.optionLabel}
                 </text>
@@ -348,7 +526,7 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                 <circle
                   cx={key.x + 8}
                   cy={key.y + 7}
-                  r={3}
+                  r={2}
                   // Off state matches the keycap text colour; on state is the
                   // same green as a real Caps Lock LED.
                   fill={capsLockOn ? "oklch(0.65 0.18 145)" : "oklch(0.96 0 0)"}

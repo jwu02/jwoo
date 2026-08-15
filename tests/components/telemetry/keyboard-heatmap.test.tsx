@@ -28,7 +28,7 @@ describe("KeyboardHeatmap", () => {
     );
   });
 
-  it("renders the shift accent at the top-left of the key", () => {
+  it("renders the shift accent above the base character", () => {
     render(<KeyboardHeatmap keys={{}} />);
 
     const twoKey = screen.getByRole("button", { name: "2: 0 presses" });
@@ -36,11 +36,13 @@ describe("KeyboardHeatmap", () => {
     const baseTwo = within(twoKey).getByText("2").closest("text")!;
     const at = within(twoKey).getByText("@");
 
+    // Shifted character sits above the base, horizontally aligned with it.
     expect(Number(at.getAttribute("y"))).toBeLessThan(
       Number(baseTwo.getAttribute("y"))
     );
-    expect(Number(at.getAttribute("x"))).toBeLessThan(
-      Number(baseTwo.getAttribute("x"))
+    expect(Number(at.getAttribute("x"))).toBeCloseTo(
+      Number(baseTwo.getAttribute("x")),
+      1
     );
   });
 
@@ -49,6 +51,62 @@ describe("KeyboardHeatmap", () => {
 
     const threeKey = screen.getByRole("button", { name: "3: 0 presses" });
     expect(within(threeKey).getByText("£")).toBeInTheDocument();
+  });
+
+  describe("stacked multi-character labels", () => {
+    // The 2 key prints @ above 2, with € to the right of the 2, all on a
+    // standard 38×34 keycap.
+    function fontSizeOf(el: Element): number {
+      return Number(el.getAttribute("style")!.match(/font-size:\s*(\d+)/)![1]);
+    }
+
+    it("stacks the shifted character above the base symmetrically about the vertical centre", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const twoKey = screen.getByRole("button", { name: "2: 0 presses" });
+      const rect = twoKey.querySelector("rect")!;
+      const baseTwo = within(twoKey).getByText("2").closest("text")!;
+      const at = within(twoKey).getByText("@");
+
+      const centreY =
+        Number(rect.getAttribute("y")) + Number(rect.getAttribute("height")) / 2;
+      const baseY = Number(baseTwo.getAttribute("y"));
+      const shiftY = Number(at.getAttribute("y"));
+
+      // Shift is as far above centre as the base is below it — neither reads
+      // as more vertically centred than the other.
+      expect(centreY - shiftY).toBeCloseTo(baseY - centreY, 1);
+    });
+
+    it("positions the option character to the right of and level with the base", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const twoKey = screen.getByRole("button", { name: "2: 0 presses" });
+      const baseTwo = within(twoKey).getByText("2").closest("text")!;
+      const euro = within(twoKey).getByText("€");
+
+      expect(Number(euro.getAttribute("x"))).toBeGreaterThan(
+        Number(baseTwo.getAttribute("x"))
+      );
+      // Level with the main (bottom) character, not the key's centre.
+      expect(Number(euro.getAttribute("y"))).toBeCloseTo(
+        Number(baseTwo.getAttribute("y")),
+        1
+      );
+    });
+
+    it("renders the shift, base, and option characters at the same font size", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const twoKey = screen.getByRole("button", { name: "2: 0 presses" });
+      const baseTwo = within(twoKey).getByText("2").closest("text")!;
+      const at = within(twoKey).getByText("@");
+      const euro = within(twoKey).getByText("€");
+
+      const baseSize = fontSizeOf(baseTwo);
+      expect(fontSizeOf(at)).toBe(baseSize);
+      expect(fontSizeOf(euro)).toBe(baseSize);
+    });
   });
 
   describe("Caps Lock LED", () => {
@@ -142,6 +200,7 @@ describe("KeyboardHeatmap", () => {
       ["Left Ctrl", "lucide-chevron-up"],
       ["Left Option", "lucide-option"],
       ["Left Cmd", "lucide-command"],
+      ["Fn", "lucide-globe"],
     ];
 
     it.each(iconKeys)(
@@ -198,9 +257,84 @@ describe("KeyboardHeatmap", () => {
     });
   });
 
+  describe("function row icons", () => {
+    // key name → lucide class added to the icon's svg (lucide-<kebab-name>)
+    const iconKeys: Array<[string, string]> = [
+      ["F1", "lucide-sun-dim"],
+      ["F2", "lucide-sun"],
+      ["F3", "lucide-layout-template"],
+      ["F4", "lucide-search"],
+      ["F5", "lucide-mic"],
+      ["F6", "lucide-moon"],
+      ["F7", "lucide-step-back"],
+      ["F9", "lucide-step-forward"],
+      ["F10", "lucide-volume"],
+      ["F11", "lucide-volume-1"],
+      ["F12", "lucide-volume-2"],
+    ];
+
+    it.each(iconKeys)(
+      "renders a lucide %s icon on the %s key",
+      (keyName, iconClass) => {
+        render(<KeyboardHeatmap keys={{}} />);
+
+        const key = screen.getByRole("button", {
+          name: `${keyName}: 0 presses`,
+        });
+
+        expect(key.querySelector(`.${iconClass}`)).toBeInTheDocument();
+      }
+    );
+
+    it("renders the composed play/pause glyphs on the F8 key", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const f8 = screen.getByRole("button", { name: "F8: 0 presses" });
+      expect(f8.querySelector(".lucide-play")).toBeInTheDocument();
+      expect(f8.querySelector(".lucide-pause")).toBeInTheDocument();
+    });
+
+    it("keeps the function number printed under the icon", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const f1 = screen.getByRole("button", { name: "F1: 0 presses" });
+      expect(within(f1).getByText("F1")).toBeInTheDocument();
+    });
+
+    it("positions the icon above the number and sizes the icon larger", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const f1 = screen.getByRole("button", { name: "F1: 0 presses" });
+      const rect = f1.querySelector("rect")!;
+      const icon = f1.querySelector(".lucide-sun-dim")!;
+      const iconG = f1.querySelector("g[transform]")!;
+      const label = within(f1).getByText("F1").closest("text")!;
+
+      const rectY = Number(rect.getAttribute("y"));
+      const rectH = Number(rect.getAttribute("height"));
+      const centreY = rectY + rectH / 2;
+
+      const translate = iconG
+        .getAttribute("transform")!
+        .match(/translate\(([\d.]+),\s*([\d.]+)\)/)!;
+      const iconY = Number(translate[2]);
+
+      const labelY = Number(label.getAttribute("y"));
+      const labelSize = Number(
+        label.getAttribute("style")!.match(/font-size:\s*(\d+)/)![1]
+      );
+      const iconSize = Number(icon.getAttribute("width"));
+
+      // Icon in the upper half, number in the lower half.
+      expect(iconY).toBeLessThan(centreY);
+      expect(labelY).toBeGreaterThan(centreY);
+      // Icon renders larger than the number text.
+      expect(iconSize).toBeGreaterThan(labelSize);
+    });
+  });
+
   describe("icon corner positioning", () => {
-    // Must mirror the component's ICON_SIZE and keycap padding.
-    const iconSize = 11;
+    // Must mirror the component's ICON_SIZE / MODIFIER_ICON_SIZE and padding.
     const pad = 6;
 
     function parseTranslate(g: Element) {
@@ -210,24 +344,27 @@ describe("KeyboardHeatmap", () => {
       return { x: Number(match[1]), y: Number(match[2]) };
     }
 
-    // key name → horizontal → vertical corner for its icon
-    const cornerCases: Array<[string, "left" | "right", "top" | "bottom"]> = [
-      ["Tab", "left", "bottom"],
-      ["Caps Lock", "left", "bottom"],
-      ["Left Shift", "left", "bottom"],
-      ["Right Shift", "right", "bottom"],
-      ["Delete", "right", "bottom"],
-      ["Return", "right", "bottom"],
-      ["Left Ctrl", "right", "top"],
-      ["Left Option", "right", "top"],
-      ["Right Option", "left", "top"],
-      ["Left Cmd", "right", "top"],
-      ["Right Cmd", "left", "top"],
+    // key name → horizontal → vertical corner → icon size
+    const cornerCases: Array<
+      [string, "left" | "right", "top" | "bottom", number]
+    > = [
+      ["Tab", "left", "bottom", 11],
+      ["Caps Lock", "left", "bottom", 11],
+      ["Left Shift", "left", "bottom", 11],
+      ["Right Shift", "right", "bottom", 11],
+      ["Delete", "right", "bottom", 11],
+      ["Return", "right", "bottom", 11],
+      ["Left Ctrl", "right", "top", 8],
+      ["Left Option", "right", "top", 8],
+      ["Right Option", "left", "top", 8],
+      ["Left Cmd", "right", "top", 8],
+      ["Right Cmd", "left", "top", 8],
+      ["Fn", "left", "bottom", 8],
     ];
 
     it.each(cornerCases)(
       "positions the icon in the %s-%s corner of the %s key",
-      (keyName, horizontal, vertical) => {
+      (keyName, horizontal, vertical, iconSize) => {
         render(<KeyboardHeatmap keys={{}} />);
 
         const key = screen.getByRole("button", {
@@ -253,6 +390,181 @@ describe("KeyboardHeatmap", () => {
         expect(Math.abs(iconY - expectedY)).toBeLessThan(1);
       }
     );
+
+    it("renders modifier icons smaller than the other key icons", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const ctrlIcon = screen
+        .getByRole("button", { name: "Left Ctrl: 0 presses" })
+        .querySelector("svg")!;
+      const tabIcon = screen
+        .getByRole("button", { name: "Tab: 0 presses" })
+        .querySelector("svg")!;
+
+      expect(Number(ctrlIcon.getAttribute("width"))).toBeLessThan(
+        Number(tabIcon.getAttribute("width"))
+      );
+    });
+
+    it("renders the fn globe at the modifier icon size", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const fnIcon = screen
+        .getByRole("button", { name: "Fn: 0 presses" })
+        .querySelector("svg")!;
+      const ctrlIcon = screen
+        .getByRole("button", { name: "Left Ctrl: 0 presses" })
+        .querySelector("svg")!;
+      const tabIcon = screen
+        .getByRole("button", { name: "Tab: 0 presses" })
+        .querySelector("svg")!;
+
+      // Same size as the modifier glyphs, smaller than the standalone icons.
+      expect(Number(fnIcon.getAttribute("width"))).toBe(
+        Number(ctrlIcon.getAttribute("width"))
+      );
+      expect(Number(fnIcon.getAttribute("width"))).toBeLessThan(
+        Number(tabIcon.getAttribute("width"))
+      );
+    });
+
+    it("renders the modifier word larger than its icon", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const ctrl = screen.getByRole("button", {
+        name: "Left Ctrl: 0 presses",
+      });
+      const iconWidth = Number(
+        ctrl.querySelector("svg")!.getAttribute("width")
+      );
+      const word = within(ctrl).getByText("control").closest("text")!;
+      const fontSize = Number(
+        word.getAttribute("style")!.match(/font-size:\s*(\d+)/)![1]
+      );
+
+      expect(fontSize).toBeGreaterThan(iconWidth);
+    });
+  });
+
+  describe("keycap label positioning", () => {
+    it("pins the esc text label to the bottom-left of the key", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const esc = screen.getByRole("button", { name: "Esc: 0 presses" });
+      const rect = esc.querySelector("rect")!;
+      const text = within(esc).getByText("esc").closest("text")!;
+
+      const rectX = Number(rect.getAttribute("x"));
+      const rectY = Number(rect.getAttribute("y"));
+      const rectW = Number(rect.getAttribute("width"));
+      const rectH = Number(rect.getAttribute("height"));
+
+      // Left of centre and in the lower half of the keycap.
+      expect(Number(text.getAttribute("x"))).toBeLessThan(rectX + rectW / 2);
+      expect(Number(text.getAttribute("y"))).toBeGreaterThan(rectY + rectH / 2);
+    });
+
+    it("renders the fn label at the top-right at the modifier text size", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const fn = screen.getByRole("button", { name: "Fn: 0 presses" });
+      const rect = fn.querySelector("rect")!;
+      const text = within(fn).getByText("fn").closest("text")!;
+
+      const rectX = Number(rect.getAttribute("x"));
+      const rectY = Number(rect.getAttribute("y"));
+      const rectW = Number(rect.getAttribute("width"));
+      const rectH = Number(rect.getAttribute("height"));
+
+      // Right of centre, in the top half, and as big as the modifier words.
+      expect(Number(text.getAttribute("x"))).toBeGreaterThan(rectX + rectW / 2);
+      expect(Number(text.getAttribute("y"))).toBeLessThan(rectY + rectH / 2);
+      expect(text.getAttribute("style")).toContain("font-size: 9px");
+    });
+  });
+
+  describe("tactile markers", () => {
+    it.each(["F", "J"])("renders a tactile marker on the %s key", (keyName) => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const key = screen.getByRole("button", {
+        name: `${keyName}: 0 presses`,
+      });
+
+      expect(key.querySelector(".tactile-marker")).toBeInTheDocument();
+    });
+
+    it("does not render a tactile marker on the D key", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const d = screen.getByRole("button", { name: "D: 0 presses" });
+
+      expect(d.querySelector(".tactile-marker")).not.toBeInTheDocument();
+    });
+
+    it("places the tactile marker in the lower half of the key", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const f = screen.getByRole("button", { name: "F: 0 presses" });
+      const rect = f.querySelector("rect")!;
+      const marker = f.querySelector(".tactile-marker")!;
+
+      const rectY = Number(rect.getAttribute("y"));
+      const rectH = Number(rect.getAttribute("height"));
+
+      expect(Number(marker.getAttribute("y"))).toBeGreaterThan(rectY + rectH / 2);
+    });
+  });
+
+  describe("keycap hover highlight", () => {
+    // The 2 key has no icon, so its first <rect> is the keycap base.
+    function getHighlight() {
+      const key = screen.getByRole("button", { name: "2: 0 presses" });
+      return key.querySelector(".keycap-hover")!;
+    }
+
+    it("renders a primary tint overlay that is transparent at rest", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const highlight = getHighlight();
+      expect(highlight).toBeInTheDocument();
+      expect(highlight.getAttribute("opacity")).toBe("0");
+      expect(highlight).toHaveClass("pointer-events-none");
+    });
+
+    it("fades the tint in when the key is hovered", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      fireEvent.mouseEnter(
+        screen.getByRole("button", { name: "2: 0 presses" })
+      );
+
+      expect(getHighlight().getAttribute("opacity")).toBe("0.2");
+    });
+
+    it("fades the tint back out when the pointer leaves", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const key = screen.getByRole("button", { name: "2: 0 presses" });
+      fireEvent.mouseEnter(key);
+      fireEvent.mouseLeave(key);
+
+      expect(getHighlight().getAttribute("opacity")).toBe("0");
+    });
+
+    it("mirrors the keycap geometry so it tints exactly the keycap", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const key = screen.getByRole("button", { name: "2: 0 presses" });
+      const baseRect = key.querySelector("rect")!;
+      const highlight = getHighlight();
+
+      for (const attr of ["x", "y", "width", "height", "rx"]) {
+        expect(highlight.getAttribute(attr)).toBe(
+          baseRect.getAttribute(attr)
+        );
+      }
+    });
   });
 
   describe("modifier key labels", () => {
