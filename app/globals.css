@@ -131,9 +131,14 @@
     }
 }
 
-/* Resume A4 sheet (archived TonyWuCV port): force light tokens + archive base type */
+/* Resume A4 sheet (archived TonyWuCV port): force light tokens + archive base type.
+   `color` is set here, not just `--foreground`, because `body { @apply text-foreground }`
+   resolves `var(--foreground)` once against the site theme (white in dark mode) and
+   inherits that computed value into the sheet — redefining the variable alone cannot
+   re-resolve an already-computed inherited `color`. */
 .resume-page {
   --background: oklch(1 0 0);
+  color: var(--foreground);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);

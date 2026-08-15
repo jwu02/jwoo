@@ -41,7 +41,7 @@ describe("resume section components", () => {
   it("WorkExperience renders position, company, dates, and bullets", () => {
     render(<WorkExperience data={en} />)
     expect(screen.getByText("Python Software Engineer")).toBeInTheDocument()
-    expect(screen.getByText("Kamkiu Aluminium Products")).toBeInTheDocument()
+    expect(screen.getByText("Kam Kiu Aluminium Group")).toBeInTheDocument()
     expect(screen.getByText("May 2025 - Present")).toBeInTheDocument()
     expect(screen.getByText(en.workExperiences[0].bullets[0])).toBeInTheDocument()
   })

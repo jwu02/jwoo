@@ -118,7 +118,7 @@ export const en: ResumeData = {
   workExperiences: [
     {
       position: "Python Software Engineer",
-      company: "Kamkiu Aluminium Products",
+      company: "Kam Kiu Aluminium Group",
       start: "May 2025",
       end: "Present",
       bullets: [
@@ -207,7 +207,7 @@ export const zh: ResumeData = {
   workExperiences: [
     {
       position: "Python软件工程师",
-      company: "金桥铝材有限公司",
+      company: "金桥铝材集团",
       start: "2025.05",
       end: "至今",
       bullets: [
