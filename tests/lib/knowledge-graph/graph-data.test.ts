@@ -2,9 +2,11 @@ import {
   buildGraph,
   computeDegrees,
   computeFitTransform,
+  computeNodeTextureRadius,
   computeRoughInitialTransform,
   getVisibleEdges,
   getVisibleNodes,
+  nodeRadius,
 } from "@/lib/knowledge-graph/graph-data";
 import type { NoteDoc } from "@/lib/knowledge-graph/types";
 
@@ -207,5 +209,67 @@ describe("computeRoughInitialTransform", () => {
       x: 300,
       y: 200,
     });
+  });
+});
+
+describe("nodeRadius", () => {
+  it("scales the base radius up by the square root of the degree", () => {
+    expect(nodeRadius(0)).toBe(4);
+    expect(nodeRadius(9)).toBe(7); // 4 + √9
+    expect(nodeRadius(16)).toBe(8); // 4 + √16
+  });
+
+  it("grows sub-linearly with degree", () => {
+    expect(nodeRadius(100)).toBeGreaterThan(nodeRadius(50));
+    expect(nodeRadius(100) - nodeRadius(50)).toBeLessThan(50);
+  });
+});
+
+describe("computeNodeTextureRadius", () => {
+  const node = (id: string) => ({ id, createdAt: "2024-01-01T00:00:00.000Z" });
+
+  it("floors the texture size at the base radius for an all-isolated graph", () => {
+    const nodes = [node("A.md"), node("B.md")];
+    const degrees = new Map([
+      ["A.md", 0],
+      ["B.md", 0],
+    ]);
+
+    // Worst-case on-screen radius = 4 × max zoom (4) × hover growth (1.3).
+    expect(computeNodeTextureRadius(nodes, degrees)).toBe(Math.ceil(4 * 4 * 1.3));
+  });
+
+  it("rasterizes enough detail for the largest node at max zoom + hover", () => {
+    const nodes = [
+      node("A.md"),
+      node("B.md"),
+      node("C.md"),
+      node("D.md"),
+      node("E.md"),
+    ];
+    const degrees = new Map([
+      ["A.md", 4],
+      ["B.md", 1],
+      ["C.md", 1],
+      ["D.md", 1],
+      ["E.md", 1],
+    ]);
+
+    // Largest node: 4 + √4 = 6. × 4 × 1.3 = 31.2 → 32.
+    expect(computeNodeTextureRadius(nodes, degrees)).toBe(32);
+  });
+
+  it("never lets a node outgrow its texture under max zoom and hover", () => {
+    // A hub-heavy graph where the biggest node's radius is the binding factor.
+    const nodes = Array.from({ length: 26 }, (_, i) =>
+      node(`${String.fromCharCode(65 + i)}.md`)
+    );
+    const degrees = new Map(nodes.map((n, i) => [n.id, i === 0 ? 25 : 1]));
+
+    const radius = computeNodeTextureRadius(nodes, degrees);
+
+    // Largest node radius = 4 + √25 = 9. Even at max zoom × hover it must not
+    // exceed the rasterized texture's native detail, or edges go pixelated.
+    expect(radius).toBeGreaterThanOrEqual(9 * 4 * 1.3);
   });
 });

@@ -143,3 +143,32 @@ export function computeRoughInitialTransform(
     y: viewportHeight / 2 - k * centroidY,
   };
 }
+
+// Node size model — single source of truth for sprite scale, the force-collide
+// radius, and the texture resolution the node circles are rasterized at.
+export const NODE_BASE_RADIUS = 4;
+
+export function nodeRadius(degree: number): number {
+  return NODE_BASE_RADIUS + Math.sqrt(degree);
+}
+
+// The two multipliers that can magnify a node past its texture's native pixel
+// detail: the d3-zoom scaleExtent max and the hover growth factor.
+export const NODE_MAX_ZOOM = 4;
+export const NODE_HOVER_SCALE = 1.3;
+
+// Radius the shared node circle texture must be rasterized at so no sprite is
+// ever scaled past its native pixel detail. The world transform zooms up to
+// NODE_MAX_ZOOM and hover grows a node by NODE_HOVER_SCALE; a circle rasterized
+// smaller than the worst-case on-screen size is magnified, and its upscaled
+// edge reads as pixelated / non-round.
+export function computeNodeTextureRadius(
+  nodes: Array<{ id: string }>,
+  degrees: Map<string, number>
+): number {
+  let maxNodeRadius = NODE_BASE_RADIUS;
+  for (const node of nodes) {
+    maxNodeRadius = Math.max(maxNodeRadius, nodeRadius(degrees.get(node.id) ?? 0));
+  }
+  return Math.ceil(maxNodeRadius * NODE_MAX_ZOOM * NODE_HOVER_SCALE);
+}

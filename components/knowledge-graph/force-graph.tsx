@@ -7,7 +7,11 @@ import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "@/lib/knowledge-gra
 import {
   computeDegrees,
   computeFitTransform,
+  computeNodeTextureRadius,
   computeRoughInitialTransform,
+  NODE_BASE_RADIUS,
+  NODE_HOVER_SCALE,
+  nodeRadius,
 } from "@/lib/knowledge-graph/graph-data";
 import { usePixiApp } from "./use-pixi-app";
 
@@ -18,15 +22,6 @@ interface ForceGraphProps {
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
 type GraphLink = KnowledgeGraphEdge & d3.SimulationLinkDatum<GraphNode> & { source: GraphNode; target: GraphNode };
-
-const NODE_BASE_RADIUS = 4;
-const CIRCLE_TEXTURE_RADIUS = 8;
-
-// Single source of truth for the degree → radius mapping (node size, collide
-// radius, label offset) so retuning the size model touches one place.
-function nodeRadius(degree: number): number {
-  return NODE_BASE_RADIUS + Math.sqrt(degree);
-}
 
 // The subset of FederatedPointerEvent the sprite handlers touch, so the drag
 // and hover handlers are typed instead of duck-cast to an inline shape.
@@ -87,6 +82,9 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
   const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
   const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
   const nodeRadiusRef = useRef<Map<string, number>>(new Map());
+  // Radius the shared node circle texture was rasterized at; applyHover needs it
+  // to compute sprite scale, and it is only known once the scene is built.
+  const textureRadiusRef = useRef<number>(NODE_BASE_RADIUS);
   const adjacencyRef = useRef<Map<string, Set<string>>>(new Map());
   const incidentLinksRef = useRef<Map<string, GraphLink[]>>(new Map());
   const nodeSpritesRef = useRef<Map<string, import("pixi.js").Sprite>>(new Map());
@@ -144,14 +142,14 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
     for (const [id, sprite] of nodeSprites) {
       const isHovered = id === hovered;
       const isDimmed = hovered !== null && !isHovered && !neighborIds?.has(id);
-      const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / CIRCLE_TEXTURE_RADIUS;
+      const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / textureRadiusRef.current;
       sprite.tint = isHovered
         ? colors.hover
         : adjacency.get(id)?.size === 1
           ? colors.leaf
           : colors.node;
       sprite.alpha = isDimmed ? 0.15 : 1;
-      sprite.scale.set(baseScale * (isHovered ? 1.3 : 1));
+      sprite.scale.set(baseScale * (isHovered ? NODE_HOVER_SCALE : 1));
     }
 
     for (const [link, sprite] of linkSprites) {
@@ -292,15 +290,21 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       world.addChild(linksContainer);
       world.addChild(nodesContainer);
 
-      const circleGraphics = new PIXI.Graphics();
-      circleGraphics.circle(0, 0, CIRCLE_TEXTURE_RADIUS).fill(0xffffff);
-      const circleTexture = app.renderer.generateTexture(circleGraphics);
-      circleGraphics.destroy();
-
       // The simulation mutates these in place; graphNodes/graphEdges are the
       // memoized clones of the props, so the props themselves are never touched.
       const simNodes: GraphNode[] = graphNodes;
       const nodesById = new Map(simNodes.map((node) => [node.id, node]));
+
+      // Rasterize the shared circle at (at least) the worst-case on-screen
+      // size — the largest node magnified by max zoom × hover — so sprites are
+      // never scaled past native pixel detail and their edges stay smooth when
+      // zoomed in.
+      const textureRadius = computeNodeTextureRadius(simNodes, degrees);
+      textureRadiusRef.current = textureRadius;
+      const circleGraphics = new PIXI.Graphics();
+      circleGraphics.circle(0, 0, textureRadius).fill(0xffffff);
+      const circleTexture = app.renderer.generateTexture(circleGraphics);
+      circleGraphics.destroy();
       nodesByIdRef.current = nodesById;
 
       const simLinks: GraphLink[] = graphEdges.map(
@@ -339,7 +343,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
         sprite.anchor.set(0.5);
         sprite.eventMode = "static";
         sprite.cursor = "pointer";
-        sprite.scale.set(radius / CIRCLE_TEXTURE_RADIUS);
+        sprite.scale.set(radius / textureRadius);
         // A leaf is a node with a single unique neighbor, not degree 1 —
         // reciprocal links (A->B and B->A) would otherwise double a true
         // leaf's degree to 2 and hide its tint.

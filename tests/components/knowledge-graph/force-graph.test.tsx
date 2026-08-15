@@ -21,10 +21,12 @@ interface MockNode {
   scale?: { x: number; y: number };
   children?: MockNode[];
   emit?(event: string, data?: unknown): void;
+  __circleRadius?: number;
 }
 
 interface MockApp {
   stage: MockNode;
+  __textureSource?: MockNode;
 }
 
 function getPixiApp(container: HTMLElement): MockApp | undefined {
@@ -67,6 +69,38 @@ describe("ForceGraph", () => {
       expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(2);
       expect(linksContainer?.children?.filter((s) => s.visible).length).toBe(1);
     });
+  });
+
+  it("rasterizes the node circle at a resolution that stays smooth when zoomed", async () => {
+    // A is a degree-4 hub → radius 4 + √4 = 6. Zooming scales the world up to
+    // 4× and hover grows a node by 1.3×, so the circle texture must carry at
+    // least 6 × 4 × 1.3 = 31.2px of source detail per radius. A smaller raster
+    // gets magnified past native resolution and its edge reads as pixelated.
+    const nodes = [
+      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
+      { id: "C.md", createdAt: "2024-01-03T00:00:00.000Z" },
+      { id: "D.md", createdAt: "2024-01-04T00:00:00.000Z" },
+      { id: "E.md", createdAt: "2024-01-05T00:00:00.000Z" },
+    ];
+    const edges = [
+      { source: "A.md", target: "B.md" },
+      { source: "A.md", target: "C.md" },
+      { source: "A.md", target: "D.md" },
+      { source: "A.md", target: "E.md" },
+    ];
+
+    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(5);
+    });
+
+    const app = getPixiApp(container)!;
+    const circleRadius = app.__textureSource?.__circleRadius;
+
+    expect(circleRadius).toBeGreaterThanOrEqual(6 * 4 * 1.3);
   });
 
   it("renders all nodes and edges without a timeline", async () => {

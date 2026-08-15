@@ -85,7 +85,12 @@ class Sprite extends Container {
 }
 
 class Graphics extends Container {
-  circle() {
+  constructor() {
+    super();
+    this.__circleRadius = null;
+  }
+  circle(x, y, radius) {
+    this.__circleRadius = radius;
     return this;
   }
   fill() {
@@ -112,7 +117,12 @@ class Application {
     this.canvas.__pixiApp = this;
     this.stage = new Container();
     this.renderer = {
-      generateTexture: () => new Texture(),
+      generateTexture: (target) => {
+        // Keep the source the texture was rasterized from so tests can assert
+        // the resolution the node circle was drawn at.
+        this.__textureSource = target;
+        return new Texture();
+      },
     };
     this.ticker = {
       add: () => {},
