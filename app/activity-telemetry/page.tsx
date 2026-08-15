@@ -101,6 +101,7 @@ export default function ActivityTelemetryPage() {
             <MouseVisual
               leftClicks={data.totals.leftClicks}
               rightClicks={data.totals.rightClicks}
+              movementMeters={data.totals.movementMeters}
             />
           </div>
 
