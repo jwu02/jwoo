@@ -196,6 +196,64 @@ describe("ForceGraph", () => {
     expect(isolatedE.tint).toBe(hubB.tint);
   });
 
+  it("tints a reciprocal-only node as a leaf despite degree 2", async () => {
+    // A.md <-> B.md is a reciprocal pair: A has one unique neighbor (B) but
+    // degree 2. It must be tinted like a true leaf (C), not like a hub (B).
+    const nodes = [
+      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
+      { id: "C.md", createdAt: "2024-01-03T00:00:00.000Z" },
+    ];
+    const edges = [
+      { source: "A.md", target: "B.md" },
+      { source: "B.md", target: "A.md" },
+      { source: "B.md", target: "C.md" },
+    ];
+
+    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
+    });
+
+    const reciprocalLeafA = nodeSpriteById(container, "A.md")!;
+    const hubB = nodeSpriteById(container, "B.md")!;
+    const trueLeafC = nodeSpriteById(container, "C.md")!;
+
+    expect(reciprocalLeafA.tint).not.toBe(hubB.tint);
+    expect(reciprocalLeafA.tint).toBe(trueLeafC.tint);
+  });
+
+  it("tints leaf nodes with a color distinct from hubs and edges", async () => {
+    const nodes = [
+      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
+      { id: "C.md", createdAt: "2024-01-03T00:00:00.000Z" },
+    ];
+    const edges = [
+      { source: "A.md", target: "B.md" },
+      { source: "B.md", target: "C.md" },
+    ];
+
+    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
+    });
+
+    const leafA = nodeSpriteById(container, "A.md")!;
+    const leafC = nodeSpriteById(container, "C.md")!;
+    const hubB = nodeSpriteById(container, "B.md")!;
+    const edgeAB = linkSpriteBySource(container, "A.md")!;
+
+    // Leaf nodes share one tint, distinct from both hubs and edge lines.
+    expect(leafA.tint).toBe(leafC.tint);
+    expect(leafA.tint).not.toBe(hubB.tint);
+    expect(leafA.tint).not.toBe(edgeAB.tint);
+  });
+
   it("clears the highlight and hides the label on mouseout", async () => {
     const nodes = [
       { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },

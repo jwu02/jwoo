@@ -86,7 +86,6 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
 
   const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
   const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
-  const degreesRef = useRef<Map<string, number>>(degrees);
   const nodeRadiusRef = useRef<Map<string, number>>(new Map());
   const adjacencyRef = useRef<Map<string, Set<string>>>(new Map());
   const incidentLinksRef = useRef<Map<string, GraphLink[]>>(new Map());
@@ -100,11 +99,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<HTMLDivElement, unknown> | null>(null);
   const zoomSelectionRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null);
   const userInteractedRef = useRef(false);
-  const colorsRef = useRef({ node: 0, edge: 0, hover: 0, link: 0, bg: 0 });
-
-  useEffect(() => {
-    degreesRef.current = degrees;
-  }, [degrees]);
+  const colorsRef = useRef({ node: 0, hover: 0, link: 0, leaf: 0 });
 
   const positionLabel = useCallback(() => {
     const label = labelRef.current;
@@ -142,7 +137,6 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
     const linkSprites = linkSpritesRef.current;
     const adjacency = adjacencyRef.current;
     const colors = colorsRef.current;
-    const degreeMap = degreesRef.current;
     const radii = nodeRadiusRef.current;
     // Every node is seeded a Set in the index, so the lookups below never miss.
     const neighborIds = hovered !== null ? adjacency.get(hovered) : undefined;
@@ -150,9 +144,12 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
     for (const [id, sprite] of nodeSprites) {
       const isHovered = id === hovered;
       const isDimmed = hovered !== null && !isHovered && !neighborIds?.has(id);
-      const degree = degreeMap.get(id) ?? 0;
       const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / CIRCLE_TEXTURE_RADIUS;
-      sprite.tint = isHovered ? colors.hover : degree === 1 ? colors.edge : colors.node;
+      sprite.tint = isHovered
+        ? colors.hover
+        : adjacency.get(id)?.size === 1
+          ? colors.leaf
+          : colors.node;
       sprite.alpha = isDimmed ? 0.15 : 1;
       sprite.scale.set(baseScale * (isHovered ? 1.3 : 1));
     }
@@ -273,8 +270,9 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
         node,
         hover: cssVarToPixiColor("--claude-orange", PIXI),
         link: cssVarToPixiColor("--foreground", PIXI),
-        bg,
-        edge: mixColors(node, bg, 0.4),
+        // Leaf nodes are tinted a darker, muted shade of the node colour so
+        // they read as distinct from hubs but stay in the same palette.
+        leaf: mixColors(node, bg, 0.7),
       };
 
       // The effect cleanup tears the previous world down on rebuild; this call
@@ -342,7 +340,13 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
         sprite.eventMode = "static";
         sprite.cursor = "pointer";
         sprite.scale.set(radius / CIRCLE_TEXTURE_RADIUS);
-        sprite.tint = degree === 1 ? colorsRef.current.edge : colorsRef.current.node;
+        // A leaf is a node with a single unique neighbor, not degree 1 —
+        // reciprocal links (A->B and B->A) would otherwise double a true
+        // leaf's degree to 2 and hide its tint.
+        sprite.tint =
+          adjacency.get(node.id)!.size === 1
+            ? colorsRef.current.leaf
+            : colorsRef.current.node;
         sprite.alpha = 1;
         nodesContainer.addChild(sprite);
         nodeSprites.set(node.id, sprite);
