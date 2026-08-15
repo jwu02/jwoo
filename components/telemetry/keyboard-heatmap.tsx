@@ -2,9 +2,71 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowBigUp,
+  ArrowBigUpDash,
+  ArrowRightToLine,
+  ChevronUp,
+  Command,
+  CornerDownLeft,
+  Delete,
+  Option,
+  type LucideIcon,
+} from "lucide-react";
 import { KeyCounts } from "@/lib/telemetry/types";
 import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout";
 import { computeTooltipPosition } from "@/lib/telemetry/tooltip-position";
+
+// Key ids that render a lucide icon instead of a text label. The symbols echo
+// the printed glyphs on a Mac keycap (⇥ ⇪ ⇧ ⌫ ↵ ⌃ ⌥ ⌘); the modifier keys are
+// explained by the control · option · command legend below the keyboard.
+const KEY_ICONS: Record<string, LucideIcon> = {
+  Tab: ArrowRightToLine,
+  "Caps Lock": ArrowBigUpDash,
+  "Left Shift": ArrowBigUp,
+  "Right Shift": ArrowBigUp,
+  Delete: Delete,
+  Return: CornerDownLeft,
+  "Left Ctrl": ChevronUp,
+  "Left Option": Option,
+  "Right Option": Option,
+  "Left Cmd": Command,
+  "Right Cmd": Command,
+};
+
+// Keycap icon size in SVG viewBox units — matched to the label text height
+// (11px) so the glyphs read at the same visual weight as the keycap text.
+const ICON_SIZE = 11;
+
+// Full modifier names printed under the modifier icons (⌃ ⌥ ⌘).
+const KEY_ICON_LABELS: Record<string, string> = {
+  "Left Ctrl": "control",
+  "Left Option": "option",
+  "Right Option": "option",
+  "Left Cmd": "command",
+  "Right Cmd": "command",
+};
+
+// Corner of the keycap each icon is pinned to, echoing where the symbol sits
+// on a real keycap (e.g. shift low-left, modifiers towards the top edge).
+type IconPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
+const KEY_ICON_POSITIONS: Record<string, IconPosition> = {
+  Tab: "bottom-left",
+  "Caps Lock": "bottom-left",
+  "Left Shift": "bottom-left",
+  "Right Shift": "bottom-right",
+  Delete: "bottom-right",
+  Return: "bottom-right",
+  "Left Ctrl": "top-right",
+  "Left Option": "top-right",
+  "Right Option": "top-left",
+  "Left Cmd": "top-right",
+  "Right Cmd": "top-left",
+};
+
+// Inset of a pinned icon from the keycap edge, in viewBox units.
+const ICON_PAD = 6;
 
 interface KeyboardHeatmapProps {
   keys: KeyCounts;
@@ -75,12 +137,16 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
     [hovered]
   );
 
-  // For tooltip breakdown: which data labels contributed to this key's count
+  // For tooltip breakdown: which labels this key can produce, with their
+  // counts. Every character printed on the keycap (single glyph, e.g. "3",
+  // "£", "#") is always listed so an unclicked character still appears with a
+  // 0 count. Key-name labels (e.g. "Semicolon", "Delete") only appear when the
+  // telemetry client actually counted them.
   const hoveredBreakdown = useMemo(() => {
     if (!hoveredKey) return [];
     return hoveredKey.labels
-      .filter((label) => (keys[label] ?? 0) > 0)
-      .map((label) => ({ label, count: keys[label]! }))
+      .map((label) => ({ label, count: keys[label] ?? 0 }))
+      .filter(({ label, count }) => count > 0 || label.length === 1)
       .sort((a, b) => b.count - a.count);
   }, [hoveredKey, keys]);
 
@@ -149,6 +215,17 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
           const intensity = maxCount > 0 ? count / maxCount : 0;
           const fill = interpolateColor(intensity);
           const isHovered = hovered === key.id;
+          const Icon = KEY_ICONS[key.id];
+          const iconLabel = KEY_ICON_LABELS[key.id];
+          const iconPosition = KEY_ICON_POSITIONS[key.id];
+          const iconX =
+            iconPosition === "top-left" || iconPosition === "bottom-left"
+              ? key.x + ICON_PAD
+              : key.x + key.width - ICON_PAD - ICON_SIZE;
+          const iconY =
+            iconPosition === "top-left" || iconPosition === "top-right"
+              ? key.y + ICON_PAD
+              : key.y + key.height - ICON_PAD - ICON_SIZE;
           const { text: keycapText, fontSize } = fitLabel(
             key.displayLabel,
             key.width,
@@ -187,8 +264,36 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                 strokeWidth={isHovered ? 1.5 : 0.75}
                 className="transition-colors outline-none"
               />
-              {/* Only render text if key is wide/tall enough */}
-              {key.width >= 30 && key.height >= 16 && keycapText && (
+              {/* Icon keys render a lucide glyph instead of the text label,
+                  pinned to the keycap corner from KEY_ICON_POSITIONS. */}
+              {Icon && (
+                <g
+                  transform={`translate(${iconX}, ${iconY})`}
+                  className="pointer-events-none"
+                >
+                  <Icon
+                    size={ICON_SIZE}
+                    strokeWidth={2}
+                    color="oklch(0.96 0 0)"
+                  />
+                </g>
+              )}
+              {/* Modifier keys print their full name centred at the bottom */}
+              {iconLabel && (
+                <text
+                  x={key.x + key.width / 2}
+                  y={key.y + key.height - 9}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="select-none pointer-events-none"
+                  fill="oklch(0.96 0 0)"
+                  style={{ fontSize: 7 }}
+                >
+                  {iconLabel}
+                </text>
+              )}
+              {/* Only render text if key is wide/tall enough and has no icon */}
+              {!Icon && key.width >= 30 && key.height >= 16 && keycapText && (
                 <text
                   x={key.x + key.width / 2}
                   y={key.y + key.height / 2 + 1}
