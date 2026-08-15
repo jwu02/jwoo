@@ -1,6 +1,6 @@
 "use client"
 
-import { Activity, Circle, FileText, Home, Radar } from "lucide-react"
+import { Activity, FileText, Home, Sparkle } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -19,7 +19,7 @@ import {
 const NAV_ITEMS = [
   { title: "Home", url: "/", icon: Home },
   { title: "Activity Telemetry", url: "/activity-telemetry", icon: Activity },
-  { title: "Knowledge Graph", url: "/knowledge-graph", icon: Circle },
+  { title: "Knowledge Graph", url: "/knowledge-graph", icon: Sparkle },
   { title: "Resume", url: "/resume", icon: FileText },
 ]
 
@@ -32,11 +32,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <Radar />
-              </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">jwoo</span>
+                <span className="font-semibold">Tony Wu</span>
                 <span className="text-xs text-sidebar-foreground/70">
                   Personal website
                 </span>
