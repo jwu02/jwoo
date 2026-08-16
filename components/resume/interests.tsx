@@ -8,7 +8,7 @@ export function Interests({ data }: { data: ResumeData }) {
       <SectionTitle title={data.titles.interests} />
       <div>
         {data.interests.map((interest, index) => (
-          <Badge key={index} variant="outline" className="text-base">
+          <Badge key={index} variant="outline">
             {interest}
           </Badge>
         ))}

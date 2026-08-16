@@ -141,19 +141,11 @@ export const en: ResumeData = {
       ],
     },
     {
-      title: "PC Activity Monitoring",
+      title: "Personal Website",
       details: [
-        "Built a Python-based desktop application to track and record system activity, including keyboard input and mouse interactions, for personal productivity analytics",
-        "Designed a serverless data pipeline using AWS API Gateway and Lambda to periodically transmit activity data, with storage in MongoDB for persistence and querying",
-        "Developed a Next.js frontend dashboard to visualize user activity data via serverless APIs, enabling real-time personal behavior insights",
-      ],
-    },
-    {
-      title: "Obsidian Notes Knowledge Graph",
-      details: [
-        "Integrated GitHub API to retrieve and sync backed-up Obsidian note data for structured knowledge extraction",
-        "Built an interactive force-directed graph visualization using D3.js to represent relationships between notes, enabling exploration of knowledge connections",
-        "Embedded visualization into a Next.js personal website for interactive browsing and knowledge navigation",
+        "Designed and built a personal website using Next.js, React, Tailwind CSS, and shadcn/ui, featuring an activity telemetry dashboard, an interactive knowledge graph, and a bilingual (English/Chinese) resume",
+        "Built a full activity telemetry stack — a desktop logger that records mouse and keyboard events directly into MongoDB, with a Next.js REST API and Recharts/SVG heatmap dashboard visualizing real-time usage trends",
+        "Built an interactive knowledge graph rendered with PixiJS on WebGL for smooth, high-performance interaction, using a d3-force simulation to lay out relationships between notes",
       ],
     },
   ],
@@ -231,19 +223,11 @@ export const zh: ResumeData = {
       ],
     },
     {
-      title: "PC 活动监控系统",
+      title: "个人网站",
       details: [
-        "开发基于 Python 的桌面应用，用于跟踪并记录系统活动，包括键盘输入及鼠标点击与移动行为，用于个人生产力分析",
-        "设计无服务器数据管道，通过 AWS API Gateway 与 Lambda 定期上传活动数据，并存储至 MongoDB 以支持持久化与查询分析",
-        "开发基于 Next.js 的前端数据看板，通过无服务器 API 可视化用户行为数据，实现实时个人行为洞察",
-      ],
-    },
-    {
-      title: "Obsidian 笔记知识图谱",
-      details: [
-        "通过 GitHub API 获取并同步备份的 Obsidian 笔记数据，实现结构化知识提取",
-        "使用 D3.js 构建交互式力导向图可视化，用于展示笔记之间的关联关系，支持知识网络探索",
-        "将可视化模块集成至 Next.js 个人网站，实现交互式浏览与知识导航",
+        "使用 Next.js、React、Tailwind CSS 与 shadcn/ui 构建个人网站，集活动遥测仪表盘、交互式知识图谱与中英双语简历于一体",
+        "构建完整的活动遥测技术栈 — 桌面记录器将鼠标与键盘事件直接写入 MongoDB，配合 Next.js REST API 与 Recharts/SVG 热力图仪表盘，实时可视化使用趋势",
+        "使用 PixiJS（基于 WebGL 渲染）构建交互式知识图谱，结合 d3-force 力导向布局，实现笔记与知识关联的流畅交互与浏览",
       ],
     },
   ],
