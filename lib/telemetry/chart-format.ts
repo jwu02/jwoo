@@ -38,6 +38,7 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
       });
     case "7d":
       return date.toLocaleString("en-US", {
+        weekday: "short",
         month: "short",
         day: "numeric",
         year: "numeric",
