@@ -1,4 +1,5 @@
 import { AiUsageByModel } from "@/lib/telemetry/types";
+import { formatCompactNumber } from "@/lib/telemetry/chart-format";
 
 interface ModelBreakdownProps {
   byModel: AiUsageByModel[];
@@ -59,7 +60,7 @@ export function ModelBreakdown({ byModel }: ModelBreakdownProps) {
                 {formatNumber(model.requests)}
               </td>
               <td className="py-2 text-right tabular-nums">
-                {formatNumber(model.totalTokens)}
+                {formatCompactNumber(model.totalTokens)}
               </td>
               <td className="py-2 text-right tabular-nums">
                 <span className="text-muted-foreground">¥</span>

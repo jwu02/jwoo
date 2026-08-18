@@ -1,6 +1,10 @@
 process.env.TZ = "Asia/Shanghai";
 
-import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
+import {
+  formatTick,
+  formatTooltip,
+  formatCompactNumber,
+} from "@/lib/telemetry/chart-format";
 
 describe("formatTick", () => {
   const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
@@ -39,5 +43,22 @@ describe("formatTooltip", () => {
 
   it("formats 1y tooltip as month, day, and year", () => {
     expect(formatTooltip(bucket, "1y")).toBe("Aug 9, 2025");
+  });
+});
+
+describe("formatCompactNumber", () => {
+  it("formats millions with an M suffix", () => {
+    expect(formatCompactNumber(1_200_000)).toBe("1.2M");
+    expect(formatCompactNumber(1_000_000)).toBe("1M");
+  });
+
+  it("formats thousands with a K suffix", () => {
+    expect(formatCompactNumber(550_000)).toBe("550K");
+    expect(formatCompactNumber(2_500)).toBe("2.5K");
+  });
+
+  it("leaves small numbers compact", () => {
+    expect(formatCompactNumber(1.25)).toBe("1.3");
+    expect(formatCompactNumber(0)).toBe("0");
   });
 });

@@ -13,7 +13,11 @@ import {
 } from "recharts";
 import { AiUsageRange, AiUsageModelTimeSeries } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
-import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
+import {
+  formatTick,
+  formatTooltip,
+  formatCompactNumber,
+} from "@/lib/telemetry/chart-format";
 
 interface UsageChartProps {
   data: AiUsageModelTimeSeries[];
@@ -42,22 +46,6 @@ interface ChartRow {
 
 function formatValue(value: number): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: 4 });
-}
-
-// Compact y-axis labels: 1,200,000 → "1.2M", 550,000 → "550K".
-export function formatAxisLabel(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) {
-    return `${trimNumber(value / 1_000_000)}M`;
-  }
-  if (abs >= 1_000) {
-    return `${trimNumber(value / 1_000)}K`;
-  }
-  return trimNumber(value);
-}
-
-function trimNumber(value: number): string {
-  return Number(value.toFixed(1)).toString();
 }
 
 // Cost y-axis labels: yuan values are small, so keep decimals and skip the M/K
@@ -168,7 +156,7 @@ function MiniLineChart({
   data,
   series,
   range,
-  yTickFormatter = formatAxisLabel,
+  yTickFormatter = formatCompactNumber,
 }: {
   data: ChartRow[];
   series: Series[];
@@ -247,6 +235,7 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
     dataKey: entry.tokensKey,
     name: entry.model,
     color: `--chart-${(index % 5) + 1}`,
+    formatValue: formatCompactNumber,
   }));
 
   const costSeries: Series[] = series.map((entry, index) => ({

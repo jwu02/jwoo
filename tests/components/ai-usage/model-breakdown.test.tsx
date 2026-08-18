@@ -14,7 +14,7 @@ describe("ModelBreakdown", () => {
     expect(screen.getByText("gpt-4o")).toBeInTheDocument();
     expect(screen.getByText("claude-opus-5")).toBeInTheDocument();
     expect(screen.getByText("0.80")).toBeInTheDocument();
-    expect(screen.getByText("2,000")).toBeInTheDocument();
+    expect(screen.getByText("2K")).toBeInTheDocument();
   });
 
   it("sorts models by cost descending", () => {

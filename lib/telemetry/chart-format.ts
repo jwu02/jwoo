@@ -1,5 +1,21 @@
 import { Range } from "./types";
 
+// Compact large counts to K/M: 1,200,000 → "1.2M", 550,000 → "550K".
+export function formatCompactNumber(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    return `${trimNumber(value / 1_000_000)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${trimNumber(value / 1_000)}K`;
+  }
+  return trimNumber(value);
+}
+
+function trimNumber(value: number): string {
+  return Number(value.toFixed(1)).toString();
+}
+
 export function formatTick(bucket: string, range: Range): string {
   const date = new Date(bucket);
 

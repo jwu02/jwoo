@@ -2,7 +2,6 @@ import { render, fireEvent, act, within } from "@testing-library/react";
 import { cloneElement } from "react";
 import {
   UsageChart,
-  formatAxisLabel,
   formatCostAxisLabel,
   buildModelChartData,
 } from "@/components/ai-usage/usage-chart";
@@ -101,23 +100,6 @@ beforeAll(() => {
 
 afterAll(() => {
   jest.restoreAllMocks();
-});
-
-describe("formatAxisLabel", () => {
-  it("formats millions with an M suffix", () => {
-    expect(formatAxisLabel(1_200_000)).toBe("1.2M");
-    expect(formatAxisLabel(1_000_000)).toBe("1M");
-  });
-
-  it("formats thousands with a K suffix", () => {
-    expect(formatAxisLabel(550_000)).toBe("550K");
-    expect(formatAxisLabel(2_500)).toBe("2.5K");
-  });
-
-  it("leaves small numbers compact", () => {
-    expect(formatAxisLabel(1.25)).toBe("1.3");
-    expect(formatAxisLabel(0)).toBe("0");
-  });
 });
 
 describe("formatCostAxisLabel", () => {
@@ -232,13 +214,13 @@ describe("UsageChart", () => {
     expect(items.some((item) => item?.startsWith("model-a: ¥"))).toBe(true);
   });
 
-  it("shows each model's full token value in the tooltip", async () => {
+  it("shortens each model's token value in the tooltip to M/K", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(0);
-    // Tooltips keep full precision (thousands separators) even though the
-    // y-axis is shortened to M.
-    expect(items.some((item) => item?.match(/model-b: \d{1,3}(,\d{3})+/))).toBe(
+    // Token tooltips use the same M/K compaction as the y-axis rather than
+    // full thousands-separated precision.
+    expect(items.some((item) => item?.match(/model-b: \d+(\.\d+)?[MK]/))).toBe(
       true
     );
   });

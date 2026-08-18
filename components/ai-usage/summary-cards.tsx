@@ -1,4 +1,5 @@
 import { AiUsageTotals } from "@/lib/telemetry/types";
+import { formatCompactNumber } from "@/lib/telemetry/chart-format";
 import { Coins, Cpu, FileInput, FileOutput, Gauge, RefreshCcw } from "lucide-react";
 
 interface SummaryCardsProps {
@@ -29,17 +30,17 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
     },
     {
       label: "Total Tokens",
-      value: formatNumber(totals.totalTokens),
+      value: formatCompactNumber(totals.totalTokens),
       icon: Cpu,
     },
     {
       label: "Prompt Tokens",
-      value: formatNumber(totals.promptTokens),
+      value: formatCompactNumber(totals.promptTokens),
       icon: FileInput,
     },
     {
       label: "Completion Tokens",
-      value: formatNumber(totals.completionTokens),
+      value: formatCompactNumber(totals.completionTokens),
       icon: FileOutput,
     },
     {

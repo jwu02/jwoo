@@ -17,11 +17,11 @@ describe("SummaryCards", () => {
     expect(screen.getByText("Cost")).toBeInTheDocument();
     expect(screen.getByText("0.50")).toBeInTheDocument();
     expect(screen.getByText("Total Tokens")).toBeInTheDocument();
-    expect(screen.getByText("100,000")).toBeInTheDocument();
+    expect(screen.getByText("100K")).toBeInTheDocument();
     expect(screen.getByText("Prompt Tokens")).toBeInTheDocument();
-    expect(screen.getByText("90,000")).toBeInTheDocument();
+    expect(screen.getByText("90K")).toBeInTheDocument();
     expect(screen.getByText("Completion Tokens")).toBeInTheDocument();
-    expect(screen.getByText("10,000")).toBeInTheDocument();
+    expect(screen.getByText("10K")).toBeInTheDocument();
     expect(screen.getByText("Cache Hit Rate")).toBeInTheDocument();
     expect(screen.getByText("60%")).toBeInTheDocument();
     expect(screen.getByText("Requests")).toBeInTheDocument();
