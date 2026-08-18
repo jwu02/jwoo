@@ -5,6 +5,7 @@ const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.ACTIVITY_DB_NAME || "activity-telemetry";
 const TELEMETRY_COLLECTION_NAME = "telemetry";
 const KEYBOARD_HEATMAP_COLLECTION_NAME = "keyboard_heatmap";
+const AI_USAGE_COLLECTION_NAME = "ai_usage";
 
 declare global {
   // Allow caching the client across hot reloads in development.
@@ -35,4 +36,10 @@ export function getKeyboardHeatmapCollection(): Collection {
   const client = getClient();
   const db: Db = client.db(DB_NAME);
   return db.collection(KEYBOARD_HEATMAP_COLLECTION_NAME);
+}
+
+export function getAiUsageCollection(): Collection {
+  const client = getClient();
+  const db: Db = client.db(DB_NAME);
+  return db.collection(AI_USAGE_COLLECTION_NAME);
 }

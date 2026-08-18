@@ -24,3 +24,34 @@ export interface TelemetryResponse {
   keys: KeyCounts;
   timeSeries: TimeSeriesPoint[];
 }
+
+export interface AiUsageTotals {
+  costYuan: number;
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  cacheHitTokens: number;
+  cacheMissTokens: number;
+  requests: number;
+}
+
+export interface AiUsageByModel {
+  model: string;
+  costYuan: number;
+  totalTokens: number;
+  requests: number;
+}
+
+export interface AiUsageTimeSeriesPoint {
+  bucket: string; // ISO date string
+  costYuan: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface AiUsageResponse {
+  totals: AiUsageTotals;
+  byModel: AiUsageByModel[];
+  timeSeries: AiUsageTimeSeriesPoint[];
+}
