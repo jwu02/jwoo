@@ -1,4 +1,4 @@
-import { Activity, FileText, Sparkle } from "lucide-react"
+import { Activity, Bot, FileText, Sparkle } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,23 @@ export default function HomePage() {
             >
               <Activity data-icon="inline-start" />
               View dashboard
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Bot />
+            </div>
+            <CardTitle>AI Usage</CardTitle>
+            <CardDescription>
+              Model cost and token usage from AI API calls.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button render={<Link href="/ai-usage" />} nativeButton={false}>
+              <Bot data-icon="inline-start" />
+              View usage
             </Button>
           </CardContent>
         </Card>
