@@ -1,5 +1,13 @@
 import { Collection } from "mongodb";
-import { TelemetryRange, TelemetryTotals, KeyCounts, TimeSeriesPoint } from "./types";
+import {
+  TelemetryRange,
+  TelemetryTotals,
+  KeyCounts,
+  TimeSeriesPoint,
+  AiUsageTotals,
+  AiUsageByModel,
+  AiUsageTimeSeriesPoint,
+} from "./types";
 import { getRangeStart, getBucketInterval, RangeConfig } from "./ranges";
 
 export function buildTotalsPipeline(): Record<string, unknown>[] {
@@ -213,4 +221,143 @@ function addInterval(date: Date, interval: RangeConfig): Date {
       break;
   }
   return next;
+}
+
+// --- AI usage (collection: ai_usage) ------------------------------------
+
+interface AiUsageTotalsRow {
+  costYuan: number;
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  cacheHitTokens: number;
+  cacheMissTokens: number;
+  requests: number;
+}
+
+export function buildAiUsageTotalsPipeline(): Record<string, unknown>[] {
+  return [
+    {
+      $group: {
+        _id: null,
+        costYuan: { $sum: "$cost_yuan" },
+        totalTokens: { $sum: "$total_tokens" },
+        promptTokens: { $sum: "$prompt_tokens" },
+        completionTokens: { $sum: "$completion_tokens" },
+        cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
+        cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
+        requests: { $sum: 1 },
+      },
+    },
+  ];
+}
+
+export function buildAiUsageByModelPipeline(): Record<string, unknown>[] {
+  return [
+    {
+      $group: {
+        _id: "$model",
+        costYuan: { $sum: "$cost_yuan" },
+        totalTokens: { $sum: "$total_tokens" },
+        requests: { $sum: 1 },
+      },
+    },
+    { $sort: { costYuan: -1 } },
+  ];
+}
+
+export function buildAiUsageTimeSeriesPipeline(
+  range: TelemetryRange,
+  now = new Date()
+): Record<string, unknown>[] {
+  const start = getRangeStart(range, now);
+  const interval = getBucketInterval(range);
+
+  return [
+    { $match: { recorded_at: { $gte: start } } },
+    {
+      $group: {
+        _id: {
+          $dateTrunc: {
+            date: "$recorded_at",
+            unit: interval.unit,
+            binSize: interval.binSize,
+            ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
+          },
+        },
+        costYuan: { $sum: "$cost_yuan" },
+        promptTokens: { $sum: "$prompt_tokens" },
+        completionTokens: { $sum: "$completion_tokens" },
+        totalTokens: { $sum: "$total_tokens" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ];
+}
+
+export async function fetchAiUsageTotals(
+  collection: Collection
+): Promise<AiUsageTotals> {
+  const result = await collection
+    .aggregate(buildAiUsageTotalsPipeline())
+    .toArray();
+  const first = result[0] as AiUsageTotalsRow | undefined;
+  return {
+    costYuan: first?.costYuan ?? 0,
+    totalTokens: first?.totalTokens ?? 0,
+    promptTokens: first?.promptTokens ?? 0,
+    completionTokens: first?.completionTokens ?? 0,
+    cacheHitTokens: first?.cacheHitTokens ?? 0,
+    cacheMissTokens: first?.cacheMissTokens ?? 0,
+    requests: first?.requests ?? 0,
+  };
+}
+
+export async function fetchAiUsageByModel(
+  collection: Collection
+): Promise<AiUsageByModel[]> {
+  const result = (await collection
+    .aggregate(buildAiUsageByModelPipeline())
+    .toArray()) as Array<{
+    _id: string;
+    costYuan: number;
+    totalTokens: number;
+    requests: number;
+  }>;
+  return result.map((item) => ({
+    model: item._id,
+    costYuan: item.costYuan,
+    totalTokens: item.totalTokens,
+    requests: item.requests,
+  }));
+}
+
+export async function fetchAiUsageTimeSeries(
+  collection: Collection,
+  range: TelemetryRange,
+  now = new Date()
+): Promise<AiUsageTimeSeriesPoint[]> {
+  const raw = (await collection
+    .aggregate(buildAiUsageTimeSeriesPipeline(range, now))
+    .toArray()) as Array<{
+    _id: Date;
+    costYuan: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  }>;
+
+  const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
+
+  const buckets = generateBuckets(range, now);
+  return buckets.map((bucket) => {
+    const item = rawMap.get(bucket);
+    return {
+      bucket,
+      costYuan: item?.costYuan ?? 0,
+      promptTokens: item?.promptTokens ?? 0,
+      completionTokens: item?.completionTokens ?? 0,
+      totalTokens: item?.totalTokens ?? 0,
+    };
+  });
 }

@@ -6,6 +6,12 @@ import {
   fetchKeyCounts,
   fetchTimeSeries,
   generateBuckets,
+  buildAiUsageTotalsPipeline,
+  buildAiUsageByModelPipeline,
+  buildAiUsageTimeSeriesPipeline,
+  fetchAiUsageTotals,
+  fetchAiUsageByModel,
+  fetchAiUsageTimeSeries,
 } from "@/lib/telemetry/aggregation";
 import { Collection } from "mongodb";
 
@@ -210,5 +216,174 @@ describe("generateBuckets", () => {
       expect(date.getUTCMinutes()).toBe(0);
       expect(date.getUTCSeconds()).toBe(0);
     });
+  });
+});
+
+describe("buildAiUsageTotalsPipeline", () => {
+  it("sums ai_usage fields and counts requests", () => {
+    const pipeline = buildAiUsageTotalsPipeline();
+    expect(pipeline).toEqual([
+      {
+        $group: {
+          _id: null,
+          costYuan: { $sum: "$cost_yuan" },
+          totalTokens: { $sum: "$total_tokens" },
+          promptTokens: { $sum: "$prompt_tokens" },
+          completionTokens: { $sum: "$completion_tokens" },
+          cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
+          cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
+          requests: { $sum: 1 },
+        },
+      },
+    ]);
+  });
+});
+
+describe("buildAiUsageByModelPipeline", () => {
+  it("groups by model and sorts by cost descending", () => {
+    const pipeline = buildAiUsageByModelPipeline();
+    expect(pipeline).toEqual([
+      {
+        $group: {
+          _id: "$model",
+          costYuan: { $sum: "$cost_yuan" },
+          totalTokens: { $sum: "$total_tokens" },
+          requests: { $sum: 1 },
+        },
+      },
+      { $sort: { costYuan: -1 } },
+    ]);
+  });
+});
+
+describe("buildAiUsageTimeSeriesPipeline", () => {
+  it("matches on recorded_at, buckets, and sums for 24h", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildAiUsageTimeSeriesPipeline("24h", now);
+
+    expect(pipeline[0]).toEqual({
+      $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } },
+    });
+
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: { date: "$recorded_at", unit: "minute", binSize: 30 },
+    });
+    expect(groupStage.$group.costYuan).toEqual({ $sum: "$cost_yuan" });
+    expect(groupStage.$group.promptTokens).toEqual({ $sum: "$prompt_tokens" });
+    expect(groupStage.$group.completionTokens).toEqual({
+      $sum: "$completion_tokens",
+    });
+    expect(groupStage.$group.totalTokens).toEqual({ $sum: "$total_tokens" });
+
+    expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
+  });
+
+  it("uses daily truncation for 1y buckets", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildAiUsageTimeSeriesPipeline("1y", now);
+
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: { date: "$recorded_at", unit: "day", binSize: 1 },
+    });
+  });
+});
+
+describe("fetchAiUsageTotals", () => {
+  it("returns totals from the aggregation result", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: null,
+        costYuan: 0.5,
+        totalTokens: 100,
+        promptTokens: 90,
+        completionTokens: 10,
+        cacheHitTokens: 60,
+        cacheMissTokens: 40,
+        requests: 1,
+      },
+    ]);
+    const result = await fetchAiUsageTotals(collection);
+    expect(result).toEqual({
+      costYuan: 0.5,
+      totalTokens: 100,
+      promptTokens: 90,
+      completionTokens: 10,
+      cacheHitTokens: 60,
+      cacheMissTokens: 40,
+      requests: 1,
+    });
+  });
+
+  it("returns zeros when collection is empty", async () => {
+    const collection = makeMockCollection([]);
+    const result = await fetchAiUsageTotals(collection);
+    expect(result).toEqual({
+      costYuan: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheHitTokens: 0,
+      cacheMissTokens: 0,
+      requests: 0,
+    });
+  });
+});
+
+describe("fetchAiUsageByModel", () => {
+  it("returns model rows", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: "deepseek-v4-flash",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+    ]);
+    const result = await fetchAiUsageByModel(collection);
+    expect(result).toEqual([
+      {
+        model: "deepseek-v4-flash",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+    ]);
+  });
+
+  it("returns empty array when collection is empty", async () => {
+    const collection = makeMockCollection([]);
+    const result = await fetchAiUsageByModel(collection);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("fetchAiUsageTimeSeries", () => {
+  it("maps aggregation results into zero-filled buckets", async () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const bucket = new Date("2026-08-18T10:00:00.000Z");
+    const collection = makeMockCollection([
+      {
+        _id: bucket,
+        costYuan: 0.25,
+        promptTokens: 1000,
+        completionTokens: 200,
+        totalTokens: 1200,
+      },
+    ]);
+    const result = await fetchAiUsageTimeSeries(collection, "24h", now);
+
+    const found = result.find((p) => p.bucket === bucket.toISOString());
+    expect(found).toEqual({
+      bucket: bucket.toISOString(),
+      costYuan: 0.25,
+      promptTokens: 1000,
+      completionTokens: 200,
+      totalTokens: 1200,
+    });
+
+    expect(result.length).toBe(generateBuckets("24h", now).length);
+    expect(result.every((p) => typeof p.totalTokens === "number")).toBe(true);
   });
 });
