@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { SummaryCards } from "@/components/telemetry/summary-cards"
 import { MouseVisual } from "@/components/telemetry/mouse-visual"
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap"
-import { RangeSelector } from "@/components/telemetry/range-selector"
+import { RangeSelector, TELEMETRY_RANGE_OPTIONS } from "@/components/telemetry/range-selector"
 import { ActivityChart } from "@/components/telemetry/activity-chart"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
 import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types"
@@ -107,7 +107,11 @@ export default function ActivityTelemetryPage() {
 
           <div>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <RangeSelector value={range} onChange={setRange} />
+              <RangeSelector
+                value={range}
+                onChange={setRange}
+                options={TELEMETRY_RANGE_OPTIONS}
+              />
             </div>
             <ActivityChart data={data.timeSeries} range={range} />
           </div>

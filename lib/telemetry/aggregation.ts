@@ -4,11 +4,19 @@ import {
   TelemetryTotals,
   KeyCounts,
   TimeSeriesPoint,
+  AiUsageRange,
   AiUsageTotals,
   AiUsageByModel,
   AiUsageTimeSeriesPoint,
+  AiUsageModelTimeSeries,
 } from "./types";
-import { getRangeStart, getBucketInterval, RangeConfig } from "./ranges";
+import {
+  getRangeStart,
+  getBucketInterval,
+  getAiUsageRangeStart,
+  getAiUsageBucketInterval,
+  RangeConfig,
+} from "./ranges";
 
 export function buildTotalsPipeline(): Record<string, unknown>[] {
   return [
@@ -121,9 +129,12 @@ export async function fetchTimeSeries(
     keyPresses: number;
   }>;
 
+  const start = getRangeStart(range, now);
+  const interval = getBucketInterval(range);
+
   const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
 
-  const buckets = generateBuckets(range, now);
+  const buckets = generateBuckets(start, interval, now);
   return buckets.map((bucket) => {
     const item = rawMap.get(bucket);
     return {
@@ -136,9 +147,11 @@ export async function fetchTimeSeries(
   });
 }
 
-function generateBuckets(range: TelemetryRange, now: Date): string[] {
-  const start = getRangeStart(range, now);
-  const interval = getBucketInterval(range);
+export function generateBuckets(
+  start: Date,
+  interval: RangeConfig,
+  now: Date
+): string[] {
   const buckets: string[] = [];
 
   let current = alignToInterval(start, interval);
@@ -151,8 +164,6 @@ function generateBuckets(range: TelemetryRange, now: Date): string[] {
 
   return buckets;
 }
-
-export { generateBuckets };
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -262,16 +273,18 @@ export function buildAiUsageByModelPipeline(): Record<string, unknown>[] {
         requests: { $sum: 1 },
       },
     },
-    { $sort: { costYuan: -1 } },
+    // Model name breaks cost ties so the table and chart share one
+    // deterministic ordering.
+    { $sort: { costYuan: -1, model: 1 } },
   ];
 }
 
 export function buildAiUsageTimeSeriesPipeline(
-  range: TelemetryRange,
+  range: AiUsageRange,
   now = new Date()
 ): Record<string, unknown>[] {
-  const start = getRangeStart(range, now);
-  const interval = getBucketInterval(range);
+  const start = getAiUsageRangeStart(range, now);
+  const interval = getAiUsageBucketInterval(range);
 
   return [
     { $match: { recorded_at: { $gte: start } } },
@@ -292,6 +305,36 @@ export function buildAiUsageTimeSeriesPipeline(
       },
     },
     { $sort: { _id: 1 } },
+  ];
+}
+
+export function buildAiUsageTimeSeriesByModelPipeline(
+  range: AiUsageRange,
+  now = new Date()
+): Record<string, unknown>[] {
+  const start = getAiUsageRangeStart(range, now);
+  const interval = getAiUsageBucketInterval(range);
+
+  return [
+    { $match: { recorded_at: { $gte: start } } },
+    {
+      $group: {
+        _id: {
+          bucket: {
+            $dateTrunc: {
+              date: "$recorded_at",
+              unit: interval.unit,
+              binSize: interval.binSize,
+              ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
+            },
+          },
+          model: "$model",
+        },
+        costYuan: { $sum: "$cost_yuan" },
+        totalTokens: { $sum: "$total_tokens" },
+      },
+    },
+    { $sort: { "_id.bucket": 1 } },
   ];
 }
 
@@ -334,9 +377,12 @@ export async function fetchAiUsageByModel(
 
 export async function fetchAiUsageTimeSeries(
   collection: Collection,
-  range: TelemetryRange,
+  range: AiUsageRange,
   now = new Date()
 ): Promise<AiUsageTimeSeriesPoint[]> {
+  const start = getAiUsageRangeStart(range, now);
+  const interval = getAiUsageBucketInterval(range);
+
   const raw = (await collection
     .aggregate(buildAiUsageTimeSeriesPipeline(range, now))
     .toArray()) as Array<{
@@ -349,7 +395,7 @@ export async function fetchAiUsageTimeSeries(
 
   const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
 
-  const buckets = generateBuckets(range, now);
+  const buckets = generateBuckets(start, interval, now);
   return buckets.map((bucket) => {
     const item = rawMap.get(bucket);
     return {
@@ -358,6 +404,64 @@ export async function fetchAiUsageTimeSeries(
       promptTokens: item?.promptTokens ?? 0,
       completionTokens: item?.completionTokens ?? 0,
       totalTokens: item?.totalTokens ?? 0,
+    };
+  });
+}
+
+export async function fetchAiUsageTimeSeriesByModel(
+  collection: Collection,
+  range: AiUsageRange,
+  now = new Date()
+): Promise<AiUsageModelTimeSeries[]> {
+  const start = getAiUsageRangeStart(range, now);
+  const interval = getAiUsageBucketInterval(range);
+
+  const raw = (await collection
+    .aggregate(buildAiUsageTimeSeriesByModelPipeline(range, now))
+    .toArray()) as Array<{
+    _id: { bucket: Date; model: string };
+    costYuan: number;
+    totalTokens: number;
+  }>;
+
+  // Group rows per model, keyed by bucket ISO string.
+  const byModel = new Map<
+    string,
+    Map<string, { costYuan: number; totalTokens: number }>
+  >();
+  const totalCost = new Map<string, number>();
+  for (const item of raw) {
+    const model = item._id.model;
+    const bucket = item._id.bucket.toISOString();
+    if (!byModel.has(model)) byModel.set(model, new Map());
+    byModel.get(model)!.set(bucket, {
+      costYuan: item.costYuan,
+      totalTokens: item.totalTokens,
+    });
+    totalCost.set(model, (totalCost.get(model) ?? 0) + item.costYuan);
+  }
+
+  const buckets = generateBuckets(start, interval, now);
+
+  // Highest total cost first, matching the by-model table order; tie-break by
+  // model name for determinism.
+  const models = [...byModel.keys()].sort((a, b) => {
+    const costDiff = (totalCost.get(b) ?? 0) - (totalCost.get(a) ?? 0);
+    return costDiff !== 0 ? costDiff : a.localeCompare(b);
+  });
+
+  return models.map((model) => {
+    const points = byModel.get(model)!;
+    return {
+      model,
+      points: buckets.map((bucket) => {
+        const item = points.get(bucket);
+        return {
+          bucket,
+          costYuan: item?.costYuan ?? 0,
+          totalTokens: item?.totalTokens ?? 0,
+        };
+      }),
     };
   });
 }

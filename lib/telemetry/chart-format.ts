@@ -1,6 +1,6 @@
-import { TelemetryRange } from "./types";
+import { Range } from "./types";
 
-export function formatTick(bucket: string, range: TelemetryRange): string {
+export function formatTick(bucket: string, range: Range): string {
   const date = new Date(bucket);
 
   switch (range) {
@@ -11,6 +11,7 @@ export function formatTick(bucket: string, range: TelemetryRange): string {
         hour12: false,
       });
     case "7d":
+    case "30d":
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -23,7 +24,7 @@ export function formatTick(bucket: string, range: TelemetryRange): string {
   }
 }
 
-export function formatTooltip(bucket: string, range: TelemetryRange): string {
+export function formatTooltip(bucket: string, range: Range): string {
   const date = new Date(bucket);
 
   switch (range) {
@@ -45,6 +46,14 @@ export function formatTooltip(bucket: string, range: TelemetryRange): string {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
+      });
+    case "30d":
+      // Daily buckets; no time-of-day to show.
+      return date.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
       });
     case "1y":
       return date.toLocaleDateString("en-US", {

@@ -9,11 +9,36 @@ import {
   buildAiUsageTotalsPipeline,
   buildAiUsageByModelPipeline,
   buildAiUsageTimeSeriesPipeline,
+  buildAiUsageTimeSeriesByModelPipeline,
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageTimeSeries,
+  fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
+import {
+  getRangeStart,
+  getBucketInterval,
+  getAiUsageRangeStart,
+  getAiUsageBucketInterval,
+} from "@/lib/telemetry/ranges";
+import { AiUsageRange, TelemetryRange } from "@/lib/telemetry/types";
 import { Collection } from "mongodb";
+
+function telemetryBuckets(range: TelemetryRange, now: Date): string[] {
+  return generateBuckets(
+    getRangeStart(range, now),
+    getBucketInterval(range),
+    now
+  );
+}
+
+function aiUsageBuckets(range: AiUsageRange, now: Date): string[] {
+  return generateBuckets(
+    getAiUsageRangeStart(range, now),
+    getAiUsageBucketInterval(range),
+    now
+  );
+}
 
 function makeMockCollection(aggregateResult: unknown[] = []): Collection {
   return {
@@ -165,7 +190,7 @@ describe("fetchTimeSeries", () => {
       keyPresses: 5,
     });
 
-    expect(result.length).toBe(generateBuckets("24h", now).length);
+    expect(result.length).toBe(telemetryBuckets("24h", now).length);
     expect(result.every((p) => typeof p.leftClicks === "number")).toBe(true);
   });
 });
@@ -173,13 +198,13 @@ describe("fetchTimeSeries", () => {
 describe("generateBuckets", () => {
   it("includes the current in-progress bucket", () => {
     const now = new Date("2026-08-09T17:28:00.000Z");
-    const buckets = generateBuckets("24h", now);
+    const buckets = telemetryBuckets("24h", now);
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T17:00:00.000Z");
   });
 
   it("produces 49 thirty-minute buckets for 24h including the current half hour", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
-    const buckets = generateBuckets("24h", now);
+    const buckets = telemetryBuckets("24h", now);
     expect(buckets.length).toBe(49);
     expect(buckets[0]).toBe("2026-08-08T12:00:00.000Z");
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T12:00:00.000Z");
@@ -192,7 +217,7 @@ describe("generateBuckets", () => {
 
   it("produces 169 hourly buckets for 7d aligned to the hour", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
-    const buckets = generateBuckets("7d", now);
+    const buckets = telemetryBuckets("7d", now);
     expect(buckets.length).toBe(169);
     expect(buckets[0]).toBe("2026-08-02T14:00:00.000Z");
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T14:00:00.000Z");
@@ -205,13 +230,46 @@ describe("generateBuckets", () => {
 
   it("produces daily buckets for 1y aligned to UTC midnight", () => {
     const now = new Date("2026-08-09T14:30:00.000Z");
-    const buckets = generateBuckets("1y", now);
+    const buckets = telemetryBuckets("1y", now);
 
     expect(buckets.length).toBe(366);
     expect(buckets[0]).toBe("2025-08-09T00:00:00.000Z");
     expect(buckets[buckets.length - 1]).toBe("2026-08-09T00:00:00.000Z");
     buckets.forEach((bucket) => {
       const date = new Date(bucket);
+      expect(date.getUTCHours()).toBe(0);
+      expect(date.getUTCMinutes()).toBe(0);
+      expect(date.getUTCSeconds()).toBe(0);
+    });
+  });
+});
+
+describe("AI usage bucket generation", () => {
+  it("produces 31 daily buckets for 30d aligned to UTC midnight", () => {
+    const now = new Date("2026-08-09T14:30:00.000Z");
+    const buckets = aiUsageBuckets("30d", now);
+
+    expect(buckets.length).toBe(31);
+    expect(buckets[0]).toBe("2026-07-10T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-09T00:00:00.000Z");
+    buckets.forEach((bucket) => {
+      const date = new Date(bucket);
+      expect(date.getUTCHours()).toBe(0);
+      expect(date.getUTCMinutes()).toBe(0);
+      expect(date.getUTCSeconds()).toBe(0);
+    });
+  });
+
+  it("produces 13 monthly buckets for 1y aligned to the first of the month", () => {
+    const now = new Date("2026-08-09T14:30:00.000Z");
+    const buckets = aiUsageBuckets("1y", now);
+
+    expect(buckets.length).toBe(13);
+    expect(buckets[0]).toBe("2025-08-01T00:00:00.000Z");
+    expect(buckets[buckets.length - 1]).toBe("2026-08-01T00:00:00.000Z");
+    buckets.forEach((bucket) => {
+      const date = new Date(bucket);
+      expect(date.getUTCDate()).toBe(1);
       expect(date.getUTCHours()).toBe(0);
       expect(date.getUTCMinutes()).toBe(0);
       expect(date.getUTCSeconds()).toBe(0);
@@ -240,7 +298,7 @@ describe("buildAiUsageTotalsPipeline", () => {
 });
 
 describe("buildAiUsageByModelPipeline", () => {
-  it("groups by model and sorts by cost descending", () => {
+  it("groups by model and sorts by cost descending, model name as tie-break", () => {
     const pipeline = buildAiUsageByModelPipeline();
     expect(pipeline).toEqual([
       {
@@ -251,7 +309,7 @@ describe("buildAiUsageByModelPipeline", () => {
           requests: { $sum: 1 },
         },
       },
-      { $sort: { costYuan: -1 } },
+      { $sort: { costYuan: -1, model: 1 } },
     ]);
   });
 });
@@ -279,13 +337,52 @@ describe("buildAiUsageTimeSeriesPipeline", () => {
     expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
   });
 
-  it("uses daily truncation for 1y buckets", () => {
+  it("matches on recorded_at and uses daily truncation for 30d buckets", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildAiUsageTimeSeriesPipeline("30d", now);
+
+    expect(pipeline[0]).toEqual({
+      $match: { recorded_at: { $gte: new Date("2026-07-19T12:00:00.000Z") } },
+    });
+
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: { date: "$recorded_at", unit: "day", binSize: 1 },
+    });
+  });
+
+  it("uses monthly truncation for 1y buckets", () => {
     const now = new Date("2026-08-18T12:00:00.000Z");
     const pipeline = buildAiUsageTimeSeriesPipeline("1y", now);
 
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
     expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$recorded_at", unit: "day", binSize: 1 },
+      $dateTrunc: { date: "$recorded_at", unit: "month", binSize: 1 },
+    });
+  });
+});
+
+describe("buildAiUsageTimeSeriesByModelPipeline", () => {
+  it("groups by bucket and model, summing cost and tokens", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildAiUsageTimeSeriesByModelPipeline("24h", now);
+
+    expect(pipeline[0]).toEqual({
+      $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } },
+    });
+
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      bucket: {
+        $dateTrunc: { date: "$recorded_at", unit: "minute", binSize: 30 },
+      },
+      model: "$model",
+    });
+    expect(groupStage.$group.costYuan).toEqual({ $sum: "$cost_yuan" });
+    expect(groupStage.$group.totalTokens).toEqual({ $sum: "$total_tokens" });
+
+    expect(pipeline[pipeline.length - 1]).toEqual({
+      $sort: { "_id.bucket": 1 },
     });
   });
 });
@@ -383,7 +480,68 @@ describe("fetchAiUsageTimeSeries", () => {
       totalTokens: 1200,
     });
 
-    expect(result.length).toBe(generateBuckets("24h", now).length);
+    expect(result.length).toBe(aiUsageBuckets("24h", now).length);
     expect(result.every((p) => typeof p.totalTokens === "number")).toBe(true);
+  });
+});
+
+describe("fetchAiUsageTimeSeriesByModel", () => {
+  it("maps per-model aggregation results into zero-filled buckets", async () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const bucket1 = new Date("2026-08-18T10:00:00.000Z");
+    const bucket2 = new Date("2026-08-18T10:30:00.000Z");
+    const collection = makeMockCollection([
+      {
+        _id: { bucket: bucket1, model: "model-b" },
+        costYuan: 0.5,
+        totalTokens: 500,
+      },
+      {
+        _id: { bucket: bucket1, model: "model-a" },
+        costYuan: 0.25,
+        totalTokens: 250,
+      },
+      {
+        _id: { bucket: bucket2, model: "model-b" },
+        costYuan: 0.75,
+        totalTokens: 750,
+      },
+    ]);
+
+    const result = await fetchAiUsageTimeSeriesByModel(collection, "24h", now);
+
+    // Higher total cost first, matching the by-model table order.
+    expect(result.map((series) => series.model)).toEqual([
+      "model-b",
+      "model-a",
+    ]);
+
+    const modelB = result.find((series) => series.model === "model-b")!;
+    const modelA = result.find((series) => series.model === "model-a")!;
+
+    expect(modelA.points.length).toBe(aiUsageBuckets("24h", now).length);
+    expect(modelB.points.length).toBe(aiUsageBuckets("24h", now).length);
+
+    expect(
+      modelB.points.find((p) => p.bucket === bucket1.toISOString())
+    ).toEqual({ bucket: bucket1.toISOString(), costYuan: 0.5, totalTokens: 500 });
+    expect(
+      modelB.points.find((p) => p.bucket === bucket2.toISOString())
+    ).toEqual({ bucket: bucket2.toISOString(), costYuan: 0.75, totalTokens: 750 });
+    expect(
+      modelA.points.find((p) => p.bucket === bucket1.toISOString())
+    ).toEqual({ bucket: bucket1.toISOString(), costYuan: 0.25, totalTokens: 250 });
+
+    // A bucket the model was absent from is filled with zeros, not skipped.
+    expect(
+      modelA.points.find((p) => p.bucket === bucket2.toISOString())
+    ).toEqual({ bucket: bucket2.toISOString(), costYuan: 0, totalTokens: 0 });
+  });
+
+  it("returns an empty array when collection is empty", async () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const collection = makeMockCollection([]);
+    const result = await fetchAiUsageTimeSeriesByModel(collection, "24h", now);
+    expect(result).toEqual([]);
   });
 });

@@ -11,23 +11,107 @@ import {
   ResponsiveContainer,
   TooltipContentProps,
 } from "recharts";
-import { AiUsageTimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
+import { AiUsageRange, AiUsageModelTimeSeries } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
 import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
 
 interface UsageChartProps {
-  data: AiUsageTimeSeriesPoint[];
-  range: TelemetryRange;
+  data: AiUsageModelTimeSeries[];
+  range: AiUsageRange;
+  /** Model names in table order; line colors follow this order. */
+  modelOrder?: string[];
 }
 
 interface Series {
   dataKey: string;
   name: string;
   color: string; // CSS variable name, e.g. "--chart-1"
+  formatValue?: (value: number) => string; // tooltip value formatter, e.g. ¥ prefix
+}
+
+interface ModelSeriesConfig {
+  model: string;
+  tokensKey: string;
+  costKey: string;
+}
+
+interface ChartRow {
+  bucket: string;
+  [key: string]: string | number;
 }
 
 function formatValue(value: number): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
+// Compact y-axis labels: 1,200,000 → "1.2M", 550,000 → "550K".
+export function formatAxisLabel(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    return `${trimNumber(value / 1_000_000)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${trimNumber(value / 1_000)}K`;
+  }
+  return trimNumber(value);
+}
+
+function trimNumber(value: number): string {
+  return Number(value.toFixed(1)).toString();
+}
+
+// Cost y-axis labels: yuan values are small, so keep decimals and skip the M/K
+// compaction (which would round 0.01 to "0" via toFixed(1)).
+export function formatCostAxisLabel(value: number): string {
+  const decimals = Math.abs(value) < 1 ? 4 : 2;
+  return Number(value.toFixed(decimals)).toString();
+}
+
+// Flattens per-model time series into chart rows that Recharts can draw
+// multiple lines from. Each row carries one `tokens:<model>` and one
+// `cost:<model>` value, so both charts can share the same bucket list while
+// the series configs select different keys. When `modelOrder` is given (the
+// by-model table's order), series follow it so line colors match the table
+// rows; otherwise the input (API) order is kept, which is cost descending
+// within the selected range.
+export function buildModelChartData(
+  timeSeriesByModel: AiUsageModelTimeSeries[],
+  modelOrder: string[] = []
+): { rows: ChartRow[]; series: ModelSeriesConfig[] } {
+  const ordered =
+    modelOrder.length === 0
+      ? timeSeriesByModel
+      : [...timeSeriesByModel].sort((a, b) => {
+          const indexA = modelOrder.indexOf(a.model);
+          const indexB = modelOrder.indexOf(b.model);
+          if (indexA === -1 && indexB === -1) return a.model.localeCompare(b.model);
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+
+  const series = ordered.map((entry) => ({
+    model: entry.model,
+    tokensKey: `tokens:${entry.model}`,
+    costKey: `cost:${entry.model}`,
+  }));
+
+  const buckets = ordered[0]?.points.map((point) => point.bucket) ?? [];
+  const pointsByModel = ordered.map((entry) =>
+    new Map(entry.points.map((point) => [point.bucket, point]))
+  );
+
+  const rows = buckets.map((bucket) => {
+    const row: ChartRow = { bucket };
+    for (let m = 0; m < pointsByModel.length; m++) {
+      const point = pointsByModel[m].get(bucket);
+      row[series[m].tokensKey] = point?.totalTokens ?? 0;
+      row[series[m].costKey] = point?.costYuan ?? 0;
+    }
+    return row;
+  });
+
+  return { rows, series };
 }
 
 function UsageChartTooltip({
@@ -35,7 +119,8 @@ function UsageChartTooltip({
   payload,
   label,
   range,
-}: Partial<TooltipContentProps> & { range: TelemetryRange }) {
+  series,
+}: Partial<TooltipContentProps> & { range: AiUsageRange; series: Series[] }) {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
@@ -53,20 +138,27 @@ function UsageChartTooltip({
         {formatTooltip(String(label), range)}
       </p>
       <ul className="space-y-1">
-        {payload.map((entry, index) => (
-          <li key={index} className="flex items-center gap-2">
-            <span
-              className="inline-block h-2 w-2 rounded-sm"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span style={{ color: "var(--foreground)" }}>
-              {entry.name}:{" "}
-              {typeof entry.value === "number"
-                ? formatValue(entry.value)
-                : entry.value}
-            </span>
-          </li>
-        ))}
+        {payload.map((entry, index) => {
+          const matchingSeries = series.find(
+            (s) => s.dataKey === entry.dataKey
+          );
+          const value =
+            typeof entry.value === "number" ? entry.value : Number(entry.value);
+          const formatted = matchingSeries?.formatValue
+            ? matchingSeries.formatValue(value)
+            : formatValue(value);
+          return (
+            <li key={index} className="flex items-center gap-2">
+              <span
+                className="inline-block h-2 w-2 rounded-sm"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span style={{ color: "var(--foreground)" }}>
+                {entry.name}: {formatted}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -76,10 +168,12 @@ function MiniLineChart({
   data,
   series,
   range,
+  yTickFormatter = formatAxisLabel,
 }: {
-  data: AiUsageTimeSeriesPoint[];
+  data: ChartRow[];
   series: Series[];
-  range: TelemetryRange;
+  range: AiUsageRange;
+  yTickFormatter?: (value: number) => string;
 }) {
   const ticks = useMemo(
     () => getTicksForRange(data.map((point) => point.bucket), range),
@@ -103,10 +197,11 @@ function MiniLineChart({
               stroke="var(--foreground)"
             />
             <YAxis
+              tickFormatter={(value: number) => yTickFormatter(value)}
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
-            <Tooltip content={<UsageChartTooltip range={range} />} />
+            <Tooltip content={<UsageChartTooltip range={range} series={series} />} />
             {series.map((entry) => (
               <Line
                 key={entry.dataKey}
@@ -142,7 +237,25 @@ function MiniLineChart({
   );
 }
 
-export function UsageChart({ data, range }: UsageChartProps) {
+export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
+  const { rows, series } = useMemo(
+    () => buildModelChartData(data, modelOrder),
+    [data, modelOrder]
+  );
+
+  const tokenSeries: Series[] = series.map((entry, index) => ({
+    dataKey: entry.tokensKey,
+    name: entry.model,
+    color: `--chart-${(index % 5) + 1}`,
+  }));
+
+  const costSeries: Series[] = series.map((entry, index) => ({
+    dataKey: entry.costKey,
+    name: entry.model,
+    color: `--chart-${(index % 5) + 1}`,
+    formatValue: (value: number) => `¥${formatValue(value)}`,
+  }));
+
   return (
     <div className="w-full rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
       <div className="space-y-6">
@@ -150,33 +263,17 @@ export function UsageChart({ data, range }: UsageChartProps) {
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Tokens over time
           </h3>
-          <MiniLineChart
-            data={data}
-            range={range}
-            series={[
-              {
-                dataKey: "promptTokens",
-                name: "Prompt Tokens",
-                color: "--chart-1",
-              },
-              {
-                dataKey: "completionTokens",
-                name: "Completion Tokens",
-                color: "--chart-3",
-              },
-            ]}
-          />
+          <MiniLineChart data={rows} range={range} series={tokenSeries} />
         </div>
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Cost over time (¥)
           </h3>
           <MiniLineChart
-            data={data}
+            data={rows}
             range={range}
-            series={[
-              { dataKey: "costYuan", name: "Cost", color: "--chart-2" },
-            ]}
+            series={costSeries}
+            yTickFormatter={formatCostAxisLabel}
           />
         </div>
       </div>

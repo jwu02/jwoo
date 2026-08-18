@@ -4,13 +4,14 @@ import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageTimeSeries,
+  fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
-import { TelemetryRange, AiUsageResponse } from "@/lib/telemetry/types";
+import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types";
 
-const VALID_RANGES: TelemetryRange[] = ["24h", "7d", "1y"];
+const VALID_RANGES: AiUsageRange[] = ["24h", "30d", "1y"];
 
-function isValidRange(value: string | null): value is TelemetryRange {
-  return VALID_RANGES.includes(value as TelemetryRange);
+function isValidRange(value: string | null): value is AiUsageRange {
+  return VALID_RANGES.includes(value as AiUsageRange);
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -26,16 +27,18 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const aiUsageCollection = getAiUsageCollection();
-    const [totals, byModel, timeSeries] = await Promise.all([
+    const [totals, byModel, timeSeries, timeSeriesByModel] = await Promise.all([
       fetchAiUsageTotals(aiUsageCollection),
       fetchAiUsageByModel(aiUsageCollection),
       fetchAiUsageTimeSeries(aiUsageCollection, rangeParam),
+      fetchAiUsageTimeSeriesByModel(aiUsageCollection, rangeParam),
     ]);
 
     const response: AiUsageResponse = {
       totals,
       byModel,
       timeSeries,
+      timeSeriesByModel,
     };
 
     return NextResponse.json(response, {

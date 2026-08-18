@@ -11,6 +11,7 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchAiUsageTotals: jest.fn(),
   fetchAiUsageByModel: jest.fn(),
   fetchAiUsageTimeSeries: jest.fn(),
+  fetchAiUsageTimeSeriesByModel: jest.fn(),
 }));
 
 import { getAiUsageCollection } from "@/lib/telemetry/db";
@@ -18,6 +19,7 @@ import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageTimeSeries,
+  fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
 
 const mockAiUsageCollection = {} as never;
@@ -50,6 +52,18 @@ describe("GET /api/ai-usage", () => {
         totalTokens: 1200,
       },
     ]);
+    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([
+      {
+        model: "deepseek-v4-flash",
+        points: [
+          {
+            bucket: "2026-08-18T10:00:00.000Z",
+            costYuan: 0.25,
+            totalTokens: 1200,
+          },
+        ],
+      },
+    ]);
 
     const request = new Request("http://localhost:3000/api/ai-usage?range=24h");
     const response = await GET(request);
@@ -60,6 +74,10 @@ describe("GET /api/ai-usage", () => {
     expect(fetchAiUsageTotals).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageByModel).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+      mockAiUsageCollection,
+      "24h"
+    );
+    expect(fetchAiUsageTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h"
     );
@@ -85,7 +103,49 @@ describe("GET /api/ai-usage", () => {
           totalTokens: 1200,
         },
       ],
+      timeSeriesByModel: [
+        {
+          model: "deepseek-v4-flash",
+          points: [
+            {
+              bucket: "2026-08-18T10:00:00.000Z",
+              costYuan: 0.25,
+              totalTokens: 1200,
+            },
+          ],
+        },
+      ],
     });
+  });
+
+  it("accepts the 30d range", async () => {
+    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+      costYuan: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheHitTokens: 0,
+      cacheMissTokens: 0,
+      requests: 0,
+    });
+    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request("http://localhost:3000/api/ai-usage?range=30d");
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+      mockAiUsageCollection,
+      "30d"
+    );
+  });
+
+  it("returns 400 for the removed 7d range", async () => {
+    const request = new Request("http://localhost:3000/api/ai-usage?range=7d");
+    const response = await GET(request);
+    expect(response.status).toBe(400);
   });
 
   it("returns 400 for an invalid range", async () => {

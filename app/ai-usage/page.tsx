@@ -4,14 +4,14 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { ModelBreakdown } from "@/components/ai-usage/model-breakdown"
-import { RangeSelector } from "@/components/telemetry/range-selector"
+import { AI_USAGE_RANGE_OPTIONS, RangeSelector } from "@/components/telemetry/range-selector"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
-import { TelemetryRange, AiUsageResponse } from "@/lib/telemetry/types"
+import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types"
 
 const POLL_INTERVAL_MS = 60_000
 
 async function fetchAiUsage(
-  range: TelemetryRange,
+  range: AiUsageRange,
   signal?: AbortSignal
 ): Promise<AiUsageResponse> {
   const response = await fetch(`/api/ai-usage?range=${range}`, { signal })
@@ -25,7 +25,7 @@ async function fetchAiUsage(
 }
 
 export default function AiUsagePage() {
-  const [range, setRange] = useState<TelemetryRange>("24h")
+  const [range, setRange] = useState<AiUsageRange>("24h")
   const [data, setData] = useState<AiUsageResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -101,9 +101,17 @@ export default function AiUsagePage() {
             <>
               <div>
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <RangeSelector value={range} onChange={setRange} />
+                  <RangeSelector
+                    value={range}
+                    onChange={setRange}
+                    options={AI_USAGE_RANGE_OPTIONS}
+                  />
                 </div>
-                <UsageChart data={data.timeSeries} range={range} />
+                <UsageChart
+                  data={data.timeSeriesByModel}
+                  range={range}
+                  modelOrder={data.byModel.map((model) => model.model)}
+                />
               </div>
               <div>
                 <h2 className="mb-3 text-lg font-semibold tracking-tight">

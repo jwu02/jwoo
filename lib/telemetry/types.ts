@@ -1,4 +1,6 @@
 export type TelemetryRange = "24h" | "7d" | "1y";
+export type AiUsageRange = "24h" | "30d" | "1y";
+export type Range = TelemetryRange | AiUsageRange;
 
 export interface TelemetryTotals {
   leftClicks: number;
@@ -50,8 +52,20 @@ export interface AiUsageTimeSeriesPoint {
   totalTokens: number;
 }
 
+export interface AiUsageModelTimeSeriesPoint {
+  bucket: string; // ISO date string
+  costYuan: number;
+  totalTokens: number;
+}
+
+export interface AiUsageModelTimeSeries {
+  model: string;
+  points: AiUsageModelTimeSeriesPoint[];
+}
+
 export interface AiUsageResponse {
   totals: AiUsageTotals;
   byModel: AiUsageByModel[];
   timeSeries: AiUsageTimeSeriesPoint[];
+  timeSeriesByModel: AiUsageModelTimeSeries[];
 }

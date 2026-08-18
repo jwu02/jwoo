@@ -1,8 +1,8 @@
-import { TelemetryRange } from "./types";
+import { Range } from "./types";
 
 export function getTicksForRange(
   buckets: string[],
-  range: TelemetryRange
+  range: Range
 ): string[] {
   if (buckets.length === 0) return [];
 
@@ -20,6 +20,10 @@ export function getTicksForRange(
         const date = new Date(bucket);
         return date.getUTCHours() === 0;
       });
+    }
+    case "30d": {
+      // Daily buckets; label every 5th day to keep the axis readable.
+      return buckets.filter((_, index) => index % 5 === 0);
     }
     case "1y": {
       // Daily buckets; label the first bucket of each month (the 1st).

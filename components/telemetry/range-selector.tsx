@@ -1,20 +1,36 @@
-import { TelemetryRange } from "@/lib/telemetry/types";
+import { AiUsageRange, Range, TelemetryRange } from "@/lib/telemetry/types";
 
-interface RangeSelectorProps {
-  value: TelemetryRange;
-  onChange: (range: TelemetryRange) => void;
+export interface RangeOption<T extends Range> {
+  value: T;
+  label: string;
 }
 
-const OPTIONS: { value: TelemetryRange; label: string }[] = [
+export const TELEMETRY_RANGE_OPTIONS: RangeOption<TelemetryRange>[] = [
   { value: "24h", label: "24h" },
   { value: "7d", label: "7d" },
   { value: "1y", label: "1y" },
 ];
 
-export function RangeSelector({ value, onChange }: RangeSelectorProps) {
+export const AI_USAGE_RANGE_OPTIONS: RangeOption<AiUsageRange>[] = [
+  { value: "24h", label: "24h" },
+  { value: "30d", label: "30d" },
+  { value: "1y", label: "1y" },
+];
+
+interface RangeSelectorProps<T extends Range> {
+  value: T;
+  onChange: (range: T) => void;
+  options: RangeOption<T>[];
+}
+
+export function RangeSelector<T extends Range>({
+  value,
+  onChange,
+  options,
+}: RangeSelectorProps<T>) {
   return (
     <div className="inline-flex rounded-lg border border-border bg-card p-1">
-      {OPTIONS.map((option) => (
+      {options.map((option) => (
         <button
           key={option.value}
           type="button"

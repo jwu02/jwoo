@@ -20,6 +20,19 @@ describe("getTicksForRange", () => {
     ]);
   });
 
+  it("returns every 5th bucket for 30d daily buckets", () => {
+    const buckets = Array.from({ length: 30 }, (_, i) =>
+      new Date(Date.UTC(2025, 6, 10 + i)).toISOString()
+    );
+
+    const ticks = getTicksForRange(buckets, "30d");
+
+    expect(ticks).toHaveLength(6);
+    expect(ticks[0]).toBe(buckets[0]);
+    expect(ticks[1]).toBe(buckets[5]);
+    expect(ticks[5]).toBe(buckets[25]);
+  });
+
   it("returns only midnight buckets for 7d", () => {
     const buckets = Array.from({ length: 24 * 7 }, (_, i) =>
       new Date(Date.UTC(2025, 7, 2, i)).toISOString()
@@ -50,6 +63,7 @@ describe("getTicksForRange", () => {
   it("returns an empty array when no buckets are provided", () => {
     expect(getTicksForRange([], "24h")).toEqual([]);
     expect(getTicksForRange([], "7d")).toEqual([]);
+    expect(getTicksForRange([], "30d")).toEqual([]);
     expect(getTicksForRange([], "1y")).toEqual([]);
   });
 });
