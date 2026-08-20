@@ -1,4 +1,4 @@
-export type TelemetryRange = "24h" | "7d" | "1y";
+export type TelemetryRange = "24h" | "30d" | "1y";
 export type AiUsageRange = "24h" | "30d" | "1y";
 export type Range = TelemetryRange | AiUsageRange;
 

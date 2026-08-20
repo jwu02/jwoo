@@ -14,19 +14,13 @@ export function getTicksForRange(
         return date.getUTCMinutes() === 0 && date.getUTCHours() % 3 === 0;
       });
     }
-    case "7d": {
-      // Hourly buckets; label once per day at midnight.
-      return buckets.filter((bucket) => {
-        const date = new Date(bucket);
-        return date.getUTCHours() === 0;
-      });
-    }
     case "30d": {
       // Daily buckets; label every 5th day to keep the axis readable.
       return buckets.filter((_, index) => index % 5 === 0);
     }
     case "1y": {
-      // Daily buckets; label the first bucket of each month (the 1st).
+      // Daily or monthly buckets; label the first bucket of each month (the
+      // 1st). With monthly buckets every bucket passes, so all are labeled.
       const ticks: string[] = [];
       let lastMonth = -1;
       for (const bucket of buckets) {

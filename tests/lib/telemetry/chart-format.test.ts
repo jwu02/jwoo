@@ -13,10 +13,6 @@ describe("formatTick", () => {
     expect(formatTick(bucket, "24h")).toBe("11:00");
   });
 
-  it("formats 7d range as month and day", () => {
-    expect(formatTick(bucket, "7d")).toBe("Aug 9");
-  });
-
   it("formats 30d range as month and day", () => {
     expect(formatTick(bucket, "30d")).toBe("Aug 9");
   });
@@ -29,20 +25,16 @@ describe("formatTick", () => {
 describe("formatTooltip", () => {
   const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
 
-  it("formats 24h tooltip as short date and 24-hour time", () => {
-    expect(formatTooltip(bucket, "24h")).toBe("8/9/2025, 11:00");
-  });
-
-  it("formats 7d tooltip as weekday, month, day, year, and 24-hour time", () => {
-    expect(formatTooltip(bucket, "7d")).toBe("Sat, Aug 9, 2025, 11:00");
+  it("formats 24h tooltip as weekday, month, day, and 24-hour time", () => {
+    expect(formatTooltip(bucket, "24h")).toBe("Sat, Aug 9, 11:00");
   });
 
   it("formats 30d tooltip as weekday, month, day, and year without time", () => {
     expect(formatTooltip(bucket, "30d")).toBe("Sat, Aug 9, 2025");
   });
 
-  it("formats 1y tooltip as month, day, and year", () => {
-    expect(formatTooltip(bucket, "1y")).toBe("Aug 9, 2025");
+  it("formats 1y tooltip as month and year", () => {
+    expect(formatTooltip(bucket, "1y")).toBe("Aug, 2025");
   });
 });
 

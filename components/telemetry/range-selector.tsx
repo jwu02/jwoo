@@ -7,7 +7,7 @@ export interface RangeOption<T extends Range> {
 
 export const TELEMETRY_RANGE_OPTIONS: RangeOption<TelemetryRange>[] = [
   { value: "24h", label: "24h" },
-  { value: "7d", label: "7d" },
+  { value: "30d", label: "30d" },
   { value: "1y", label: "1y" },
 ];
 

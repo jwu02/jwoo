@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,7 +22,7 @@ import {
 interface UsageChartProps {
   data: AiUsageModelTimeSeries[];
   range: AiUsageRange;
-  /** Model names in table order; line colors follow this order. */
+  /** Model names in table order; bar colors follow this order. */
   modelOrder?: string[];
 }
 
@@ -30,7 +30,9 @@ interface Series {
   dataKey: string;
   name: string;
   color: string; // CSS variable name, e.g. "--chart-1"
-  formatValue?: (value: number) => string; // tooltip value formatter, e.g. ¥ prefix
+  /** Tooltip prefix rendered muted, e.g. the ¥ sign in the cost table. */
+  prefix?: string;
+  formatValue?: (value: number) => string; // tooltip value formatter
 }
 
 interface ModelSeriesConfig {
@@ -56,10 +58,10 @@ export function formatCostAxisLabel(value: number): string {
 }
 
 // Flattens per-model time series into chart rows that Recharts can draw
-// multiple lines from. Each row carries one `tokens:<model>` and one
+// stacked bars from. Each row carries one `tokens:<model>` and one
 // `cost:<model>` value, so both charts can share the same bucket list while
 // the series configs select different keys. When `modelOrder` is given (the
-// by-model table's order), series follow it so line colors match the table
+// by-model table's order), series follow it so bar colors match the table
 // rows; otherwise the input (API) order is kept, which is cost descending
 // within the selected range.
 export function buildModelChartData(
@@ -102,6 +104,20 @@ export function buildModelChartData(
   return { rows, series };
 }
 
+// Bar/legend color for a model, keyed to its position in the by-model table
+// (modelOrder) so chart bars and table rows share one color per model even
+// when a range only shows a subset of the models. Falls back to the series
+// position when the model isn't in the table (e.g. no modelOrder given).
+function chartColorForModel(
+  model: string,
+  modelOrder: string[],
+  seriesIndex: number
+): string {
+  const tableIndex = modelOrder.indexOf(model);
+  const index = tableIndex >= 0 ? tableIndex : seriesIndex;
+  return `--chart-${(index % 5) + 1}`;
+}
+
 function UsageChartTooltip({
   active,
   payload,
@@ -142,7 +158,12 @@ function UsageChartTooltip({
                 style={{ backgroundColor: entry.color }}
               />
               <span style={{ color: "var(--foreground)" }}>
-                {entry.name}: {formatted}
+                {entry.name}: {matchingSeries?.prefix && (
+                  <span className="text-muted-foreground">
+                    {matchingSeries.prefix}
+                  </span>
+                )}
+                {formatted}
               </span>
             </li>
           );
@@ -152,16 +173,18 @@ function UsageChartTooltip({
   );
 }
 
-function MiniLineChart({
+function MiniStackedBarChart({
   data,
   series,
   range,
   yTickFormatter = formatCompactNumber,
+  showLegend = true,
 }: {
   data: ChartRow[];
   series: Series[];
   range: AiUsageRange;
   yTickFormatter?: (value: number) => string;
+  showLegend?: boolean;
 }) {
   const ticks = useMemo(
     () => getTicksForRange(data.map((point) => point.bucket), range),
@@ -172,9 +195,10 @@ function MiniLineChart({
     <div>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <BarChart
             data={data}
             margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+            barCategoryGap={2}
           >
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis
@@ -191,22 +215,26 @@ function MiniLineChart({
             />
             <Tooltip content={<UsageChartTooltip range={range} series={series} />} />
             {series.map((entry) => (
-              <Line
+              <Bar
                 key={entry.dataKey}
-                type="monotone"
                 dataKey={entry.dataKey}
                 name={entry.name}
-                stroke={`var(${entry.color})`}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
+                stackId="models"
+                fill={`var(${entry.color})`}
+                // No stroke and no radius: a border reads as an outline, and a
+                // rounded top segment tapers narrower than the one below it.
+                // Square, stroke-less fills keep every segment uniform.
+                maxBarSize={24}
               />
             ))}
-          </LineChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
-      {series.length > 1 && (
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
+      {showLegend && series.length > 0 && (
+        <div
+          data-testid="chart-legend"
+          className="mt-2 flex flex-wrap items-center justify-center gap-4"
+        >
           {series.map((entry) => (
             <span
               key={entry.dataKey}
@@ -225,7 +253,7 @@ function MiniLineChart({
   );
 }
 
-export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
+export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
   const { rows, series } = useMemo(
     () => buildModelChartData(data, modelOrder),
     [data, modelOrder]
@@ -234,15 +262,16 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
   const tokenSeries: Series[] = series.map((entry, index) => ({
     dataKey: entry.tokensKey,
     name: entry.model,
-    color: `--chart-${(index % 5) + 1}`,
+    color: chartColorForModel(entry.model, modelOrder, index),
     formatValue: formatCompactNumber,
   }));
 
   const costSeries: Series[] = series.map((entry, index) => ({
     dataKey: entry.costKey,
     name: entry.model,
-    color: `--chart-${(index % 5) + 1}`,
-    formatValue: (value: number) => `¥${formatValue(value)}`,
+    color: chartColorForModel(entry.model, modelOrder, index),
+    prefix: "¥",
+    formatValue,
   }));
 
   return (
@@ -252,13 +281,18 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Tokens over time
           </h3>
-          <MiniLineChart data={rows} range={range} series={tokenSeries} />
+          <MiniStackedBarChart
+            data={rows}
+            range={range}
+            series={tokenSeries}
+            showLegend={false}
+          />
         </div>
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Cost over time (¥)
           </h3>
-          <MiniLineChart
+          <MiniStackedBarChart
             data={rows}
             range={range}
             series={costSeries}

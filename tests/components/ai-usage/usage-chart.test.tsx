@@ -49,6 +49,24 @@ async function readTooltipItems(chartIndex: number) {
   );
 }
 
+// Recharts 3.x renders bar shapes only after the bars' entrance animation
+// has ticked to completion (~400ms of requestAnimationFrame frames). jsdom
+// never runs those frames on its own, so advance enough of them for the bar
+// rects to appear in the DOM before asserting on them.
+async function settleBarAnimation() {
+  await act(async () => {
+    await new Promise((resolve) => {
+      let frames = 0;
+      const tick = () => {
+        frames++;
+        if (frames >= 40) resolve(true);
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  });
+}
+
 // Two models, highest total cost first (model-b), matching the API order.
 function buildModelData(): AiUsageModelTimeSeries[] {
   const buckets = Array.from({ length: 4 }, (_, i) =>
@@ -170,23 +188,56 @@ describe("buildModelChartData", () => {
 });
 
 describe("UsageChart", () => {
-  it("renders one line per model on each chart", () => {
+  it("renders one stacked bar segment per model on each chart", async () => {
     const { container } = render(
       <UsageChart data={buildModelData()} range="24h" />
     );
+    await settleBarAnimation();
 
-    const strokes = Array.from(
-      container.querySelectorAll(".recharts-line-curve")
-    ).map((path) => path.getAttribute("stroke"));
+    const rects = Array.from(
+      container.querySelectorAll(".recharts-rectangle")
+    );
+    const fills = rects.map((rect) => rect.getAttribute("fill"));
 
-    // Tokens chart then cost chart, one line per model with the same color
-    // per model across both charts (--chart-1 for model-b, --chart-2 for model-a).
-    expect(strokes).toEqual([
-      "var(--chart-1)",
-      "var(--chart-2)",
-      "var(--chart-1)",
-      "var(--chart-2)",
-    ]);
+    // 4 buckets × 2 models per chart, tokens and cost → 16 segments.
+    expect(rects).toHaveLength(16);
+
+    // Each model keeps the same color across both charts, keyed to its
+    // table position (--chart-1 for model-b, --chart-2 for model-a).
+    expect(new Set(fills)).toEqual(
+      new Set(["var(--chart-1)", "var(--chart-2)"])
+    );
+  });
+
+  it("stacks each bucket's segments instead of placing them side by side", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    // Both charts share the same bucket x-positions; within each chart the
+    // two models' segments of a bucket must sit directly atop one another
+    // (the top segment's bottom edge equals the bottom segment's top).
+    for (const wrapper of container.querySelectorAll(".recharts-wrapper")) {
+      const byX = new Map<number, Element[]>();
+      for (const rect of Array.from(
+        wrapper.querySelectorAll(".recharts-rectangle")
+      )) {
+        const x = Number(rect.getAttribute("x"));
+        byX.set(x, [...(byX.get(x) ?? []), rect]);
+      }
+
+      for (const segments of byX.values()) {
+        expect(segments).toHaveLength(2); // two models per bucket
+        const [bottom, top] = [...segments].sort(
+          (a, b) => Number(a.getAttribute("y")) - Number(b.getAttribute("y"))
+        );
+        const bottomTop =
+          Number(bottom.getAttribute("y")) +
+          Number(bottom.getAttribute("height"));
+        expect(Number(top.getAttribute("y"))).toBeCloseTo(bottomTop, 5);
+      }
+    }
   });
 
   it("shortens y-axis labels to M/K", () => {
@@ -214,6 +265,30 @@ describe("UsageChart", () => {
     expect(items.some((item) => item?.startsWith("model-a: ¥"))).toBe(true);
   });
 
+  it("styles the cost tooltip yuan sign as muted foreground", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    // Hover the cost chart (the second of the two stacked charts).
+    const wrapper = document.querySelectorAll(".recharts-wrapper")[1];
+    fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    // The cost tooltip is the one that lists a model name.
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.textContent?.includes("model-b"));
+    expect(tooltip).toBeTruthy();
+
+    // Mirror the model cost table: the ¥ sign renders muted, the number not.
+    const yuanSigns = Array.from(
+      tooltip!.querySelectorAll(".text-muted-foreground")
+    );
+    expect(yuanSigns.length).toBeGreaterThan(0);
+    expect(yuanSigns.every((span) => span.textContent === "¥")).toBe(true);
+  });
+
   it("shortens each model's token value in the tooltip to M/K", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
@@ -235,6 +310,22 @@ describe("UsageChart", () => {
     expect(legendText).toContain("model-a");
   });
 
+  it("renders a single legend, below the last (cost) chart only", () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+
+    // Exactly one legend for the two stacked charts, not one per chart.
+    const legends = container.querySelectorAll('[data-testid="chart-legend"]');
+    expect(legends).toHaveLength(1);
+
+    // The legend sits after the cost chart's plot area in document order.
+    const costWrapper = document.querySelectorAll(".recharts-wrapper")[1];
+    expect(costWrapper.compareDocumentPosition(legends[0])).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
   it("lists models in table order when modelOrder is provided", () => {
     const { container } = render(
       <UsageChart
@@ -251,18 +342,82 @@ describe("UsageChart", () => {
     expect(modelAIndex).toBeLessThan(modelBIndex);
   });
 
-  it("renders a single line per chart with no legend for one model", () => {
+  it("draws no outline around bar segments", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    const rects = Array.from(
+      container.querySelectorAll(".recharts-rectangle")
+    );
+    expect(rects.length).toBeGreaterThan(0);
+    for (const rect of rects) {
+      // Segments separate by fill hue alone; a stroke would read as a dark
+      // border around each model's segment.
+      expect(rect.getAttribute("stroke")).toBeNull();
+    }
+  });
+
+  it("keeps every segment a square rectangle so stacked widths match", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    // Recharts draws rounded corners as arc commands (A) in the segment path.
+    // A rounded top segment tapers its top edge narrower than the segment
+    // below it, making the lower block look wider — so every segment must be
+    // a plain rectangle with square corners.
+    const paths = Array.from(
+      container.querySelectorAll(".recharts-rectangle")
+    );
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      expect(path.getAttribute("d")).not.toMatch(/A\s*\d/);
+    }
+  });
+
+  it("colors each model by its table position even when the range shows a subset", async () => {
+    // The 24h range has data for model-b only, but the table lists model-a
+    // first. model-b's bar segments and legend swatch must use its table
+    // color (--chart-2), not the first-available --chart-1.
+    const { container } = render(
+      <UsageChart
+        data={buildModelData().slice(0, 1)}
+        range="24h"
+        modelOrder={["model-a", "model-b"]}
+      />
+    );
+    await settleBarAnimation();
+
+    const fills = Array.from(
+      container.querySelectorAll(".recharts-rectangle")
+    ).map((rect) => rect.getAttribute("fill"));
+    expect(new Set(fills)).toEqual(new Set(["var(--chart-2)"]));
+
+    const legend = container.querySelector('[data-testid="chart-legend"]')!;
+    expect(legend.textContent).toContain("model-b");
+    expect(legend.querySelector("span[style*='--chart-2']")).toBeTruthy();
+  });
+
+  it("renders a single stacked bar per chart and a legend naming the one model", async () => {
     const { container } = render(
       <UsageChart data={buildModelData().slice(0, 1)} range="24h" />
     );
+    await settleBarAnimation();
 
-    const strokes = Array.from(
-      container.querySelectorAll(".recharts-line-curve")
-    ).map((path) => path.getAttribute("stroke"));
+    const fills = Array.from(
+      container.querySelectorAll(".recharts-rectangle")
+    ).map((rect) => rect.getAttribute("fill"));
 
-    // Tokens and cost charts, one --chart-1 line each.
-    expect(strokes).toEqual(["var(--chart-1)", "var(--chart-1)"]);
-    expect(container.querySelectorAll("li")).toHaveLength(0);
+    // Tokens and cost charts, one --chart-1 segment per bucket.
+    expect(new Set(fills)).toEqual(new Set(["var(--chart-1)"]));
+
+    // A single model still gets a legend rather than losing it entirely.
+    const legends = container.querySelectorAll('[data-testid="chart-legend"]');
+    expect(legends).toHaveLength(1);
+    expect(legends[0].textContent).toContain("model-b");
   });
 
   it("keeps decimal cost ticks instead of rounding every tick to 0", () => {

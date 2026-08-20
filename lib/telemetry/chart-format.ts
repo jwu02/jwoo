@@ -26,7 +26,6 @@ export function formatTick(bucket: string, range: Range): string {
         minute: "2-digit",
         hour12: false,
       });
-    case "7d":
     case "30d":
       return date.toLocaleDateString("en-US", {
         month: "short",
@@ -46,19 +45,9 @@ export function formatTooltip(bucket: string, range: Range): string {
   switch (range) {
     case "24h":
       return date.toLocaleString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
-    case "7d":
-      return date.toLocaleString("en-US", {
         weekday: "short",
         month: "short",
         day: "numeric",
-        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
@@ -72,10 +61,8 @@ export function formatTooltip(bucket: string, range: Range): string {
         year: "numeric",
       });
     case "1y":
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      // en-US renders month + year without a separator ("Aug 2025"); build the
+      // comma ourselves to match the requested "Aug, 2026" tooltip.
+      return `${date.toLocaleDateString("en-US", { month: "short" })}, ${date.getFullYear()}`;
   }
 }

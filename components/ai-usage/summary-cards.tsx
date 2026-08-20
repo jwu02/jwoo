@@ -1,6 +1,6 @@
 import { AiUsageTotals } from "@/lib/telemetry/types";
 import { formatCompactNumber } from "@/lib/telemetry/chart-format";
-import { Coins, Cpu, FileInput, FileOutput, Gauge, RefreshCcw } from "lucide-react";
+import { Coins, Cpu, RefreshCcw } from "lucide-react";
 
 interface SummaryCardsProps {
   totals: AiUsageTotals;
@@ -11,12 +11,6 @@ function formatNumber(value: number, decimals = 0): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
-}
-
-function cacheHitRate(totals: AiUsageTotals): string {
-  const total = totals.cacheHitTokens + totals.cacheMissTokens;
-  if (total === 0) return "0%";
-  return `${Math.round((totals.cacheHitTokens / total) * 100)}%`;
 }
 
 export function SummaryCards({ totals }: SummaryCardsProps) {
@@ -34,22 +28,7 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       icon: Cpu,
     },
     {
-      label: "Prompt Tokens",
-      value: formatCompactNumber(totals.promptTokens),
-      icon: FileInput,
-    },
-    {
-      label: "Completion Tokens",
-      value: formatCompactNumber(totals.completionTokens),
-      icon: FileOutput,
-    },
-    {
-      label: "Cache Hit Rate",
-      value: cacheHitRate(totals),
-      icon: Gauge,
-    },
-    {
-      label: "Requests",
+      label: "Request Turns",
       value: formatNumber(totals.requests),
       icon: RefreshCcw,
     },

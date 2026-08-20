@@ -7,7 +7,7 @@ import {
 } from "@/lib/telemetry/aggregation";
 import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types";
 
-const VALID_RANGES: TelemetryRange[] = ["24h", "7d", "1y"];
+const VALID_RANGES: TelemetryRange[] = ["24h", "30d", "1y"];
 
 function isValidRange(value: string | null): value is TelemetryRange {
   return VALID_RANGES.includes(value as TelemetryRange);

@@ -12,28 +12,18 @@ const totals = {
 };
 
 describe("SummaryCards", () => {
-  it("renders cost, tokens, cache rate, and request totals", () => {
+  it("renders cost, total tokens, and request turns", () => {
     render(<SummaryCards totals={totals} />);
     expect(screen.getByText("Cost")).toBeInTheDocument();
     expect(screen.getByText("0.50")).toBeInTheDocument();
     expect(screen.getByText("Total Tokens")).toBeInTheDocument();
     expect(screen.getByText("100K")).toBeInTheDocument();
-    expect(screen.getByText("Prompt Tokens")).toBeInTheDocument();
-    expect(screen.getByText("90K")).toBeInTheDocument();
-    expect(screen.getByText("Completion Tokens")).toBeInTheDocument();
-    expect(screen.getByText("10K")).toBeInTheDocument();
-    expect(screen.getByText("Cache Hit Rate")).toBeInTheDocument();
-    expect(screen.getByText("60%")).toBeInTheDocument();
-    expect(screen.getByText("Requests")).toBeInTheDocument();
+    expect(screen.getByText("Request Turns")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("renders cache hit rate as 0% when there are no cached tokens", () => {
-    render(
-      <SummaryCards
-        totals={{ ...totals, cacheHitTokens: 0, cacheMissTokens: 0 }}
-      />
-    );
-    expect(screen.getByText("0%")).toBeInTheDocument();
+  it("formats request turns with thousands separators", () => {
+    render(<SummaryCards totals={{ ...totals, requests: 1500 }} />);
+    expect(screen.getByText("1,500")).toBeInTheDocument();
   });
 });

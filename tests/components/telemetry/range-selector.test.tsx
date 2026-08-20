@@ -14,8 +14,8 @@ describe("RangeSelector", () => {
         options={TELEMETRY_RANGE_OPTIONS}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "7d" }));
-    expect(onChange).toHaveBeenCalledWith("7d");
+    fireEvent.click(screen.getByRole("button", { name: "30d" }));
+    expect(onChange).toHaveBeenCalledWith("30d");
   });
 
   it("renders the provided options", () => {

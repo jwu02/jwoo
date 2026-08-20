@@ -1,3 +1,9 @@
+import { ReactNode } from "react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { AiUsageByModel } from "@/lib/telemetry/types";
 import { formatCompactNumber } from "@/lib/telemetry/chart-format";
 
@@ -12,6 +18,55 @@ function formatNumber(value: number, decimals = 0): string {
   }).format(value);
 }
 
+// Share of the column total, rounded to a whole percent. Returns 0 when the
+// total is 0 so a division-by-zero never yields NaN.
+function shareOfTotal(value: number, total: number): number {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function StatCell({
+  ariaLabel,
+  rawValue,
+  display,
+  total,
+  color,
+}: {
+  ariaLabel: string;
+  rawValue: number;
+  display: ReactNode;
+  total: number;
+  color: string;
+}) {
+  const pct = shareOfTotal(rawValue, total);
+  return (
+    <td className="py-2 tabular-nums">
+      <div className="flex items-center justify-start gap-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={pct}
+                aria-label={ariaLabel}
+                className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${pct}%`, backgroundColor: color }}
+                />
+              </div>
+            }
+          />
+          <TooltipContent>{pct}%</TooltipContent>
+        </Tooltip>
+        <span>{display}</span>
+      </div>
+    </td>
+  );
+}
+
 export function ModelBreakdown({ byModel }: ModelBreakdownProps) {
   if (byModel.length === 0) {
     return (
@@ -20,52 +75,58 @@ export function ModelBreakdown({ byModel }: ModelBreakdownProps) {
   }
 
   const sorted = [...byModel].sort((a, b) => b.costYuan - a.costYuan);
-  const maxCost = Math.max(...sorted.map((model) => model.costYuan));
+  const totals = {
+    requests: byModel.reduce((sum, model) => sum + model.requests, 0),
+    tokens: byModel.reduce((sum, model) => sum + model.totalTokens, 0),
+    cost: byModel.reduce((sum, model) => sum + model.costYuan, 0),
+  };
 
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
           <th className="pb-2 font-medium">Model</th>
-          <th className="pb-2 text-right font-medium">Requests</th>
-          <th className="pb-2 text-right font-medium">Total Tokens</th>
-          <th className="pb-2 text-right font-medium">Cost</th>
+          <th className="pb-2 font-medium">Requests</th>
+          <th className="pb-2 font-medium">Total Tokens</th>
+          <th className="pb-2 font-medium">Cost</th>
         </tr>
       </thead>
       <tbody>
         {sorted.map((model, index) => {
-          const width = maxCost > 0 ? (model.costYuan / maxCost) * 100 : 0;
+          const color = `var(--chart-${(index % 5) + 1})`;
           return (
             <tr key={model.model} className="border-b border-border/50">
               <td className="py-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-muted"
-                    role="presentation"
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${width}%`,
-                        backgroundColor: `var(--chart-${(index % 5) + 1})`,
-                      }}
-                    />
-                  </div>
-                  <span data-model={model.model} className="font-medium">
-                    {model.model}
-                  </span>
-                </div>
+                <span data-model={model.model} className="font-medium">
+                  {model.model}
+                </span>
               </td>
-              <td className="py-2 text-right tabular-nums">
-                {formatNumber(model.requests)}
-              </td>
-              <td className="py-2 text-right tabular-nums">
-                {formatCompactNumber(model.totalTokens)}
-              </td>
-              <td className="py-2 text-right tabular-nums">
-                <span className="text-muted-foreground">¥</span>
-                {formatNumber(model.costYuan, 2)}
-              </td>
+              <StatCell
+                ariaLabel={`${model.model} requests share`}
+                rawValue={model.requests}
+                display={formatNumber(model.requests)}
+                total={totals.requests}
+                color={color}
+              />
+              <StatCell
+                ariaLabel={`${model.model} tokens share`}
+                rawValue={model.totalTokens}
+                display={formatCompactNumber(model.totalTokens)}
+                total={totals.tokens}
+                color={color}
+              />
+              <StatCell
+                ariaLabel={`${model.model} cost share`}
+                rawValue={model.costYuan}
+                display={
+                  <>
+                    <span className="text-muted-foreground">¥</span>
+                    {formatNumber(model.costYuan, 2)}
+                  </>
+                }
+                total={totals.cost}
+                color={color}
+              />
             </tr>
           );
         })}

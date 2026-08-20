@@ -98,7 +98,7 @@ describe("ActivityChart", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Hide Key Presses/i }));
 
-    rerender(<ActivityChart data={buildData()} range="7d" />);
+    rerender(<ActivityChart data={buildData()} range="30d" />);
 
     expect(screen.getByRole("button", { name: /Show Key Presses/i })).toBeInTheDocument();
   });

@@ -58,7 +58,7 @@ function buildLanguages(locale: Locale): LanguageItem[] {
 }
 
 export const en: ResumeData = {
-  header: { name: "Tony Wu", profession: "Python / Automation Engineer" },
+  header: { name: "Tony Wu", profession: "Software Engineer" },
   titles: {
     education: "Education",
     foreignLanguages: "Languages",
@@ -145,7 +145,7 @@ export const en: ResumeData = {
       details: [
         "Built a full activity telemetry stack — a desktop logger that records mouse and keyboard events directly into MongoDB, with a Next.js REST API and Recharts/SVG heatmap dashboard visualizing real-time usage trends",
         "Built an interactive knowledge graph using a personal Obsidian plugin that extracts note metadata (filenames, creation dates, and wikilinks) into MongoDB, rendered with PixiJS on WebGL and laid out with a d3-force simulation",
-        "Implemented a Claude Code hook that pushes per-request Claude usage statistics (token counts, cost, and model) into MongoDB, and added an AI usage dashboard to the website to visualize them",
+        "Implemented a Claude Code hook that pushes per-request large language model usage statistics (token counts, cost, and model) into MongoDB, and added an AI usage dashboard to the website to visualize them",
       ],
     },
   ],
@@ -158,7 +158,7 @@ export const en: ResumeData = {
 }
 
 export const zh: ResumeData = {
-  header: { name: "吴家聪", profession: "Python / 自动化 工程师" },
+  header: { name: "吴家聪", profession: "软件工程师" },
   titles: {
     education: "教育背景",
     foreignLanguages: "语言能力",
@@ -203,11 +203,10 @@ export const zh: ResumeData = {
       start: "2025.05",
       end: "至今",
       bullets: [
-        "使用 FastAPI、Celery/Redis 和 Docker 架构并部署自动化 OQC 报告系统，实现分布式任务的可扩展异步处理",
-        "开发基于 PyQt 的前端应用并与后端服务集成，利用 Win32 API 实现操作系统级打印任务调度，全面自动化文档队列流程",
-        "通过自动化内部数据管道，将人工报告处理工作量减少95%，每天节省约7小时工时，覆盖多个项目及不同类型的报告工作流程",
-        "开发实时制造绩效监控仪表盘，跟踪生产过程关键指标，提升生产可视化能力并加快运营决策速度",
-        "构建基于 PyQt 的数据分析平台，规范工程师分析流程，缩短新员工上手时间",
+        "使用 PyQt、FastAPI、Celery/Redis 和 Docker 构建并部署自动化 OQC 报告系统，通过自动化多个报告工作流程的数据管道，将人工报告处理量减少 95%，每天节省 6 小时以上工时",
+        "使用 Next.js、FastAPI 和 MinIO 开发并部署全栈培训管理平台，采用 Docker 容器化部署，托管于 Linux 服务器，并通过 Caddy 反向代理实现安全的服务路由",
+        "使用 PyQt 构建实时制造绩效监控仪表盘，实时监控生产过程指标，提升生产可视化能力，加快运营决策速度",
+        "为工艺工程师构建基于 PyQt 的数据分析平台，规范分析工作流程，缩短新工程师的上手时间",
       ],
     },
   ],
@@ -227,7 +226,7 @@ export const zh: ResumeData = {
       details: [
         "构建完整的活动遥测技术栈 — 桌面记录器将鼠标与键盘事件直接写入 MongoDB，配合 Next.js REST API 与 Recharts/SVG 热力图仪表盘，实时可视化使用趋势",
         "使用个人 Obsidian 插件将笔记元数据（文件名、创建日期与 wiki 链接）提取到 MongoDB，并基于 PixiJS（WebGL 渲染）与 d3-force 力导向布局构建交互式知识图谱",
-        "实现 Claude Code hook，将每次请求的 Claude 使用统计（token 数量、费用与模型）写入 MongoDB，并在网站中新增 AI 用量仪表盘进行可视化展示",
+        "实现 Claude Code hook，将每次请求的大语言模型使用统计（token 数量、费用与模型）写入 MongoDB，并在网站中新增 AI 用量仪表盘进行可视化展示",
       ],
     },
   ],
