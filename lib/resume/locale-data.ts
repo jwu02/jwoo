@@ -143,9 +143,9 @@ export const en: ResumeData = {
     {
       title: "Personal Website",
       details: [
-        "Designed and built a personal website using Next.js, React, Tailwind CSS, and shadcn/ui, featuring an activity telemetry dashboard, an interactive knowledge graph, and a bilingual (English/Chinese) resume",
         "Built a full activity telemetry stack — a desktop logger that records mouse and keyboard events directly into MongoDB, with a Next.js REST API and Recharts/SVG heatmap dashboard visualizing real-time usage trends",
-        "Built an interactive knowledge graph rendered with PixiJS on WebGL for smooth, high-performance interaction, using a d3-force simulation to lay out relationships between notes",
+        "Built an interactive knowledge graph using a personal Obsidian plugin that extracts note metadata (filenames, creation dates, and wikilinks) into MongoDB, rendered with PixiJS on WebGL and laid out with a d3-force simulation",
+        "Implemented a Claude Code hook that pushes per-request Claude usage statistics (token counts, cost, and model) into MongoDB, and added an AI usage dashboard to the website to visualize them",
       ],
     },
   ],
@@ -225,9 +225,9 @@ export const zh: ResumeData = {
     {
       title: "个人网站",
       details: [
-        "使用 Next.js、React、Tailwind CSS 与 shadcn/ui 构建个人网站，集活动遥测仪表盘、交互式知识图谱与中英双语简历于一体",
         "构建完整的活动遥测技术栈 — 桌面记录器将鼠标与键盘事件直接写入 MongoDB，配合 Next.js REST API 与 Recharts/SVG 热力图仪表盘，实时可视化使用趋势",
-        "使用 PixiJS（基于 WebGL 渲染）构建交互式知识图谱，结合 d3-force 力导向布局，实现笔记与知识关联的流畅交互与浏览",
+        "使用个人 Obsidian 插件将笔记元数据（文件名、创建日期与 wiki 链接）提取到 MongoDB，并基于 PixiJS（WebGL 渲染）与 d3-force 力导向布局构建交互式知识图谱",
+        "实现 Claude Code hook，将每次请求的 Claude 使用统计（token 数量、费用与模型）写入 MongoDB，并在网站中新增 AI 用量仪表盘进行可视化展示",
       ],
     },
   ],
