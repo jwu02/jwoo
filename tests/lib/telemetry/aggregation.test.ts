@@ -327,7 +327,7 @@ describe("buildAiUsageTimeSeriesPipeline", () => {
 
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
     expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$recorded_at", unit: "minute", binSize: 30 },
+      $dateTrunc: { date: "$recorded_at", unit: "hour", binSize: 1 },
     });
     expect(groupStage.$group.costYuan).toEqual({ $sum: "$cost_yuan" });
     expect(groupStage.$group.promptTokens).toEqual({ $sum: "$prompt_tokens" });
@@ -376,7 +376,7 @@ describe("buildAiUsageTimeSeriesByModelPipeline", () => {
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
     expect(groupStage.$group._id).toEqual({
       bucket: {
-        $dateTrunc: { date: "$recorded_at", unit: "minute", binSize: 30 },
+        $dateTrunc: { date: "$recorded_at", unit: "hour", binSize: 1 },
       },
       model: "$model",
     });
@@ -491,7 +491,7 @@ describe("fetchAiUsageTimeSeriesByModel", () => {
   it("maps per-model aggregation results into zero-filled buckets", async () => {
     const now = new Date("2026-08-18T12:00:00.000Z");
     const bucket1 = new Date("2026-08-18T10:00:00.000Z");
-    const bucket2 = new Date("2026-08-18T10:30:00.000Z");
+    const bucket2 = new Date("2026-08-18T11:00:00.000Z");
     const collection = makeMockCollection([
       {
         _id: { bucket: bucket1, model: "model-b" },

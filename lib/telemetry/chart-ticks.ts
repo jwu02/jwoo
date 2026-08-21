@@ -8,7 +8,8 @@ export function getTicksForRange(
 
   switch (range) {
     case "24h": {
-      // 30-minute buckets; label the :00 bucket of every 3rd hour.
+      // Telemetry buckets every 30 minutes, AI usage hourly — both align on
+      // the :00, so labeling the :00 bucket of every 3rd hour works for each.
       return buckets.filter((bucket) => {
         const date = new Date(bucket);
         return date.getUTCMinutes() === 0 && date.getUTCHours() % 3 === 0;

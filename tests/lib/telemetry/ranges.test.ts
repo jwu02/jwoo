@@ -61,7 +61,7 @@ describe("getAiUsageRangeStart", () => {
 
 describe("getAiUsageBucketInterval", () => {
   it.each([
-    ["24h", { unit: "minute", binSize: 30 }],
+    ["24h", { unit: "hour", binSize: 1 }],
     ["30d", { unit: "day", binSize: 1 }],
     ["1y", { unit: "month", binSize: 1 }],
   ] as [AiUsageRange, { unit: string; binSize: number }][])(
