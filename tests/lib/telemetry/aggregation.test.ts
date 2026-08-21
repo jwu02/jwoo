@@ -512,6 +512,20 @@ describe("fetchAiUsageByProject", () => {
         requests: 1,
       },
       {
+        // Lives under a kamkiu path but must bucket into its own group, not "work".
+        _id: "/Users/jwu02/Developer/kamkiu/report-generator",
+        costYuan: 0.4,
+        totalTokens: 80,
+        requests: 2,
+      },
+      {
+        // A generic kamkiu project with no specific mapping stays in "work".
+        _id: "/Users/jwu02/Developer/kamkiu/backend",
+        costYuan: 0.1,
+        totalTokens: 25,
+        requests: 1,
+      },
+      {
         _id: "/private/tmp/claude-sandbox-42",
         costYuan: 0.2,
         totalTokens: 40,
@@ -522,7 +536,7 @@ describe("fetchAiUsageByProject", () => {
     const result = await fetchAiUsageByProject(collection);
     expect(result).toEqual([
       {
-        project: "work",
+        project: "training-management-system",
         costYuan: 0.7,
         totalTokens: 150,
         requests: 3,
@@ -534,10 +548,22 @@ describe("fetchAiUsageByProject", () => {
         requests: 5,
       },
       {
+        project: "report-generator",
+        costYuan: 0.4,
+        totalTokens: 80,
+        requests: 2,
+      },
+      {
         project: "others",
         costYuan: 0.25,
         totalTokens: 50,
         requests: 3,
+      },
+      {
+        project: "work",
+        costYuan: 0.1,
+        totalTokens: 25,
+        requests: 1,
       },
     ]);
   });
@@ -551,13 +577,29 @@ describe("fetchAiUsageByProject", () => {
 
 describe("findProjectGroup", () => {
   it("matches a cwd substring case-insensitively", () => {
-    expect(
-      findProjectGroup("/Users/jwu02/Developer/KamKiu/training-management-system")
-    ).toBe("work");
     expect(findProjectGroup("/Users/jwu02/Developer/kamkiu/backend")).toBe(
       "work"
     );
     expect(findProjectGroup("/Users/jwu02/Developer/KAMKIU/x")).toBe("work");
+  });
+
+  it("maps training-management-system to its own group even when the cwd also contains kamkiu", () => {
+    expect(
+      findProjectGroup(
+        "/Users/jwu02/Developer/KamKiu/training-management-system"
+      )
+    ).toBe("training-management-system");
+  });
+
+  it("maps report-generator to its own group even when the cwd also contains kamkiu", () => {
+    // report-generator lives under a kamkiu path, so its key must be checked
+    // before the broader "kamkiu" substring or it would bucket into "work".
+    expect(
+      findProjectGroup("/Users/jwu02/Developer/kamkiu/report-generator")
+    ).toBe("report-generator");
+    expect(
+      findProjectGroup("/Users/jwu02/Developer/kamkiu/backend")
+    ).toBe("work");
   });
 
   it("maps the dashboard and its siblings to the personal-website group", () => {

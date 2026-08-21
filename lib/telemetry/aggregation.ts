@@ -300,9 +300,13 @@ export const OTHERS_PROJECT = "others";
 
 // Maps a cwd substring (matched case-insensitively) to the project name shown
 // in the breakdown table. Keys are evaluated in order; the first substring
-// contained in a cwd wins. Anything matching no key aggregates into the
-// OTHERS_PROJECT row.
+// contained in a cwd wins. Order longer, more specific keys before broader
+// ones that their paths also contain — e.g. report-generator sits under
+// kamkiu, so it must be checked first or its rows would fall into "work".
+// Anything matching no key aggregates into the OTHERS_PROJECT row.
 const PROJECT_GROUPS: Record<string, string> = {
+  "training-management-system": "training-management-system",
+  "report-generator": "report-generator",
   kamkiu: "work",
   "personal-website": "personal-website",
 };
