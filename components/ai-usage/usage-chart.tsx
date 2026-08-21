@@ -142,32 +142,41 @@ function UsageChartTooltip({
         {formatTooltip(String(label), range)}
       </p>
       <ul className="space-y-1">
-        {payload.map((entry, index) => {
-          const matchingSeries = series.find(
-            (s) => s.dataKey === entry.dataKey
-          );
-          const value =
-            typeof entry.value === "number" ? entry.value : Number(entry.value);
-          const formatted = matchingSeries?.formatValue
-            ? matchingSeries.formatValue(value)
-            : formatValue(value);
-          return (
-            <li key={index} className="flex items-center gap-2">
-              <span
-                className="inline-block h-2 w-2 rounded-sm"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span style={{ color: "var(--foreground)" }}>
-                {entry.name}: {matchingSeries?.prefix && (
-                  <span className="text-muted-foreground">
-                    {matchingSeries.prefix}
-                  </span>
-                )}
-                {formatted}
-              </span>
-            </li>
-          );
-        })}
+        {payload
+          .map((entry) => {
+            const value =
+              typeof entry.value === "number" ? entry.value : Number(entry.value);
+            return { entry, value };
+          })
+          // Skip idle models (zero in this bucket) and rank the rest by their
+          // value, highest first — an unused model's "0" row adds noise, and
+          // the series order (table order) need not match the bucket's ranking.
+          .filter(({ value }) => value !== 0)
+          .sort((a, b) => b.value - a.value)
+          .map(({ entry, value }, index) => {
+            const matchingSeries = series.find(
+              (s) => s.dataKey === entry.dataKey
+            );
+            const formatted = matchingSeries?.formatValue
+              ? matchingSeries.formatValue(value)
+              : formatValue(value);
+            return (
+              <li key={index} className="flex items-center gap-2">
+                <span
+                  className="inline-block h-2 w-2 rounded-sm"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span style={{ color: "var(--foreground)" }}>
+                  {entry.name}: {matchingSeries?.prefix && (
+                    <span className="text-muted-foreground">
+                      {matchingSeries.prefix}
+                    </span>
+                  )}
+                  {formatted}
+                </span>
+              </li>
+            );
+          })}
       </ul>
     </div>
   );

@@ -110,6 +110,42 @@ function buildTinyCostData(): AiUsageModelTimeSeries[] {
   ];
 }
 
+// Three models: model-a's values exceed model-b's in every bucket, but the
+// input order lists model-b first, so an unsorted tooltip would show model-b
+// above model-a. model-c is idle everywhere (all zeros) and must not appear
+// in the tooltip at all.
+function buildMixedActivityData(): AiUsageModelTimeSeries[] {
+  const buckets = Array.from({ length: 4 }, (_, i) =>
+    new Date(Date.UTC(2025, 7, 9, i * 6)).toISOString()
+  );
+  return [
+    {
+      model: "model-b",
+      points: buckets.map((bucket, i) => ({
+        bucket,
+        costYuan: 0.25 + i * 0.1,
+        totalTokens: 100_000 + i * 50_000,
+      })),
+    },
+    {
+      model: "model-a",
+      points: buckets.map((bucket, i) => ({
+        bucket,
+        costYuan: 0.5 + i * 0.25,
+        totalTokens: 500_000 + i * 250_000,
+      })),
+    },
+    {
+      model: "model-c",
+      points: buckets.map((bucket) => ({
+        bucket,
+        costYuan: 0,
+        totalTokens: 0,
+      })),
+    },
+  ];
+}
+
 beforeAll(() => {
   jest
     .spyOn(Element.prototype, "getBoundingClientRect")
@@ -298,6 +334,34 @@ describe("UsageChart", () => {
     expect(items.some((item) => item?.match(/model-b: \d+(\.\d+)?[MK]/))).toBe(
       true
     );
+  });
+
+  it("orders tooltip entries from highest to lowest value", async () => {
+    render(<UsageChart data={buildMixedActivityData()} range="24h" />);
+
+    const items = await readTooltipItems(0);
+    const modelAIndex = items.findIndex((item) =>
+      item?.startsWith("model-a:")
+    );
+    const modelBIndex = items.findIndex((item) =>
+      item?.startsWith("model-b:")
+    );
+
+    // model-a's token values exceed model-b's in every bucket, so it must
+    // sort above model-b even though the input (series) order lists model-b
+    // first.
+    expect(modelAIndex).toBeGreaterThan(-1);
+    expect(modelBIndex).toBeGreaterThan(-1);
+    expect(modelAIndex).toBeLessThan(modelBIndex);
+  });
+
+  it("hides models with zero activity from the tooltip", async () => {
+    render(<UsageChart data={buildMixedActivityData()} range="24h" />);
+
+    const items = await readTooltipItems(0);
+    expect(items.some((item) => item?.startsWith("model-a:"))).toBe(true);
+    expect(items.some((item) => item?.startsWith("model-b:"))).toBe(true);
+    expect(items.some((item) => item?.startsWith("model-c:"))).toBe(false);
   });
 
   it("shows a legend naming each model when multiple models are present", () => {
