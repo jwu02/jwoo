@@ -5,13 +5,6 @@ export interface PhysicalKeyDef {
   id: string;
   /** Short label rendered on the key in the SVG */
   displayLabel: string;
-  /**
-   * Degrees to rotate the keycap label around its centre. The arrow keys all
-   * share one triangle glyph (▲) rotated 0/90/180/270° so the four arrowheads
-   * render at identical size — the up/down glyphs (▲▼) are drawn wider in most
-   * fonts than ◀▶, which makes them look larger at the same point size.
-   */
-  labelRotation?: number;
   /** Small shifted character rendered in the upper-left corner of the keycap */
   shiftLabel?: string;
   /** Small option-modified character rendered on the right side of the keycap */
@@ -83,35 +76,45 @@ function kx(col: number, offset = 0): number {
   return col * (K + G) + offset;
 }
 
+// Right edge of the main keyboard body — the function row (right of Touch ID),
+// rows 1–4 (right of Delete / Return / Right Shift), and the bottom row's arrow
+// cluster all share this right edge.
+const KB_RIGHT = 626;
+
 // ---------------------------------------------------------------------------
 // Row 0 — Function row (y=0, h=34 — same height as regular keys)
 // ---------------------------------------------------------------------------
 const F_Y = 0;
 const F_H = 34;
 
-// F1-F12 + Touch ID are standard 38px keys with uniform 4px gaps.  Esc widens
-// to fill the leftover space on the left so the whole row reads evenly spaced
-// like the other rows.  The row keeps the same right edge as before (Touch ID
-// ends at 616), so F1 starts at 616 - (13 keys × 38 + 12 gaps × 4).
-const F1_X = 616 - (13 * K + 12 * G);
+// Esc stops at the horizontal midpoint of the "1" key below it (kx(1) + K/2 =
+// 61) — wide enough to read as the M3 Air's broad Esc, but it no longer spans
+// the whole 1 key.  F1-F12 + Touch ID then fill the remaining width to the
+// body's right edge, staying flush right like the rows below.
+const ESC_W = kx(1) + K / 2;
+const F_KEYS_X = ESC_W + G;
+
+// 13 keys (F1-F12 + Touch ID) must span F_KEYS_X → KB_RIGHT with the standard
+// 4px gaps, so they render slightly wider than the 38px main-body keys.
+const F_KEY_W = (KB_RIGHT - F_KEYS_X - 12 * G) / 13;
 
 const F_ROW: PhysicalKeyDef[] = [
-  // Esc — expands to fill the space left by the evenly-spaced F keys
-  { id: "Esc", displayLabel: "esc", x: 0, y: F_Y, width: F1_X - G, height: F_H,
+  // Esc — reaches only to the midpoint of the "1" key below it
+  { id: "Esc", displayLabel: "esc", x: 0, y: F_Y, width: ESC_W, height: F_H,
     labels: ["Escape"] },
 
   // F1-F12
   ...[...Array.from({ length: 12 }, (_, i) => ({
     id: `F${i + 1}`,
     displayLabel: `F${i + 1}`,
-    x: F1_X + i * (K + G),
+    x: F_KEYS_X + i * (F_KEY_W + G),
     y: F_Y,
-    width: K,
+    width: F_KEY_W,
     height: F_H,
     labels: [`F${i + 1}`],
   }))],
 
-  { id: "Touch ID", displayLabel: "", x: F1_X + 12 * (K + G), y: F_Y, width: K, height: F_H,
+  { id: "Touch ID", displayLabel: "", x: F_KEYS_X + 12 * (F_KEY_W + G), y: F_Y, width: F_KEY_W, height: F_H,
     labels: [] },
 ];
 
@@ -178,8 +181,9 @@ const R2_ROW: PhysicalKeyDef[] = [
   // Right Bracket ]  (UK: shift = })
   { id: "Right Bracket", displayLabel: "]", shiftLabel: "}", x: kx(12) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
     labels: ["Right Bracket", "]", "}"] },
-  // Backslash \  (to the right of ], above Return)
-  { id: "Backslash", displayLabel: "\\", shiftLabel: "|", x: kx(13) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
+  // Backslash \  (to the right of ], above Return).  ~1.5u — the same width as
+  // Tab on the row's left — so the row keeps the keyboard's right edge at 626.
+  { id: "Backslash", displayLabel: "\\", shiftLabel: "|", x: kx(13) + K * 0.5 + G * 0.5, y: R2_Y, width: K * 1.5 + G * 0.5, height: KH,
     labels: ["Backslash", "\\", "|"] },
 ];
 
@@ -264,14 +268,9 @@ const R5_Y = R4_Y + KH + G;
 // Both Options and both Cmds use this; Fn and the arrows are 1u (K).
 const MOD_W = 47;
 
-// Right edge of the main keyboard body — rows 1–4 all end here (right edge of
-// Delete / Return / Right Shift).  The bottom row's arrow cluster is aligned to
-// this same edge, with the arrows packed directly against the Right Option key
-// exactly as on the M3 Air.
-const KB_RIGHT = 626;
-
-// Arrow cluster positions, computed right-to-left from KB_RIGHT so the cluster
-// stays glued to the Right Option key and shares the keyboard's right edge.
+// Arrow cluster positions, computed right-to-left from KB_RIGHT (shared right
+// edge, defined at the top of the file) so the cluster stays glued to the
+// Right Option key and shares the keyboard's right edge.
 const arrowRightX = KB_RIGHT - K;          // right arrow
 const arrowStackX = arrowRightX - K - G;   // up / down stacked
 const arrowLeftX = arrowStackX - K - G;    // left arrow
@@ -305,23 +304,24 @@ const R5_ROW: PhysicalKeyDef[] = [
 
 // Arrow keys — stacked to the right of the bottom-row modifiers.  Left and
 // right arrows are half-height like the up/down pair, sitting on the same row
-// as the down arrow (2px hairline gap above the stack top).
+// as the down arrow (2px hairline gap above the stack top).  Each keycap is
+// labelled with a lucide chevron icon (ChevronUp/Down/Left/Right, see KEY_ICONS
+// in keyboard-heatmap.tsx) rather than a display label.
 const ARROW_Y = R5_Y;
 const ARROW_HALF = Math.floor((KH - 2) / 2);
 
 const ARROW_KEYS: PhysicalKeyDef[] = [
-  // Left Arrow (Fn+Left = Home) — one shared triangle glyph (▲) rotated per
-  // direction so all four arrowheads render at identical size. 270° → left.
-  { id: "Left Arrow", displayLabel: "▲", labelRotation: 270, x: arrowLeftX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  // Left Arrow (Fn+Left = Home)
+  { id: "Left Arrow", displayLabel: "", x: arrowLeftX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Left Arrow", "Home"] },
   // Up Arrow (half-height top, Fn+Up = Page Up)
-  { id: "Up Arrow", displayLabel: "▲", x: arrowStackX, y: ARROW_Y, width: K, height: ARROW_HALF,
+  { id: "Up Arrow", displayLabel: "", x: arrowStackX, y: ARROW_Y, width: K, height: ARROW_HALF,
     labels: ["Up Arrow", "Page Up"] },
   // Down Arrow (half-height bottom, Fn+Down = Page Down)
-  { id: "Down Arrow", displayLabel: "▲", labelRotation: 180, x: arrowStackX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  { id: "Down Arrow", displayLabel: "", x: arrowStackX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Down Arrow", "Page Down"] },
   // Right Arrow (Fn+Right = End)
-  { id: "Right Arrow", displayLabel: "▲", labelRotation: 90, x: arrowRightX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
+  { id: "Right Arrow", displayLabel: "", x: arrowRightX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
     labels: ["Right Arrow", "End"] },
 ];
 

@@ -6,6 +6,9 @@ import {
   ArrowBigUp,
   ArrowBigUpDash,
   ArrowRightToLine,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Command,
   CornerDownLeft,
@@ -47,6 +50,11 @@ const KEY_ICONS: Record<string, LucideIcon> = {
   "Left Cmd": Command,
   "Right Cmd": Command,
   Fn: Globe,
+  // Arrow keys render their chevron glyph centred on the keycap.
+  "Up Arrow": ChevronUp,
+  "Down Arrow": ChevronDown,
+  "Left Arrow": ChevronLeft,
+  "Right Arrow": ChevronRight,
 };
 
 // Keycap icon size in SVG viewBox units — matched to the label text height
@@ -68,7 +76,13 @@ const KEY_ICON_LABELS: Record<string, string> = {
 
 // Corner of the keycap each icon is pinned to, echoing where the symbol sits
 // on a real keycap (e.g. shift low-left, modifiers towards the top edge).
-type IconPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+// Arrow keys centre their chevron glyph like a real arrow keycap.
+type IconPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "center";
 
 const KEY_ICON_POSITIONS: Record<string, IconPosition> = {
   Tab: "bottom-left",
@@ -83,6 +97,10 @@ const KEY_ICON_POSITIONS: Record<string, IconPosition> = {
   "Left Cmd": "top-right",
   "Right Cmd": "top-left",
   Fn: "bottom-left",
+  "Up Arrow": "center",
+  "Down Arrow": "center",
+  "Left Arrow": "center",
+  "Right Arrow": "center",
 };
 
 // Inset of a pinned icon from the keycap edge, in viewBox units.
@@ -260,9 +278,12 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
 
   return (
     <div ref={containerRef} className="relative overflow-x-auto">
+      {/* mx-auto centres the keyboard in its column when there is room; when
+          the viewport is narrower than the keyboard, the auto margins collapse
+          to zero and the container scrolls from the left edge as before. */}
       <svg
         viewBox="-5 -5 650 235"
-        className="min-w-[650px]"
+        className="mx-auto block min-w-[650px]"
         aria-label="Keyboard heatmap"
       >
         <defs>
@@ -287,13 +308,17 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
             iconLabel !== undefined || key.id === "Fn";
           const iconSize = hasTextLabel ? MODIFIER_ICON_SIZE : ICON_SIZE;
           const iconX =
-            iconPosition === "top-left" || iconPosition === "bottom-left"
-              ? key.x + ICON_PAD
-              : key.x + key.width - ICON_PAD - iconSize;
+            iconPosition === "center"
+              ? key.x + key.width / 2 - iconSize / 2
+              : iconPosition === "top-left" || iconPosition === "bottom-left"
+                ? key.x + ICON_PAD
+                : key.x + key.width - ICON_PAD - iconSize;
           const iconY =
-            iconPosition === "top-left" || iconPosition === "top-right"
-              ? key.y + ICON_PAD
-              : key.y + key.height - ICON_PAD - iconSize;
+            iconPosition === "center"
+              ? key.y + key.height / 2 - iconSize / 2
+              : iconPosition === "top-left" || iconPosition === "top-right"
+                ? key.y + ICON_PAD
+                : key.y + key.height - ICON_PAD - iconSize;
           const { text: keycapText, fontSize } = fitLabel(
             key.displayLabel,
             key.width,
@@ -470,13 +495,6 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
                   y={labelY}
                   textAnchor={labelAnchor}
                   dominantBaseline="central"
-                  // Arrow keys rotate a shared triangle glyph around the keycap
-                  // centre (labelRotation) so all four render at identical size.
-                  transform={
-                    key.labelRotation
-                      ? `rotate(${key.labelRotation} ${key.x + key.width / 2} ${key.y + key.height / 2 + 1})`
-                      : undefined
-                  }
                   // Keycaps are always dark, so use a fixed near-white fill
                   // rather than the theme foreground for legibility.
                   className="select-none pointer-events-none"

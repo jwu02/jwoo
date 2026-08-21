@@ -201,6 +201,10 @@ describe("KeyboardHeatmap", () => {
       ["Left Option", "lucide-option"],
       ["Left Cmd", "lucide-command"],
       ["Fn", "lucide-globe"],
+      ["Up Arrow", "lucide-chevron-up"],
+      ["Down Arrow", "lucide-chevron-down"],
+      ["Left Arrow", "lucide-chevron-left"],
+      ["Right Arrow", "lucide-chevron-right"],
     ];
 
     it.each(iconKeys)(
@@ -443,6 +447,50 @@ describe("KeyboardHeatmap", () => {
       );
 
       expect(fontSize).toBeGreaterThan(iconWidth);
+    });
+  });
+
+  describe("arrow key icons", () => {
+    // The chevron icon's top-left corner should sit at the keycap centre
+    // minus half its size, so the glyph is centred on the keycap.
+    it("centres the chevron on the up arrow keycap", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      const up = screen.getByRole("button", { name: "Up Arrow: 0 presses" });
+      const rect = up.querySelector("rect")!;
+      const icon = up.querySelector(".lucide-chevron-up")!;
+      const iconG = up.querySelector("g[transform]")!;
+
+      const translate = iconG
+        .getAttribute("transform")!
+        .match(/translate\(([\d.]+),\s*([\d.]+)\)/)!;
+      const iconX = Number(translate[1]);
+      const iconY = Number(translate[2]);
+      const iconSize = Number(icon.getAttribute("width"));
+
+      const rectX = Number(rect.getAttribute("x"));
+      const rectY = Number(rect.getAttribute("y"));
+      const rectW = Number(rect.getAttribute("width"));
+      const rectH = Number(rect.getAttribute("height"));
+
+      expect(iconX).toBeCloseTo(rectX + rectW / 2 - iconSize / 2, 1);
+      expect(iconY).toBeCloseTo(rectY + rectH / 2 - iconSize / 2, 1);
+    });
+
+    it("replaces the triangle glyph on the arrow keys", () => {
+      render(<KeyboardHeatmap keys={{}} />);
+
+      for (const keyName of [
+        "Up Arrow",
+        "Down Arrow",
+        "Left Arrow",
+        "Right Arrow",
+      ]) {
+        const key = screen.getByRole("button", {
+          name: `${keyName}: 0 presses`,
+        });
+        expect(within(key).queryByText("▲")).not.toBeInTheDocument();
+      }
     });
   });
 

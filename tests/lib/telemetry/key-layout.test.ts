@@ -1,4 +1,8 @@
-import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout";
+import {
+  PHYSICAL_KEYS,
+  buildKeyCountMap,
+  PhysicalKeyDef,
+} from "@/lib/telemetry/key-layout";
 import { KeyCounts } from "@/lib/telemetry/types";
 
 describe("PHYSICAL_KEYS", () => {
@@ -74,12 +78,13 @@ describe("PHYSICAL_KEYS", () => {
   it("includes a Touch ID key to the right of F12", () => {
     const touchId = PHYSICAL_KEYS.find((key) => key.id === "Touch ID");
     expect(touchId).toBeDefined();
-    expect(touchId!.width).toBe(38);
     expect(touchId!.height).toBe(34);
 
     const f12 = PHYSICAL_KEYS.find((key) => key.id === "F12");
     expect(f12).toBeDefined();
     expect(touchId!.x).toBeGreaterThan(f12!.x);
+    // Touch ID matches the F-key width so the function row reads as uniform.
+    expect(touchId!.width).toBe(f12!.width);
   });
 
   it("has function keys the same height as standard keys", () => {
@@ -124,6 +129,52 @@ describe("PHYSICAL_KEYS", () => {
       .map((key) => key.id)
       .sort();
     expect(idsWithOption).toEqual(["2", "3"]);
+  });
+
+  describe("keyboard body alignment", () => {
+    // The M3 Air keyboard is drawn as a clean rectangle: every full-height row
+    // (function, number, QWERTY, home, shift) starts flush at x=0 and ends flush
+    // at the shared right edge (626). The bottom row steps down into the arrow
+    // cluster, so its right corner is defined by the Right Arrow instead.
+    const RIGHT_EDGE = 626;
+
+    it("keeps every full-height row's left and right edges flush", () => {
+      const rowsByY = new Map<number, PhysicalKeyDef[]>();
+      for (const key of PHYSICAL_KEYS) {
+        const row = rowsByY.get(key.y) ?? [];
+        row.push(key);
+        rowsByY.set(key.y, row);
+      }
+
+      const fullHeightRows = [...rowsByY.values()].filter((keys) =>
+        keys.every((key) => key.height === 34)
+      );
+      expect(fullHeightRows.length).toBe(5);
+
+      for (const keys of fullHeightRows) {
+        expect(Math.min(...keys.map((key) => key.x))).toBe(0);
+        expect(Math.max(...keys.map((key) => key.x + key.width))).toBe(
+          RIGHT_EDGE
+        );
+      }
+    });
+
+    it("ends the Esc key at the midpoint of the 1 key below it", () => {
+      const esc = PHYSICAL_KEYS.find((key) => key.id === "Esc");
+      const one = PHYSICAL_KEYS.find((key) => key.id === "1");
+      expect(esc).toBeDefined();
+      expect(one).toBeDefined();
+      // Esc starts at x=0, so its width is its right edge. It should reach the
+      // horizontal centre of the "1" key (kx(1) + K/2 = 61) rather than span it.
+      expect(esc!.width).toBe(one!.x + one!.width / 2);
+    });
+
+    it("places the arrow cluster's right corner on the same right edge", () => {
+      const rightmost = Math.max(
+        ...PHYSICAL_KEYS.map((key) => key.x + key.width)
+      );
+      expect(rightmost).toBe(RIGHT_EDGE);
+    });
   });
 });
 
