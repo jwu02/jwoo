@@ -1,4 +1,4 @@
-import { render, fireEvent, act, within } from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { cloneElement } from "react";
 import {
   UsageChart,
@@ -574,5 +574,135 @@ describe("UsageChart", () => {
     expect(
       tickLabels.some((label) => /^0\.\d+/.test(label ?? ""))
     ).toBe(true);
+  });
+
+  it("renders an interactive legend button per model", () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    expect(
+      screen.getByRole("button", { name: /Hide model-b/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Hide model-a/i })
+    ).toBeInTheDocument();
+  });
+
+  it("hides a model in both charts when its legend button is clicked", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    // 4 buckets × 2 models × 2 charts (tokens + cost).
+    expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(16);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-b/i }));
+    await settleBarAnimation();
+
+    // model-b's segments vanish from both charts: 4 buckets × 1 model × 2 charts.
+    const rects = container.querySelectorAll(".recharts-rectangle");
+    expect(rects).toHaveLength(8);
+    // Only model-a's table color remains.
+    expect(new Set(Array.from(rects).map((r) => r.getAttribute("fill")))).toEqual(
+      new Set(["var(--chart-2)"])
+    );
+  });
+
+  it("shows a hidden model when its legend button is clicked again", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-b/i }));
+    await settleBarAnimation();
+    expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(8);
+
+    fireEvent.click(screen.getByRole("button", { name: /Show model-b/i }));
+    await settleBarAnimation();
+    expect(container.querySelectorAll(".recharts-rectangle")).toHaveLength(16);
+  });
+
+  it("renders hidden legend items with reduced opacity and muted text", () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-a/i }));
+
+    const hiddenButton = screen.getByRole("button", { name: /Show model-a/i });
+    expect(hiddenButton).toHaveClass("opacity-50");
+    expect(hiddenButton).toHaveClass("text-muted-foreground");
+  });
+
+  it("sets aria-pressed true for hidden models and false for visible ones", () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    const visibleButton = screen.getByRole("button", { name: /Hide model-b/i });
+    expect(visibleButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(visibleButton);
+    expect(
+      screen.getByRole("button", { name: /Show model-b/i })
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps hidden models hidden when the range changes", () => {
+    const { rerender } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-a/i }));
+
+    rerender(<UsageChart data={buildModelData()} range="30d" />);
+
+    expect(
+      screen.getByRole("button", { name: /Show model-a/i })
+    ).toBeInTheDocument();
+  });
+
+  it("excludes hidden models from the tooltip", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-b/i }));
+
+    const items = await readTooltipItems(0);
+    expect(items.some((item) => item?.startsWith("model-a"))).toBe(true);
+    expect(items.some((item) => item?.startsWith("model-b"))).toBe(false);
+  });
+
+  it("grounds remaining segments when a hidden model leaves the stack", async () => {
+    const { container } = render(
+      <UsageChart data={buildModelData()} range="24h" />
+    );
+    await settleBarAnimation();
+
+    const wrapper = container.querySelectorAll(".recharts-wrapper")[0];
+    // Per-bucket bottom edges: the largest y+height in a bucket is the edge
+    // that rests on the baseline. With two models, model-b (bottom) grounds
+    // the stack, so its bottom edge is the baseline.
+    const bottomEdgesByX = () => {
+      const edges = new Map<number, number[]>();
+      for (const rect of Array.from(
+        wrapper.querySelectorAll(".recharts-rectangle")
+      )) {
+        const x = Number(rect.getAttribute("x"));
+        const bottomEdge =
+          Number(rect.getAttribute("y")) + Number(rect.getAttribute("height"));
+        edges.set(x, [...(edges.get(x) ?? []), bottomEdge]);
+      }
+      return [...edges.values()].map((e) => Math.max(...e));
+    };
+
+    const baselinesBefore = bottomEdgesByX();
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide model-b/i }));
+    await settleBarAnimation();
+
+    // Hiding the bottom model drops model-a to the same baseline rather than
+    // leaving a floating gap where model-b used to sit.
+    const baselinesAfter = bottomEdgesByX();
+    expect(baselinesAfter).toHaveLength(baselinesBefore.length);
+    baselinesAfter.forEach((edge, i) =>
+      expect(edge).toBeCloseTo(baselinesBefore[i], 5)
+    );
   });
 });

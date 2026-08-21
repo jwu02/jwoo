@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -234,11 +234,14 @@ function MiniStackedBarChart({
   data,
   series,
   range,
+  hidden,
   yTickFormatter = formatCompactNumber,
 }: {
   data: ChartRow[];
   series: Series[];
   range: AiUsageRange;
+  /** Model names hidden via the legend; applies to both charts. */
+  hidden: Set<string>;
   yTickFormatter?: (value: number) => string;
 }) {
   const ticks = useMemo(
@@ -280,6 +283,9 @@ function MiniStackedBarChart({
                 // rounded top segment tapers narrower than the one below it.
                 // Square, stroke-less fills keep every segment uniform.
                 maxBarSize={24}
+                // Recharts drops hidden bars from the stack computation, so the
+                // remaining segments close the gap instead of floating.
+                hide={hidden.has(entry.name)}
               />
             ))}
           </BarChart>
@@ -294,6 +300,22 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
     () => buildModelChartData(data, modelOrder),
     [data, modelOrder]
   );
+
+  // Keyed by model name so one legend toggle hides the model in both the cost
+  // and tokens charts (they share the same models, hence one legend).
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+
+  const toggleModel = (model: string) => {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) {
+        next.delete(model);
+      } else {
+        next.add(model);
+      }
+      return next;
+    });
+  };
 
   const tokenSeries: Series[] = series.map((entry, index) => ({
     dataKey: entry.tokensKey,
@@ -321,6 +343,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
             data={rows}
             range={range}
             series={costSeries}
+            hidden={hidden}
             yTickFormatter={formatCostAxisLabel}
           />
         </div>
@@ -328,25 +351,44 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Tokens over time
           </h3>
-          <MiniStackedBarChart data={rows} range={range} series={tokenSeries} />
+          <MiniStackedBarChart
+            data={rows}
+            range={range}
+            series={tokenSeries}
+            hidden={hidden}
+          />
         </div>
         {costSeries.length > 0 && (
           <div
             data-testid="chart-legend"
             className="flex flex-wrap items-center justify-center gap-4"
           >
-            {costSeries.map((entry) => (
-              <span
-                key={entry.dataKey}
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <span
-                  className="inline-block h-2 w-2 rounded-sm"
-                  style={{ backgroundColor: `var(${entry.color})` }}
-                />
-                {entry.name}
-              </span>
-            ))}
+            {costSeries.map((entry) => {
+              const isHidden = hidden.has(entry.name);
+              return (
+                <button
+                  key={entry.dataKey}
+                  type="button"
+                  onClick={() => toggleModel(entry.name)}
+                  aria-pressed={isHidden}
+                  aria-label={
+                    isHidden ? `Show ${entry.name}` : `Hide ${entry.name}`
+                  }
+                  className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
+                    isHidden ? "text-muted-foreground opacity-50" : "text-foreground"
+                  }`}
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-sm"
+                    style={{
+                      backgroundColor: `var(${entry.color})`,
+                      opacity: isHidden ? 0.5 : 1,
+                    }}
+                  />
+                  {entry.name}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
