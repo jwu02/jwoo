@@ -127,6 +127,31 @@ function UsageChartTooltip({
 }: Partial<TooltipContentProps> & { range: AiUsageRange; series: Series[] }) {
   if (!active || !payload || payload.length === 0) return null;
 
+  const entries = payload
+    .map((entry) => {
+      const value =
+        typeof entry.value === "number" ? entry.value : Number(entry.value);
+      return { entry, value };
+    })
+    // Skip idle models (zero in this bucket) and rank the rest by their
+    // value, highest first — an unused model's "0" row adds noise, and
+    // the series order (table order) need not match the bucket's ranking.
+    .filter(({ value }) => value !== 0)
+    .sort((a, b) => b.value - a.value);
+
+  // A single (or no) entry needs no summing — the total would just restate the
+  // row's value, and with nothing beneath it the divider would dangle.
+  const showTotal = entries.length >= 2;
+
+  // Every series in one chart shares a formatter and prefix (cost vs tokens),
+  // so the first one also formats the summed total row.
+  const totalSeries = series[0];
+  const formatTotal = totalSeries?.formatValue ?? formatValue;
+  const total = showTotal
+    ? entries.reduce((sum, { value }) => sum + value, 0)
+    : 0;
+  const totalFormatted = showTotal ? formatTotal(total) : "";
+
   return (
     <div
       className="rounded-md border px-3 py-2 text-sm shadow-sm"
@@ -135,25 +160,19 @@ function UsageChartTooltip({
         borderColor: "var(--border)",
       }}
     >
+      {/* The header divider is itself a separator, so it only belongs when
+          there is a breakdown beneath it. */}
       <p
-        className="mb-1 border-b border-border pb-1 font-medium"
+        className={`${
+          entries.length > 0 ? "mb-1 border-b border-border pb-1" : ""
+        } font-medium`}
         style={{ color: "var(--foreground)" }}
       >
         {formatTooltip(String(label), range)}
       </p>
-      <ul className="space-y-1">
-        {payload
-          .map((entry) => {
-            const value =
-              typeof entry.value === "number" ? entry.value : Number(entry.value);
-            return { entry, value };
-          })
-          // Skip idle models (zero in this bucket) and rank the rest by their
-          // value, highest first — an unused model's "0" row adds noise, and
-          // the series order (table order) need not match the bucket's ranking.
-          .filter(({ value }) => value !== 0)
-          .sort((a, b) => b.value - a.value)
-          .map(({ entry, value }, index) => {
+      {entries.length > 0 && (
+        <ul className="space-y-1">
+          {entries.map(({ entry, value }, index) => {
             const matchingSeries = series.find(
               (s) => s.dataKey === entry.dataKey
             );
@@ -161,13 +180,23 @@ function UsageChartTooltip({
               ? matchingSeries.formatValue(value)
               : formatValue(value);
             return (
-              <li key={index} className="flex items-center gap-2">
-                <span
-                  className="inline-block h-2 w-2 rounded-sm"
-                  style={{ backgroundColor: entry.color }}
-                />
+              // Name in the left column, value pushed to the right edge so every
+              // value lines up in one right-aligned column.
+              <li
+                key={index}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2 w-2 rounded-sm"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span style={{ color: "var(--foreground)" }}>
+                    {entry.name}
+                  </span>
+                </span>
                 <span style={{ color: "var(--foreground)" }}>
-                  {entry.name}: {matchingSeries?.prefix && (
+                  {matchingSeries?.prefix && (
                     <span className="text-muted-foreground">
                       {matchingSeries.prefix}
                     </span>
@@ -177,7 +206,26 @@ function UsageChartTooltip({
               </li>
             );
           })}
-      </ul>
+        </ul>
+      )}
+      {showTotal && (
+        <>
+          <div className="my-1 border-t border-border" />
+          <div
+            data-testid="tooltip-total"
+            className="flex justify-end font-medium"
+          >
+            <span style={{ color: "var(--foreground)" }}>
+              {totalSeries?.prefix && (
+                <span className="text-muted-foreground">
+                  {totalSeries.prefix}
+                </span>
+              )}
+              {totalFormatted}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

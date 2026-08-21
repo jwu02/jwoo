@@ -1,4 +1,4 @@
-export type BreakdownView = "model" | "project";
+export type BreakdownView = "model" | "project" | "harness";
 
 interface ViewToggleProps {
   value: BreakdownView;
@@ -8,6 +8,7 @@ interface ViewToggleProps {
 const OPTIONS: { value: BreakdownView; label: string }[] = [
   { value: "model", label: "By model" },
   { value: "project", label: "By project" },
+  { value: "harness", label: "By harness" },
 ];
 
 export function ViewToggle({ value, onChange }: ViewToggleProps) {

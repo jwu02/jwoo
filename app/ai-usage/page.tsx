@@ -132,15 +132,29 @@ export default function AiUsagePage() {
                           totalTokens: model.totalTokens,
                           requests: model.requests,
                         }))
-                      : data.byProject.map((project) => ({
-                          id: project.project,
-                          label: project.project,
-                          costYuan: project.costYuan,
-                          totalTokens: project.totalTokens,
-                          requests: project.requests,
-                        }))
+                      : view === "project"
+                        ? data.byProject.map((project) => ({
+                            id: project.project,
+                            label: project.project,
+                            costYuan: project.costYuan,
+                            totalTokens: project.totalTokens,
+                            requests: project.requests,
+                          }))
+                        : data.byHarness.map((harness) => ({
+                            id: harness.harness,
+                            label: harness.harness,
+                            costYuan: harness.costYuan,
+                            totalTokens: harness.totalTokens,
+                            requests: harness.requests,
+                          }))
                   }
-                  labelHeader={view === "model" ? "Model" : "Project"}
+                  labelHeader={
+                    view === "model"
+                      ? "Model"
+                      : view === "project"
+                        ? "Project"
+                        : "Harness"
+                  }
                 />
               </div>
             </>

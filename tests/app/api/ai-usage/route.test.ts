@@ -11,6 +11,7 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchAiUsageTotals: jest.fn(),
   fetchAiUsageByModel: jest.fn(),
   fetchAiUsageByProject: jest.fn(),
+  fetchAiUsageByHarness: jest.fn(),
   fetchAiUsageTimeSeries: jest.fn(),
   fetchAiUsageTimeSeriesByModel: jest.fn(),
 }));
@@ -20,6 +21,7 @@ import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageByProject,
+  fetchAiUsageByHarness,
   fetchAiUsageTimeSeries,
   fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
@@ -48,6 +50,14 @@ describe("GET /api/ai-usage", () => {
     (fetchAiUsageByProject as jest.Mock).mockResolvedValue([
       {
         project: "work",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+    ]);
+    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([
+      {
+        harness: "claude-code",
         costYuan: 0.5,
         totalTokens: 100,
         requests: 1,
@@ -84,6 +94,7 @@ describe("GET /api/ai-usage", () => {
     expect(fetchAiUsageTotals).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageByModel).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageByProject).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchAiUsageByHarness).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h"
@@ -108,6 +119,14 @@ describe("GET /api/ai-usage", () => {
       byProject: [
         {
           project: "work",
+          costYuan: 0.5,
+          totalTokens: 100,
+          requests: 1,
+        },
+      ],
+      byHarness: [
+        {
+          harness: "claude-code",
           costYuan: 0.5,
           totalTokens: 100,
           requests: 1,
@@ -149,6 +168,7 @@ describe("GET /api/ai-usage", () => {
     });
     (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
     (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
     (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
     (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 

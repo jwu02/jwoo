@@ -9,11 +9,13 @@ import {
   buildAiUsageTotalsPipeline,
   buildAiUsageByModelPipeline,
   buildAiUsageByProjectPipeline,
+  buildAiUsageByHarnessPipeline,
   buildAiUsageTimeSeriesPipeline,
   buildAiUsageTimeSeriesByModelPipeline,
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageByProject,
+  fetchAiUsageByHarness,
   findProjectGroup,
   fetchAiUsageTimeSeries,
   fetchAiUsageTimeSeriesByModel,
@@ -336,6 +338,23 @@ describe("buildAiUsageByProjectPipeline", () => {
   });
 });
 
+describe("buildAiUsageByHarnessPipeline", () => {
+  it("groups by harness and sorts by cost descending, harness name as tie-break", () => {
+    const pipeline = buildAiUsageByHarnessPipeline();
+    expect(pipeline).toEqual([
+      {
+        $group: {
+          _id: "$harness",
+          costYuan: { $sum: "$cost_yuan" },
+          totalTokens: { $sum: "$total_tokens" },
+          requests: { $sum: 1 },
+        },
+      },
+      { $sort: { costYuan: -1, _id: 1 } },
+    ]);
+  });
+});
+
 describe("buildAiUsageTimeSeriesPipeline", () => {
   it("matches on recorded_at, buckets, and sums for 24h", () => {
     const now = new Date("2026-08-18T12:00:00.000Z");
@@ -571,6 +590,46 @@ describe("fetchAiUsageByProject", () => {
   it("returns empty array when collection is empty", async () => {
     const collection = makeMockCollection([]);
     const result = await fetchAiUsageByProject(collection);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("fetchAiUsageByHarness", () => {
+  it("returns harness rows, labeling missing harness as unknown", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: "claude-code",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+      {
+        _id: null,
+        costYuan: 0.2,
+        totalTokens: 40,
+        requests: 2,
+      },
+    ]);
+    const result = await fetchAiUsageByHarness(collection);
+    expect(result).toEqual([
+      {
+        harness: "claude-code",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+      {
+        harness: "unknown",
+        costYuan: 0.2,
+        totalTokens: 40,
+        requests: 2,
+      },
+    ]);
+  });
+
+  it("returns empty array when collection is empty", async () => {
+    const collection = makeMockCollection([]);
+    const result = await fetchAiUsageByHarness(collection);
     expect(result).toEqual([]);
   });
 });

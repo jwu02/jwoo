@@ -10,6 +10,9 @@ describe("ViewToggle", () => {
     expect(
       screen.getByRole("button", { name: "By project" })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "By harness" })
+    ).toBeInTheDocument();
   });
 
   it("marks the active view as pressed", () => {
@@ -22,17 +25,20 @@ describe("ViewToggle", () => {
     expect(
       screen.getByRole("button", { name: "By project" })
     ).toHaveAttribute("aria-pressed", "false");
-
-    rerender(<ViewToggle value="project" onChange={() => {}} />);
     expect(
-      screen.getByRole("button", { name: "By project" })
+      screen.getByRole("button", { name: "By harness" })
+    ).toHaveAttribute("aria-pressed", "false");
+
+    rerender(<ViewToggle value="harness" onChange={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: "By harness" })
     ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("fires onChange with the clicked view", () => {
     const onChange = jest.fn();
     render(<ViewToggle value="model" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: "By project" }));
-    expect(onChange).toHaveBeenCalledWith("project");
+    fireEvent.click(screen.getByRole("button", { name: "By harness" }));
+    expect(onChange).toHaveBeenCalledWith("harness");
   });
 });

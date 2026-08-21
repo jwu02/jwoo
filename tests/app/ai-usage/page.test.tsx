@@ -39,6 +39,20 @@ const response = {
       requests: 1,
     },
   ],
+  byHarness: [
+    {
+      harness: "claude-code",
+      costYuan: 2.0,
+      totalTokens: 5000,
+      requests: 5,
+    },
+    {
+      harness: "api",
+      costYuan: 0.5,
+      totalTokens: 1000,
+      requests: 1,
+    },
+  ],
   timeSeries: [],
   timeSeriesByModel: [],
 };
@@ -74,6 +88,17 @@ describe("AiUsagePage", () => {
     expect(await screen.findByText("work")).toBeInTheDocument();
     expect(screen.getByText("personal-website")).toBeInTheDocument();
     expect(screen.getByText("others")).toBeInTheDocument();
+    expect(screen.queryByText("claude-opus-5")).not.toBeInTheDocument();
+  });
+
+  it("switches to the by-harness view on toggle", async () => {
+    render(<AiUsagePage />);
+    await screen.findByText("claude-opus-5");
+
+    fireEvent.click(screen.getByRole("button", { name: "By harness" }));
+
+    expect(await screen.findByText("claude-code")).toBeInTheDocument();
+    expect(screen.getByText("api")).toBeInTheDocument();
     expect(screen.queryByText("claude-opus-5")).not.toBeInTheDocument();
   });
 });

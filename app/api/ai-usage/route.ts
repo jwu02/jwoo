@@ -4,6 +4,7 @@ import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,
   fetchAiUsageByProject,
+  fetchAiUsageByHarness,
   fetchAiUsageTimeSeries,
   fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
@@ -28,19 +29,27 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const aiUsageCollection = getAiUsageCollection();
-    const [totals, byModel, byProject, timeSeries, timeSeriesByModel] =
-      await Promise.all([
-        fetchAiUsageTotals(aiUsageCollection),
-        fetchAiUsageByModel(aiUsageCollection),
-        fetchAiUsageByProject(aiUsageCollection),
-        fetchAiUsageTimeSeries(aiUsageCollection, rangeParam),
-        fetchAiUsageTimeSeriesByModel(aiUsageCollection, rangeParam),
-      ]);
+    const [
+      totals,
+      byModel,
+      byProject,
+      byHarness,
+      timeSeries,
+      timeSeriesByModel,
+    ] = await Promise.all([
+      fetchAiUsageTotals(aiUsageCollection),
+      fetchAiUsageByModel(aiUsageCollection),
+      fetchAiUsageByProject(aiUsageCollection),
+      fetchAiUsageByHarness(aiUsageCollection),
+      fetchAiUsageTimeSeries(aiUsageCollection, rangeParam),
+      fetchAiUsageTimeSeriesByModel(aiUsageCollection, rangeParam),
+    ]);
 
     const response: AiUsageResponse = {
       totals,
       byModel,
       byProject,
+      byHarness,
       timeSeries,
       timeSeriesByModel,
     };

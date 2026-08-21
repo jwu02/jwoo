@@ -297,8 +297,88 @@ describe("UsageChart", () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(0);
-    expect(items.some((item) => item?.startsWith("model-b: ¥"))).toBe(true);
-    expect(items.some((item) => item?.startsWith("model-a: ¥"))).toBe(true);
+    expect(
+      items.some((item) => item?.startsWith("model-b") && item?.includes("¥"))
+    ).toBe(true);
+    expect(
+      items.some((item) => item?.startsWith("model-a") && item?.includes("¥"))
+    ).toBe(true);
+  });
+
+  it("right-aligns model names and values into two columns", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
+    fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.textContent?.includes("model-b"));
+    expect(tooltip).toBeTruthy();
+
+    const rows = within(tooltip as HTMLElement).queryAllByRole("listitem");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      // `justify-between` pushes each value to the row's right edge so every
+      // value lines up in one right-aligned column.
+      expect(row.classList.contains("justify-between")).toBe(true);
+      // Two columns: swatch + name on the left, the value on the right.
+      expect(Array.from(row.children)).toHaveLength(2);
+    }
+  });
+
+  it("shows a total row that sums the displayed model values", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
+    fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.querySelector('[data-testid="tooltip-total"]'));
+    expect(tooltip).toBeTruthy();
+
+    // The total equals the sum of the values shown in the breakdown, and it
+    // carries the same yuan prefix as the per-model rows.
+    const rowValues = within(tooltip as HTMLElement)
+      .queryAllByRole("listitem")
+      .map((li) => Number(li.textContent?.match(/¥([\d.]+)/)?.[1] ?? 0));
+    const expectedTotal = rowValues.reduce((sum, value) => sum + value, 0);
+
+    const totalText =
+      within(tooltip as HTMLElement)
+        .getByTestId("tooltip-total")
+        .textContent ?? "";
+    const totalValue = Number(totalText.match(/¥([\d.]+)/)?.[1] ?? 0);
+    expect(totalValue).toBeCloseTo(expectedTotal, 5);
+  });
+
+  it("omits the separator and total when only one model is active", async () => {
+    render(<UsageChart data={buildModelData().slice(0, 1)} range="24h" />);
+
+    const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
+    fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.textContent?.includes("model-b"));
+    expect(tooltip).toBeTruthy();
+    expect(tooltip!.textContent).toContain("model-b");
+
+    // A single value needs no total row, and no divider between it and nothing.
+    expect(tooltip!.querySelector('[data-testid="tooltip-total"]')).toBeNull();
+    expect(
+      Array.from(tooltip!.querySelectorAll(".border-t"))
+    ).toHaveLength(0);
   });
 
   it("styles the cost tooltip yuan sign as muted foreground", async () => {
@@ -331,7 +411,7 @@ describe("UsageChart", () => {
     const items = await readTooltipItems(1);
     // Token tooltips use the same M/K compaction as the y-axis rather than
     // full thousands-separated precision.
-    expect(items.some((item) => item?.match(/model-b: \d+(\.\d+)?[MK]/))).toBe(
+    expect(items.some((item) => item?.match(/model-b\d+(\.\d+)?[MK]/))).toBe(
       true
     );
   });
@@ -340,12 +420,8 @@ describe("UsageChart", () => {
     render(<UsageChart data={buildMixedActivityData()} range="24h" />);
 
     const items = await readTooltipItems(0);
-    const modelAIndex = items.findIndex((item) =>
-      item?.startsWith("model-a:")
-    );
-    const modelBIndex = items.findIndex((item) =>
-      item?.startsWith("model-b:")
-    );
+    const modelAIndex = items.findIndex((item) => item?.startsWith("model-a"));
+    const modelBIndex = items.findIndex((item) => item?.startsWith("model-b"));
 
     // model-a's token values exceed model-b's in every bucket, so it must
     // sort above model-b even though the input (series) order lists model-b
@@ -359,9 +435,9 @@ describe("UsageChart", () => {
     render(<UsageChart data={buildMixedActivityData()} range="24h" />);
 
     const items = await readTooltipItems(0);
-    expect(items.some((item) => item?.startsWith("model-a:"))).toBe(true);
-    expect(items.some((item) => item?.startsWith("model-b:"))).toBe(true);
-    expect(items.some((item) => item?.startsWith("model-c:"))).toBe(false);
+    expect(items.some((item) => item?.startsWith("model-a"))).toBe(true);
+    expect(items.some((item) => item?.startsWith("model-b"))).toBe(true);
+    expect(items.some((item) => item?.startsWith("model-c"))).toBe(false);
   });
 
   it("shows a legend naming each model when multiple models are present", () => {

@@ -8,6 +8,7 @@ import {
   AiUsageTotals,
   AiUsageByModel,
   AiUsageByProject,
+  AiUsageByHarness,
   AiUsageTimeSeriesPoint,
   AiUsageModelTimeSeries,
 } from "./types";
@@ -295,6 +296,22 @@ export function buildAiUsageByProjectPipeline(): Record<string, unknown>[] {
   ];
 }
 
+export function buildAiUsageByHarnessPipeline(): Record<string, unknown>[] {
+  return [
+    {
+      $group: {
+        _id: "$harness",
+        costYuan: { $sum: "$cost_yuan" },
+        totalTokens: { $sum: "$total_tokens" },
+        requests: { $sum: 1 },
+      },
+    },
+    // The group output carries the harness value in _id, so sorting on it
+    // breaks cost ties and makes the table ordering deterministic.
+    { $sort: { costYuan: -1, _id: 1 } },
+  ];
+}
+
 /** Fallback project name for cwds that match no PROJECT_GROUPS key. */
 export const OTHERS_PROJECT = "others";
 
@@ -451,6 +468,28 @@ export async function fetchAiUsageByProject(
   return [...buckets.values()].sort(
     (a, b) => b.costYuan - a.costYuan || a.project.localeCompare(b.project)
   );
+}
+
+export async function fetchAiUsageByHarness(
+  collection: Collection
+): Promise<AiUsageByHarness[]> {
+  const result = (await collection
+    .aggregate(buildAiUsageByHarnessPipeline())
+    .toArray()) as Array<{
+    _id: string | null;
+    costYuan: number;
+    totalTokens: number;
+    requests: number;
+  }>;
+
+  // Documents written before the collector recorded a harness group under a
+  // null _id; label those as "unknown" so the table shows a readable row.
+  return result.map((item) => ({
+    harness: item._id ?? "unknown",
+    costYuan: item.costYuan,
+    totalTokens: item.totalTokens,
+    requests: item.requests,
+  }));
 }
 
 export async function fetchAiUsageTimeSeries(
