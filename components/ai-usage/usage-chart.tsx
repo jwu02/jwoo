@@ -187,13 +187,11 @@ function MiniStackedBarChart({
   series,
   range,
   yTickFormatter = formatCompactNumber,
-  showLegend = true,
 }: {
   data: ChartRow[];
   series: Series[];
   range: AiUsageRange;
   yTickFormatter?: (value: number) => string;
-  showLegend?: boolean;
 }) {
   const ticks = useMemo(
     () => getTicksForRange(data.map((point) => point.bucket), range),
@@ -239,25 +237,6 @@ function MiniStackedBarChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {showLegend && series.length > 0 && (
-        <div
-          data-testid="chart-legend"
-          className="mt-2 flex flex-wrap items-center justify-center gap-4"
-        >
-          {series.map((entry) => (
-            <span
-              key={entry.dataKey}
-              className="flex items-center gap-2 text-sm text-muted-foreground"
-            >
-              <span
-                className="inline-block h-2 w-2 rounded-sm"
-                style={{ backgroundColor: `var(${entry.color})` }}
-              />
-              {entry.name}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -301,13 +280,27 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Tokens over time
           </h3>
-          <MiniStackedBarChart
-            data={rows}
-            range={range}
-            series={tokenSeries}
-            showLegend={false}
-          />
+          <MiniStackedBarChart data={rows} range={range} series={tokenSeries} />
         </div>
+        {costSeries.length > 0 && (
+          <div
+            data-testid="chart-legend"
+            className="flex flex-wrap items-center justify-center gap-4"
+          >
+            {costSeries.map((entry) => (
+              <span
+                key={entry.dataKey}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-sm"
+                  style={{ backgroundColor: `var(${entry.color})` }}
+                />
+                {entry.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

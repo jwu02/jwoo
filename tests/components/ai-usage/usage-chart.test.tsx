@@ -374,7 +374,7 @@ describe("UsageChart", () => {
     expect(legendText).toContain("model-a");
   });
 
-  it("renders a single legend, below the first (cost) chart only", () => {
+  it("renders a single legend, below both charts", () => {
     const { container } = render(
       <UsageChart data={buildModelData()} range="24h" />
     );
@@ -383,9 +383,11 @@ describe("UsageChart", () => {
     const legends = container.querySelectorAll('[data-testid="chart-legend"]');
     expect(legends).toHaveLength(1);
 
-    // The legend sits after the cost chart's plot area in document order.
-    const costWrapper = document.querySelectorAll(".recharts-wrapper")[0];
-    expect(costWrapper.compareDocumentPosition(legends[0])).toBe(
+    // The legend sits after the last (tokens) chart's plot area in document
+    // order, so it reads as the legend for the whole chart group.
+    const wrappers = document.querySelectorAll(".recharts-wrapper");
+    expect(wrappers.length).toBe(2);
+    expect(wrappers[1].compareDocumentPosition(legends[0])).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
   });
