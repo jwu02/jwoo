@@ -31,7 +31,7 @@ const fakeRect = {
   toJSON: () => {},
 };
 
-// UsageChart renders two stacked line charts (tokens, then cost). Hover the
+// UsageChart renders two stacked line charts (cost, then tokens). Hover the
 // wrapper at `chartIndex` and read every tooltip listitem that is on screen.
 async function readTooltipItems(chartIndex: number) {
   const wrapper =
@@ -296,7 +296,7 @@ describe("UsageChart", () => {
   it("prefixes per-model cost values with the yuan sign in the tooltip", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
-    const items = await readTooltipItems(1);
+    const items = await readTooltipItems(0);
     expect(items.some((item) => item?.startsWith("model-b: ¥"))).toBe(true);
     expect(items.some((item) => item?.startsWith("model-a: ¥"))).toBe(true);
   });
@@ -304,8 +304,8 @@ describe("UsageChart", () => {
   it("styles the cost tooltip yuan sign as muted foreground", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
-    // Hover the cost chart (the second of the two stacked charts).
-    const wrapper = document.querySelectorAll(".recharts-wrapper")[1];
+    // Hover the cost chart (the first of the two stacked charts).
+    const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
     fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -328,7 +328,7 @@ describe("UsageChart", () => {
   it("shortens each model's token value in the tooltip to M/K", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
-    const items = await readTooltipItems(0);
+    const items = await readTooltipItems(1);
     // Token tooltips use the same M/K compaction as the y-axis rather than
     // full thousands-separated precision.
     expect(items.some((item) => item?.match(/model-b: \d+(\.\d+)?[MK]/))).toBe(
@@ -374,7 +374,7 @@ describe("UsageChart", () => {
     expect(legendText).toContain("model-a");
   });
 
-  it("renders a single legend, below the last (cost) chart only", () => {
+  it("renders a single legend, below the first (cost) chart only", () => {
     const { container } = render(
       <UsageChart data={buildModelData()} range="24h" />
     );
@@ -384,7 +384,7 @@ describe("UsageChart", () => {
     expect(legends).toHaveLength(1);
 
     // The legend sits after the cost chart's plot area in document order.
-    const costWrapper = document.querySelectorAll(".recharts-wrapper")[1];
+    const costWrapper = document.querySelectorAll(".recharts-wrapper")[0];
     expect(costWrapper.compareDocumentPosition(legends[0])).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );

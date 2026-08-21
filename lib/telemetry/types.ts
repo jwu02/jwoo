@@ -44,6 +44,13 @@ export interface AiUsageByModel {
   requests: number;
 }
 
+export interface AiUsageByProject {
+  project: string;
+  costYuan: number;
+  totalTokens: number;
+  requests: number;
+}
+
 export interface AiUsageTimeSeriesPoint {
   bucket: string; // ISO date string
   costYuan: number;
@@ -66,6 +73,7 @@ export interface AiUsageModelTimeSeries {
 export interface AiUsageResponse {
   totals: AiUsageTotals;
   byModel: AiUsageByModel[];
+  byProject: AiUsageByProject[];
   timeSeries: AiUsageTimeSeriesPoint[];
   timeSeriesByModel: AiUsageModelTimeSeries[];
 }

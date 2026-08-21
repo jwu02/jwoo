@@ -4,11 +4,20 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { AiUsageByModel } from "@/lib/telemetry/types";
 import { formatCompactNumber } from "@/lib/telemetry/chart-format";
 
-interface ModelBreakdownProps {
-  byModel: AiUsageByModel[];
+export interface UsageBreakdownRow {
+  /** Stable unique key for the row. */
+  id: string;
+  label: string;
+  costYuan: number;
+  totalTokens: number;
+  requests: number;
+}
+
+interface UsageBreakdownProps {
+  rows: UsageBreakdownRow[];
+  labelHeader: string;
 }
 
 function formatNumber(value: number, decimals = 0): string {
@@ -67,61 +76,62 @@ function StatCell({
   );
 }
 
-export function ModelBreakdown({ byModel }: ModelBreakdownProps) {
-  if (byModel.length === 0) {
+export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
+  if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No AI usage recorded yet.</p>
     );
   }
 
-  const sorted = [...byModel].sort((a, b) => b.costYuan - a.costYuan);
+  const sorted = [...rows].sort((a, b) => b.costYuan - a.costYuan);
   const totals = {
-    requests: byModel.reduce((sum, model) => sum + model.requests, 0),
-    tokens: byModel.reduce((sum, model) => sum + model.totalTokens, 0),
-    cost: byModel.reduce((sum, model) => sum + model.costYuan, 0),
+    requests: rows.reduce((sum, row) => sum + row.requests, 0),
+    tokens: rows.reduce((sum, row) => sum + row.totalTokens, 0),
+    cost: rows.reduce((sum, row) => sum + row.costYuan, 0),
   };
 
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-          <th className="pb-2 font-medium">Model</th>
+          <th className="pb-2 font-medium">{labelHeader}</th>
           <th className="pb-2 font-medium">Requests</th>
           <th className="pb-2 font-medium">Total Tokens</th>
           <th className="pb-2 font-medium">Cost</th>
         </tr>
       </thead>
       <tbody>
-        {sorted.map((model, index) => {
+        {sorted.map((row, index) => {
           const color = `var(--chart-${(index % 5) + 1})`;
+          const label = (
+            <span data-label={row.label} className="font-medium">
+              {row.label}
+            </span>
+          );
           return (
-            <tr key={model.model} className="border-b border-border/50">
-              <td className="py-2">
-                <span data-model={model.model} className="font-medium">
-                  {model.model}
-                </span>
-              </td>
+            <tr key={row.id} className="border-b border-border/50">
+              <td className="py-2">{label}</td>
               <StatCell
-                ariaLabel={`${model.model} requests share`}
-                rawValue={model.requests}
-                display={formatNumber(model.requests)}
+                ariaLabel={`${row.label} requests share`}
+                rawValue={row.requests}
+                display={formatNumber(row.requests)}
                 total={totals.requests}
                 color={color}
               />
               <StatCell
-                ariaLabel={`${model.model} tokens share`}
-                rawValue={model.totalTokens}
-                display={formatCompactNumber(model.totalTokens)}
+                ariaLabel={`${row.label} tokens share`}
+                rawValue={row.totalTokens}
+                display={formatCompactNumber(row.totalTokens)}
                 total={totals.tokens}
                 color={color}
               />
               <StatCell
-                ariaLabel={`${model.model} cost share`}
-                rawValue={model.costYuan}
+                ariaLabel={`${row.label} cost share`}
+                rawValue={row.costYuan}
                 display={
                   <>
                     <span className="text-muted-foreground">¥</span>
-                    {formatNumber(model.costYuan, 2)}
+                    {formatNumber(row.costYuan, 2)}
                   </>
                 }
                 total={totals.cost}

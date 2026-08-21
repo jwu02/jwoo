@@ -288,17 +288,6 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
       <div className="space-y-6">
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            Tokens over time
-          </h3>
-          <MiniStackedBarChart
-            data={rows}
-            range={range}
-            series={tokenSeries}
-            showLegend={false}
-          />
-        </div>
-        <div>
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Cost over time (¥)
           </h3>
           <MiniStackedBarChart
@@ -306,6 +295,17 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
             range={range}
             series={costSeries}
             yTickFormatter={formatCostAxisLabel}
+          />
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+            Tokens over time
+          </h3>
+          <MiniStackedBarChart
+            data={rows}
+            range={range}
+            series={tokenSeries}
+            showLegend={false}
           />
         </div>
       </div>

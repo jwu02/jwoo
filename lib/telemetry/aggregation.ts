@@ -7,6 +7,7 @@ import {
   AiUsageRange,
   AiUsageTotals,
   AiUsageByModel,
+  AiUsageByProject,
   AiUsageTimeSeriesPoint,
   AiUsageModelTimeSeries,
 } from "./types";
@@ -279,6 +280,41 @@ export function buildAiUsageByModelPipeline(): Record<string, unknown>[] {
   ];
 }
 
+export function buildAiUsageByProjectPipeline(): Record<string, unknown>[] {
+  return [
+    {
+      $group: {
+        _id: "$cwd",
+        costYuan: { $sum: "$cost_yuan" },
+        totalTokens: { $sum: "$total_tokens" },
+        requests: { $sum: 1 },
+      },
+    },
+    // Full cwd path breaks cost ties so the table ordering is deterministic.
+    { $sort: { costYuan: -1, _id: 1 } },
+  ];
+}
+
+/** Fallback project name for cwds that match no PROJECT_GROUPS key. */
+export const OTHERS_PROJECT = "others";
+
+// Maps a cwd substring (matched case-insensitively) to the project name shown
+// in the breakdown table. Keys are evaluated in order; the first substring
+// contained in a cwd wins. Anything matching no key aggregates into the
+// OTHERS_PROJECT row.
+const PROJECT_GROUPS: Record<string, string> = {
+  kamkiu: "work",
+  "personal-website": "personal-website",
+};
+
+export function findProjectGroup(cwd: string): string | null {
+  const normalized = cwd.toLowerCase();
+  for (const [substring, name] of Object.entries(PROJECT_GROUPS)) {
+    if (normalized.includes(substring.toLowerCase())) return name;
+  }
+  return null;
+}
+
 export function buildAiUsageTimeSeriesPipeline(
   range: AiUsageRange,
   now = new Date()
@@ -373,6 +409,44 @@ export async function fetchAiUsageByModel(
     totalTokens: item.totalTokens,
     requests: item.requests,
   }));
+}
+
+export async function fetchAiUsageByProject(
+  collection: Collection
+): Promise<AiUsageByProject[]> {
+  const result = (await collection
+    .aggregate(buildAiUsageByProjectPipeline())
+    .toArray()) as Array<{
+    _id: string | null;
+    costYuan: number;
+    totalTokens: number;
+    requests: number;
+  }>;
+
+  // Bucket every cwd by its mapped project name; unmatched cwds (and
+  // documents with no cwd at all) all share the OTHERS_PROJECT bucket.
+  const buckets = new Map<string, AiUsageByProject>();
+
+  for (const item of result) {
+    const project = findProjectGroup(item._id ?? "") ?? OTHERS_PROJECT;
+    const existing = buckets.get(project);
+    if (existing) {
+      existing.costYuan += item.costYuan;
+      existing.totalTokens += item.totalTokens;
+      existing.requests += item.requests;
+    } else {
+      buckets.set(project, {
+        project,
+        costYuan: item.costYuan,
+        totalTokens: item.totalTokens,
+        requests: item.requests,
+      });
+    }
+  }
+
+  return [...buckets.values()].sort(
+    (a, b) => b.costYuan - a.costYuan || a.project.localeCompare(b.project)
+  );
 }
 
 export async function fetchAiUsageTimeSeries(

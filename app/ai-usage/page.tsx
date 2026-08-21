@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
-import { ModelBreakdown } from "@/components/ai-usage/model-breakdown"
+import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
+import { BreakdownView, ViewToggle } from "@/components/ai-usage/view-toggle"
 import { AI_USAGE_RANGE_OPTIONS, RangeSelector } from "@/components/telemetry/range-selector"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
 import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types"
@@ -26,6 +27,7 @@ async function fetchAiUsage(
 
 export default function AiUsagePage() {
   const [range, setRange] = useState<AiUsageRange>("24h")
+  const [view, setView] = useState<BreakdownView>("model")
   const [data, setData] = useState<AiUsageResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -114,10 +116,32 @@ export default function AiUsagePage() {
                 />
               </div>
               <div>
-                <h2 className="mb-3 text-lg font-semibold tracking-tight">
-                  By model
-                </h2>
-                <ModelBreakdown byModel={data.byModel} />
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    Usage breakdown
+                  </h2>
+                  <ViewToggle value={view} onChange={setView} />
+                </div>
+                <UsageBreakdown
+                  rows={
+                    view === "model"
+                      ? data.byModel.map((model) => ({
+                          id: model.model,
+                          label: model.model,
+                          costYuan: model.costYuan,
+                          totalTokens: model.totalTokens,
+                          requests: model.requests,
+                        }))
+                      : data.byProject.map((project) => ({
+                          id: project.project,
+                          label: project.project,
+                          costYuan: project.costYuan,
+                          totalTokens: project.totalTokens,
+                          requests: project.requests,
+                        }))
+                  }
+                  labelHeader={view === "model" ? "Model" : "Project"}
+                />
               </div>
             </>
           )}

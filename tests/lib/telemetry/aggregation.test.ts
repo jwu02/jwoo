@@ -8,10 +8,13 @@ import {
   generateBuckets,
   buildAiUsageTotalsPipeline,
   buildAiUsageByModelPipeline,
+  buildAiUsageByProjectPipeline,
   buildAiUsageTimeSeriesPipeline,
   buildAiUsageTimeSeriesByModelPipeline,
   fetchAiUsageTotals,
   fetchAiUsageByModel,
+  fetchAiUsageByProject,
+  findProjectGroup,
   fetchAiUsageTimeSeries,
   fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
@@ -316,6 +319,23 @@ describe("buildAiUsageByModelPipeline", () => {
   });
 });
 
+describe("buildAiUsageByProjectPipeline", () => {
+  it("groups by cwd and sorts by cost descending, cwd as tie-break", () => {
+    const pipeline = buildAiUsageByProjectPipeline();
+    expect(pipeline).toEqual([
+      {
+        $group: {
+          _id: "$cwd",
+          costYuan: { $sum: "$cost_yuan" },
+          totalTokens: { $sum: "$total_tokens" },
+          requests: { $sum: 1 },
+        },
+      },
+      { $sort: { costYuan: -1, _id: 1 } },
+    ]);
+  });
+});
+
 describe("buildAiUsageTimeSeriesPipeline", () => {
   it("matches on recorded_at, buckets, and sums for 24h", () => {
     const now = new Date("2026-08-18T12:00:00.000Z");
@@ -455,6 +475,107 @@ describe("fetchAiUsageByModel", () => {
     const collection = makeMockCollection([]);
     const result = await fetchAiUsageByModel(collection);
     expect(result).toEqual([]);
+  });
+});
+
+describe("fetchAiUsageByProject", () => {
+  it("aggregates cwds into mapping groups and others", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: "/Users/jwu02/Developer/KamKiu/training-management-system",
+        costYuan: 0.5,
+        totalTokens: 100,
+        requests: 1,
+      },
+      {
+        _id: "/Users/jwu02/Developer/KamKiu/training-management-system/backend",
+        costYuan: 0.2,
+        totalTokens: 50,
+        requests: 2,
+      },
+      {
+        _id: "/Users/jwu02/Developer/PersonalProjects/personal-website",
+        costYuan: 0.3,
+        totalTokens: 60,
+        requests: 3,
+      },
+      {
+        _id: "/Users/jwu02/Developer/PersonalProjects/personal-website/activity-telemetry-client",
+        costYuan: 0.1,
+        totalTokens: 20,
+        requests: 1,
+      },
+      {
+        _id: "/Users/jwu02/Developer/PersonalProjects/personal-website/jwoo",
+        costYuan: 0.15,
+        totalTokens: 30,
+        requests: 1,
+      },
+      {
+        _id: "/private/tmp/claude-sandbox-42",
+        costYuan: 0.2,
+        totalTokens: 40,
+        requests: 2,
+      },
+      { _id: null, costYuan: 0.05, totalTokens: 10, requests: 1 },
+    ]);
+    const result = await fetchAiUsageByProject(collection);
+    expect(result).toEqual([
+      {
+        project: "work",
+        costYuan: 0.7,
+        totalTokens: 150,
+        requests: 3,
+      },
+      {
+        project: "personal-website",
+        costYuan: 0.55,
+        totalTokens: 110,
+        requests: 5,
+      },
+      {
+        project: "others",
+        costYuan: 0.25,
+        totalTokens: 50,
+        requests: 3,
+      },
+    ]);
+  });
+
+  it("returns empty array when collection is empty", async () => {
+    const collection = makeMockCollection([]);
+    const result = await fetchAiUsageByProject(collection);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("findProjectGroup", () => {
+  it("matches a cwd substring case-insensitively", () => {
+    expect(
+      findProjectGroup("/Users/jwu02/Developer/KamKiu/training-management-system")
+    ).toBe("work");
+    expect(findProjectGroup("/Users/jwu02/Developer/kamkiu/backend")).toBe(
+      "work"
+    );
+    expect(findProjectGroup("/Users/jwu02/Developer/KAMKIU/x")).toBe("work");
+  });
+
+  it("maps the dashboard and its siblings to the personal-website group", () => {
+    expect(
+      findProjectGroup(
+        "/Users/jwu02/Developer/PersonalProjects/personal-website/jwoo"
+      )
+    ).toBe("personal-website");
+    expect(
+      findProjectGroup(
+        "/Users/jwu02/Developer/PersonalProjects/personal-website/activity-telemetry-client"
+      )
+    ).toBe("personal-website");
+  });
+
+  it("returns null when no substring matches", () => {
+    expect(findProjectGroup("/private/tmp/claude-sandbox-42")).toBeNull();
+    expect(findProjectGroup("/Users/jwu02/Developer/SomeProject")).toBeNull();
   });
 });
 
