@@ -65,7 +65,7 @@ export default function AiUsagePage() {
     }
   }, [load])
 
-  const isEmpty = data !== null && data.totals.requests === 0
+  const isEmpty = data !== null && data.totals.totalTokens === 0
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
@@ -84,8 +84,8 @@ export default function AiUsagePage() {
 
       {loading && !data ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
@@ -130,7 +130,6 @@ export default function AiUsagePage() {
                           label: model.model,
                           costYuan: model.costYuan,
                           totalTokens: model.totalTokens,
-                          requests: model.requests,
                         }))
                       : view === "project"
                         ? data.byProject.map((project) => ({
@@ -138,14 +137,12 @@ export default function AiUsagePage() {
                             label: project.project,
                             costYuan: project.costYuan,
                             totalTokens: project.totalTokens,
-                            requests: project.requests,
                           }))
                         : data.byHarness.map((harness) => ({
                             id: harness.harness,
                             label: harness.harness,
                             costYuan: harness.costYuan,
                             totalTokens: harness.totalTokens,
-                            requests: harness.requests,
                           }))
                   }
                   labelHeader={

@@ -12,7 +12,6 @@ export interface UsageBreakdownRow {
   label: string;
   costYuan: number;
   totalTokens: number;
-  requests: number;
 }
 
 interface UsageBreakdownProps {
@@ -85,7 +84,6 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
 
   const sorted = [...rows].sort((a, b) => b.costYuan - a.costYuan);
   const totals = {
-    requests: rows.reduce((sum, row) => sum + row.requests, 0),
     tokens: rows.reduce((sum, row) => sum + row.totalTokens, 0),
     cost: rows.reduce((sum, row) => sum + row.costYuan, 0),
   };
@@ -95,7 +93,6 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
       <thead>
         <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
           <th className="pb-2 font-medium">{labelHeader}</th>
-          <th className="pb-2 font-medium">Requests</th>
           <th className="pb-2 font-medium">Total Tokens</th>
           <th className="pb-2 font-medium">Cost</th>
         </tr>
@@ -111,13 +108,6 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
           return (
             <tr key={row.id} className="border-b border-border/50">
               <td className="py-2">{label}</td>
-              <StatCell
-                ariaLabel={`${row.label} requests share`}
-                rawValue={row.requests}
-                display={formatNumber(row.requests)}
-                total={totals.requests}
-                color={color}
-              />
               <StatCell
                 ariaLabel={`${row.label} tokens share`}
                 rawValue={row.totalTokens}

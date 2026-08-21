@@ -42,17 +42,15 @@ describe("GET /api/ai-usage", () => {
       completionTokens: 10,
       cacheHitTokens: 60,
       cacheMissTokens: 40,
-      requests: 1,
     });
     (fetchAiUsageByModel as jest.Mock).mockResolvedValue([
-      { model: "deepseek-v4-flash", costYuan: 0.5, totalTokens: 100, requests: 1 },
+      { model: "deepseek-v4-flash", costYuan: 0.5, totalTokens: 100 },
     ]);
     (fetchAiUsageByProject as jest.Mock).mockResolvedValue([
       {
         project: "work",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
     ]);
     (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([
@@ -60,7 +58,6 @@ describe("GET /api/ai-usage", () => {
         harness: "claude-code",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
     ]);
     (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([
@@ -111,17 +108,15 @@ describe("GET /api/ai-usage", () => {
         completionTokens: 10,
         cacheHitTokens: 60,
         cacheMissTokens: 40,
-        requests: 1,
       },
       byModel: [
-        { model: "deepseek-v4-flash", costYuan: 0.5, totalTokens: 100, requests: 1 },
+        { model: "deepseek-v4-flash", costYuan: 0.5, totalTokens: 100 },
       ],
       byProject: [
         {
           project: "work",
           costYuan: 0.5,
           totalTokens: 100,
-          requests: 1,
         },
       ],
       byHarness: [
@@ -129,7 +124,6 @@ describe("GET /api/ai-usage", () => {
           harness: "claude-code",
           costYuan: 0.5,
           totalTokens: 100,
-          requests: 1,
         },
       ],
       timeSeries: [
@@ -164,7 +158,6 @@ describe("GET /api/ai-usage", () => {
       completionTokens: 0,
       cacheHitTokens: 0,
       cacheMissTokens: 0,
-      requests: 0,
     });
     (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
     (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);

@@ -13,30 +13,26 @@ const response = {
     completionTokens: 1000,
     cacheHitTokens: 4000,
     cacheMissTokens: 2000,
-    requests: 6,
   },
   byModel: [
-    { model: "claude-opus-5", costYuan: 1.2, totalTokens: 3000, requests: 3 },
-    { model: "deepseek-v4-flash", costYuan: 0.8, totalTokens: 2000, requests: 2 },
+    { model: "claude-opus-5", costYuan: 1.2, totalTokens: 3000 },
+    { model: "deepseek-v4-flash", costYuan: 0.8, totalTokens: 2000 },
   ],
   byProject: [
     {
       project: "work",
       costYuan: 1.5,
       totalTokens: 4000,
-      requests: 4,
     },
     {
       project: "personal-website",
       costYuan: 1.0,
       totalTokens: 2000,
-      requests: 2,
     },
     {
       project: "others",
       costYuan: 0.5,
       totalTokens: 500,
-      requests: 1,
     },
   ],
   byHarness: [
@@ -44,13 +40,11 @@ const response = {
       harness: "claude-code",
       costYuan: 2.0,
       totalTokens: 5000,
-      requests: 5,
     },
     {
       harness: "api",
       costYuan: 0.5,
       totalTokens: 1000,
-      requests: 1,
     },
   ],
   timeSeries: [],

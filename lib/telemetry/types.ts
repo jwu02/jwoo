@@ -34,28 +34,24 @@ export interface AiUsageTotals {
   completionTokens: number;
   cacheHitTokens: number;
   cacheMissTokens: number;
-  requests: number;
 }
 
 export interface AiUsageByModel {
   model: string;
   costYuan: number;
   totalTokens: number;
-  requests: number;
 }
 
 export interface AiUsageByProject {
   project: string;
   costYuan: number;
   totalTokens: number;
-  requests: number;
 }
 
 export interface AiUsageByHarness {
   harness: string;
   costYuan: number;
   totalTokens: number;
-  requests: number;
 }
 
 export interface AiUsageTimeSeriesPoint {

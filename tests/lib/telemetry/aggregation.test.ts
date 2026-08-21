@@ -285,7 +285,7 @@ describe("AI usage bucket generation", () => {
 });
 
 describe("buildAiUsageTotalsPipeline", () => {
-  it("sums ai_usage fields and counts requests", () => {
+  it("sums ai_usage fields", () => {
     const pipeline = buildAiUsageTotalsPipeline();
     expect(pipeline).toEqual([
       {
@@ -297,7 +297,6 @@ describe("buildAiUsageTotalsPipeline", () => {
           completionTokens: { $sum: "$completion_tokens" },
           cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
           cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
-          requests: { $sum: 1 },
         },
       },
     ]);
@@ -313,7 +312,6 @@ describe("buildAiUsageByModelPipeline", () => {
           _id: "$model",
           costYuan: { $sum: "$cost_yuan" },
           totalTokens: { $sum: "$total_tokens" },
-          requests: { $sum: 1 },
         },
       },
       { $sort: { costYuan: -1, model: 1 } },
@@ -330,7 +328,6 @@ describe("buildAiUsageByProjectPipeline", () => {
           _id: "$cwd",
           costYuan: { $sum: "$cost_yuan" },
           totalTokens: { $sum: "$total_tokens" },
-          requests: { $sum: 1 },
         },
       },
       { $sort: { costYuan: -1, _id: 1 } },
@@ -347,7 +344,6 @@ describe("buildAiUsageByHarnessPipeline", () => {
           _id: "$harness",
           costYuan: { $sum: "$cost_yuan" },
           totalTokens: { $sum: "$total_tokens" },
-          requests: { $sum: 1 },
         },
       },
       { $sort: { costYuan: -1, _id: 1 } },
@@ -439,7 +435,6 @@ describe("fetchAiUsageTotals", () => {
         completionTokens: 10,
         cacheHitTokens: 60,
         cacheMissTokens: 40,
-        requests: 1,
       },
     ]);
     const result = await fetchAiUsageTotals(collection);
@@ -450,7 +445,6 @@ describe("fetchAiUsageTotals", () => {
       completionTokens: 10,
       cacheHitTokens: 60,
       cacheMissTokens: 40,
-      requests: 1,
     });
   });
 
@@ -464,7 +458,6 @@ describe("fetchAiUsageTotals", () => {
       completionTokens: 0,
       cacheHitTokens: 0,
       cacheMissTokens: 0,
-      requests: 0,
     });
   });
 });
@@ -476,7 +469,6 @@ describe("fetchAiUsageByModel", () => {
         _id: "deepseek-v4-flash",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
     ]);
     const result = await fetchAiUsageByModel(collection);
@@ -485,7 +477,6 @@ describe("fetchAiUsageByModel", () => {
         model: "deepseek-v4-flash",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
     ]);
   });
@@ -504,53 +495,45 @@ describe("fetchAiUsageByProject", () => {
         _id: "/Users/jwu02/Developer/KamKiu/training-management-system",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
       {
         _id: "/Users/jwu02/Developer/KamKiu/training-management-system/backend",
         costYuan: 0.2,
         totalTokens: 50,
-        requests: 2,
       },
       {
         _id: "/Users/jwu02/Developer/PersonalProjects/personal-website",
         costYuan: 0.3,
         totalTokens: 60,
-        requests: 3,
       },
       {
         _id: "/Users/jwu02/Developer/PersonalProjects/personal-website/activity-telemetry-client",
         costYuan: 0.1,
         totalTokens: 20,
-        requests: 1,
       },
       {
         _id: "/Users/jwu02/Developer/PersonalProjects/personal-website/jwoo",
         costYuan: 0.15,
         totalTokens: 30,
-        requests: 1,
       },
       {
         // Lives under a kamkiu path but must bucket into its own group, not "work".
         _id: "/Users/jwu02/Developer/kamkiu/report-generator",
         costYuan: 0.4,
         totalTokens: 80,
-        requests: 2,
       },
       {
         // A generic kamkiu project with no specific mapping stays in "work".
         _id: "/Users/jwu02/Developer/kamkiu/backend",
         costYuan: 0.1,
         totalTokens: 25,
-        requests: 1,
       },
       {
         _id: "/private/tmp/claude-sandbox-42",
         costYuan: 0.2,
         totalTokens: 40,
-        requests: 2,
       },
-      { _id: null, costYuan: 0.05, totalTokens: 10, requests: 1 },
+      { _id: null, costYuan: 0.05, totalTokens: 10 },
     ]);
     const result = await fetchAiUsageByProject(collection);
     expect(result).toEqual([
@@ -558,31 +541,26 @@ describe("fetchAiUsageByProject", () => {
         project: "training-management-system",
         costYuan: 0.7,
         totalTokens: 150,
-        requests: 3,
       },
       {
         project: "personal-website",
         costYuan: 0.55,
         totalTokens: 110,
-        requests: 5,
       },
       {
         project: "report-generator",
         costYuan: 0.4,
         totalTokens: 80,
-        requests: 2,
       },
       {
         project: "others",
         costYuan: 0.25,
         totalTokens: 50,
-        requests: 3,
       },
       {
         project: "work",
         costYuan: 0.1,
         totalTokens: 25,
-        requests: 1,
       },
     ]);
   });
@@ -601,13 +579,11 @@ describe("fetchAiUsageByHarness", () => {
         _id: "claude-code",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
       {
         _id: null,
         costYuan: 0.2,
         totalTokens: 40,
-        requests: 2,
       },
     ]);
     const result = await fetchAiUsageByHarness(collection);
@@ -616,13 +592,11 @@ describe("fetchAiUsageByHarness", () => {
         harness: "claude-code",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
       {
         harness: "unknown",
         costYuan: 0.2,
         totalTokens: 40,
-        requests: 2,
       },
     ]);
   });

@@ -245,7 +245,6 @@ interface AiUsageTotalsRow {
   completionTokens: number;
   cacheHitTokens: number;
   cacheMissTokens: number;
-  requests: number;
 }
 
 export function buildAiUsageTotalsPipeline(): Record<string, unknown>[] {
@@ -259,7 +258,6 @@ export function buildAiUsageTotalsPipeline(): Record<string, unknown>[] {
         completionTokens: { $sum: "$completion_tokens" },
         cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
         cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
-        requests: { $sum: 1 },
       },
     },
   ];
@@ -272,7 +270,6 @@ export function buildAiUsageByModelPipeline(): Record<string, unknown>[] {
         _id: "$model",
         costYuan: { $sum: "$cost_yuan" },
         totalTokens: { $sum: "$total_tokens" },
-        requests: { $sum: 1 },
       },
     },
     // Model name breaks cost ties so the table and chart share one
@@ -288,7 +285,6 @@ export function buildAiUsageByProjectPipeline(): Record<string, unknown>[] {
         _id: "$cwd",
         costYuan: { $sum: "$cost_yuan" },
         totalTokens: { $sum: "$total_tokens" },
-        requests: { $sum: 1 },
       },
     },
     // Full cwd path breaks cost ties so the table ordering is deterministic.
@@ -303,7 +299,6 @@ export function buildAiUsageByHarnessPipeline(): Record<string, unknown>[] {
         _id: "$harness",
         costYuan: { $sum: "$cost_yuan" },
         totalTokens: { $sum: "$total_tokens" },
-        requests: { $sum: 1 },
       },
     },
     // The group output carries the harness value in _id, so sorting on it
@@ -409,7 +404,6 @@ export async function fetchAiUsageTotals(
     completionTokens: first?.completionTokens ?? 0,
     cacheHitTokens: first?.cacheHitTokens ?? 0,
     cacheMissTokens: first?.cacheMissTokens ?? 0,
-    requests: first?.requests ?? 0,
   };
 }
 
@@ -422,13 +416,11 @@ export async function fetchAiUsageByModel(
     _id: string;
     costYuan: number;
     totalTokens: number;
-    requests: number;
   }>;
   return result.map((item) => ({
     model: item._id,
     costYuan: item.costYuan,
     totalTokens: item.totalTokens,
-    requests: item.requests,
   }));
 }
 
@@ -441,7 +433,6 @@ export async function fetchAiUsageByProject(
     _id: string | null;
     costYuan: number;
     totalTokens: number;
-    requests: number;
   }>;
 
   // Bucket every cwd by its mapped project name; unmatched cwds (and
@@ -454,13 +445,11 @@ export async function fetchAiUsageByProject(
     if (existing) {
       existing.costYuan += item.costYuan;
       existing.totalTokens += item.totalTokens;
-      existing.requests += item.requests;
     } else {
       buckets.set(project, {
         project,
         costYuan: item.costYuan,
         totalTokens: item.totalTokens,
-        requests: item.requests,
       });
     }
   }
@@ -479,7 +468,6 @@ export async function fetchAiUsageByHarness(
     _id: string | null;
     costYuan: number;
     totalTokens: number;
-    requests: number;
   }>;
 
   // Documents written before the collector recorded a harness group under a
@@ -488,7 +476,6 @@ export async function fetchAiUsageByHarness(
     harness: item._id ?? "unknown",
     costYuan: item.costYuan,
     totalTokens: item.totalTokens,
-    requests: item.requests,
   }));
 }
 

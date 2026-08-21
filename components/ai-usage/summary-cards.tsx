@@ -1,6 +1,6 @@
 import { AiUsageTotals } from "@/lib/telemetry/types";
 import { formatCompactNumber } from "@/lib/telemetry/chart-format";
-import { Coins, Cpu, RefreshCcw } from "lucide-react";
+import { Coins, Cpu } from "lucide-react";
 
 interface SummaryCardsProps {
   totals: AiUsageTotals;
@@ -27,15 +27,10 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       value: formatCompactNumber(totals.totalTokens),
       icon: Cpu,
     },
-    {
-      label: "Request Turns",
-      value: formatNumber(totals.requests),
-      icon: RefreshCcw,
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-2 gap-4">
       {items.map((item) => (
         <div
           key={item.label}

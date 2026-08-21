@@ -8,15 +8,13 @@ const rows = [
     label: "deepseek-v4-flash",
     costYuan: 0.8,
     totalTokens: 2000,
-    requests: 2,
   },
-  { id: "gpt-4o", label: "gpt-4o", costYuan: 0.5, totalTokens: 1000, requests: 1 },
+  { id: "gpt-4o", label: "gpt-4o", costYuan: 0.5, totalTokens: 1000 },
   {
     id: "claude-opus-5",
     label: "claude-opus-5",
     costYuan: 1.2,
     totalTokens: 3000,
-    requests: 3,
   },
 ];
 
@@ -58,10 +56,6 @@ describe("UsageBreakdown", () => {
     expect(
       screen.getByRole("progressbar", { name: /claude-opus-5 cost share/i })
     ).toHaveAttribute("aria-valuenow", "48");
-    // requests total 6; claude-opus-5 = 3 → 50%
-    expect(
-      screen.getByRole("progressbar", { name: /claude-opus-5 requests share/i })
-    ).toHaveAttribute("aria-valuenow", "50");
     // tokens total 6000; claude-opus-5 = 3000 → 50%
     expect(
       screen.getByRole("progressbar", { name: /claude-opus-5 tokens share/i })
@@ -98,7 +92,7 @@ describe("UsageBreakdown", () => {
 
   it("left-aligns the statistic headers", () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
-    for (const label of ["Requests", "Total Tokens", "Cost"]) {
+    for (const label of ["Total Tokens", "Cost"]) {
       const th = screen.getByText(label).closest("th")!;
       expect(th.className).not.toContain("text-right");
     }
@@ -138,14 +132,12 @@ describe("UsageBreakdown", () => {
         label: "backend",
         costYuan: 0.5,
         totalTokens: 100,
-        requests: 1,
       },
       {
         id: "/sandbox/backend",
         label: "backend",
         costYuan: 0.3,
         totalTokens: 80,
-        requests: 1,
       },
     ];
     render(<UsageBreakdown rows={collidingRows} labelHeader="Project" />);
