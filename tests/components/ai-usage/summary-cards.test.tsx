@@ -16,6 +16,6 @@ describe("SummaryCards", () => {
     expect(screen.getByText("Cost")).toBeInTheDocument();
     expect(screen.getByText("0.50")).toBeInTheDocument();
     expect(screen.getByText("Total Tokens")).toBeInTheDocument();
-    expect(screen.getByText("100K")).toBeInTheDocument();
+    expect(screen.getByText("100,000")).toBeInTheDocument();
   });
 });

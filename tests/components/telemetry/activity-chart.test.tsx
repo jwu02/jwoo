@@ -41,7 +41,13 @@ async function readTooltipItems() {
   if (!tooltip) return [];
   return within(tooltip as HTMLElement)
     .queryAllByRole("listitem")
-    .map((li) => li.textContent);
+    .map((li) => ({
+      // The label group (swatch + name) is the first child span; the value is
+      // the last child span. The swatch carries no text, so the label group's
+      // textContent is just the series name.
+      label: (li as HTMLElement).firstElementChild?.textContent ?? "",
+      value: (li as HTMLElement).lastElementChild?.textContent ?? "",
+    }));
 }
 
 function buildData(): TimeSeriesPoint[] {
@@ -187,7 +193,7 @@ describe("ActivityChart", () => {
     fireEvent.click(screen.getByRole("button", { name: /Show Left Clicks/i }));
 
     const items = await readTooltipItems();
-    expect(items.map((item) => item.split(":")[0])).toEqual([
+    expect(items.map((item) => item.label)).toEqual([
       "Key Presses",
       "Left Clicks",
       "Right Clicks",
@@ -203,8 +209,12 @@ describe("ActivityChart", () => {
     render(<ActivityChart data={fractional} range="24h" />);
 
     const items = await readTooltipItems();
-    expect(items.some((item) => item.includes("Mouse Movement (m): 11"))).toBe(true);
-    expect(items.some((item) => item.includes("10.56"))).toBe(false);
+    expect(
+      items.some(
+        (item) => item.label === "Mouse Movement (m)" && item.value === "11"
+      )
+    ).toBe(true);
+    expect(items.some((item) => item.value === "10.56")).toBe(false);
   });
 
   it("shows a formatted datetime header in the tooltip", async () => {

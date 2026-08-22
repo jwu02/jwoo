@@ -43,13 +43,18 @@ function ActivityChartTooltip({
       </p>
       <ul className="space-y-1">
         {payload.map((entry, index) => (
-          <li key={index} className="flex items-center gap-2">
+          <li key={index} className="flex items-center justify-between gap-4">
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-sm"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span style={{ color: "var(--foreground)" }}>{entry.name}</span>
+            </span>
             <span
-              className="inline-block h-2 w-2 rounded-sm"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span style={{ color: "var(--foreground)" }}>
-              {entry.name}:{" "}
+              className="shrink-0 text-right tabular-nums"
+              style={{ color: "var(--foreground)" }}
+            >
               {entry.dataKey === "movementMeters" && typeof entry.value === "number"
                 ? Math.round(entry.value)
                 : entry.value}
@@ -140,7 +145,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               onClick={() => toggleSeries(series.dataKey)}
               aria-pressed={isHidden}
               aria-label={isHidden ? `Show ${series.name}` : `Hide ${series.name}`}
-              className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
+              className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
                 isHidden ? "text-muted-foreground opacity-50" : "text-foreground"
               }`}
             >

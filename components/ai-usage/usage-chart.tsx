@@ -337,7 +337,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
       <div className="space-y-6">
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            Cost over time (¥)
+            Cost (¥)
           </h3>
           <MiniStackedBarChart
             data={rows}
@@ -349,7 +349,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
         </div>
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            Tokens over time
+            Tokens
           </h3>
           <MiniStackedBarChart
             data={rows}
@@ -374,7 +374,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
                   aria-label={
                     isHidden ? `Show ${entry.name}` : `Hide ${entry.name}`
                   }
-                  className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors hover:bg-muted ${
                     isHidden ? "text-muted-foreground opacity-50" : "text-foreground"
                   }`}
                 >

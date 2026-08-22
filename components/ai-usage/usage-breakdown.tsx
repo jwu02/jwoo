@@ -93,8 +93,8 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
       <thead>
         <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
           <th className="pb-2 font-medium">{labelHeader}</th>
-          <th className="pb-2 font-medium">Total Tokens</th>
           <th className="pb-2 font-medium">Cost</th>
+          <th className="pb-2 font-medium">Total Tokens</th>
         </tr>
       </thead>
       <tbody>
@@ -109,13 +109,6 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
             <tr key={row.id} className="border-b border-border/50">
               <td className="py-2">{label}</td>
               <StatCell
-                ariaLabel={`${row.label} tokens share`}
-                rawValue={row.totalTokens}
-                display={formatCompactNumber(row.totalTokens)}
-                total={totals.tokens}
-                color={color}
-              />
-              <StatCell
                 ariaLabel={`${row.label} cost share`}
                 rawValue={row.costYuan}
                 display={
@@ -125,6 +118,13 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
                   </>
                 }
                 total={totals.cost}
+                color={color}
+              />
+              <StatCell
+                ariaLabel={`${row.label} tokens share`}
+                rawValue={row.totalTokens}
+                display={formatCompactNumber(row.totalTokens)}
+                total={totals.tokens}
                 color={color}
               />
             </tr>

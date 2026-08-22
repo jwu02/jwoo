@@ -35,7 +35,7 @@ export function RangeSelector<T extends Range>({
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors ${
+          className={`cursor-pointer rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors ${
             value === option.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"
