@@ -76,6 +76,14 @@ export function HomeScene() {
     return <HomeFallback />
   }
 
-  // "loading" — matches SSR output so hydration is consistent; swaps after mount.
-  return <div className="-mx-4 -mb-4 h-[calc(100vh-3.5rem)]" />
+  // "loading" — matches SSR output so hydration is consistent; swaps after
+  // mount. Mirrors the scene overlay so the hero is in the initial HTML and
+  // there is no layout shift when the scene mounts.
+  return (
+    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 z-10 p-6">
+        <HomeHero />
+      </div>
+    </div>
+  )
 }

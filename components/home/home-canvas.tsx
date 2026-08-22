@@ -2,7 +2,6 @@
 
 import { OrbitControls, useProgress } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
-import { Suspense } from "react"
 
 import { SceneModels } from "./scene-models"
 
@@ -30,9 +29,7 @@ export function HomeCanvas() {
         <ambientLight intensity={0.7} />
         <directionalLight position={[4, 8, 5]} intensity={1.4} />
         <directionalLight position={[-5, 3, -6]} intensity={0.5} />
-        <Suspense fallback={null}>
-          <SceneModels />
-        </Suspense>
+        <SceneModels />
         <OrbitControls
           makeDefault
           enableDamping

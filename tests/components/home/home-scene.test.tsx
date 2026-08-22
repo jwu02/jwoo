@@ -21,6 +21,8 @@ jest.mock("@react-three/drei", () => ({
 }))
 
 describe("HomeScene", () => {
+  afterEach(() => jest.restoreAllMocks())
+
   it("renders the card-grid fallback when WebGL is unavailable", () => {
     jest.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null)
 
