@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils"
 
+// The static greeting for the card-grid fallback. In the 3D scene the greeting
+// is typed in-scene above the MacBook (see model-object.tsx), not overlaid here.
 export function HomeHero({ className }: { className?: string }) {
   return (
     <div className={cn("flex max-w-2xl flex-col gap-4", className)}>

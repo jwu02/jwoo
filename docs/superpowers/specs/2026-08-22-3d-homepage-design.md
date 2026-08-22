@@ -21,9 +21,16 @@ three.js stack is installed yet.
   React Three Fiber (R3F) + drei, inside the existing layout frame.
 - Render all three models from `/public`, compressed with Draco so the 28MB car is
   practical to serve.
-- Keep the "Hello, I'm Tony Wu" hero + tagline overlaid on the 3D canvas.
-- Clicking the MacBook navigates to `/activity-telemetry`; desk and car are
-  hoverable but do not navigate yet.
+- Greet the user with "Hello, I'm Tony Wu" typed in-scene above the MacBook when
+  it is clicked. No always-on text overlay sits on the 3D canvas; the static hero
+  + tagline remain in the card-grid fallback.
+- Clicking a model applies its `focus` preset (damped fly-to) so the user can
+  orbit around it: the MacBook swings to a level, head-on "nose" view and the
+  hero greeting types itself above it, the desk flies to an angled overview, and
+  the car simply re-centers in view.
+  Double-clicking a model with a target navigates to its route (currently only
+  the MacBook: `/activity-telemetry`). Clicking empty space restores the default
+  framing.
 - Model → route mapping lives in a pure config module so wiring the desk/car later
   is a one-line change.
 - Degrade gracefully: if WebGL is unsupported or model loading fails, fall back to
@@ -36,7 +43,8 @@ three.js stack is installed yet.
 - Immersive/full-screen homepage (the scene stays in the sidebar frame).
 - AR or `<model-viewer>`.
 - Runtime HDR environment lighting fetched from a CDN.
-- Camera fly-to on click, or per-model animations (beyond a subtle hover highlight).
+- Per-model animations or auto-rotate. Hover changes only the cursor and label —
+  no model scaling on hover.
 - Server-side rendering of the 3D scene (client-only by design).
 - Deciding deployment/version-control policy for the large GLB binaries.
 
@@ -60,7 +68,11 @@ components/home/
 ├── home-canvas.tsx               → R3F <Canvas>: camera, lights, OrbitControls, Suspense, <SceneModels />
 ├── scene-models.tsx              → renders one <ModelObject /> per scene-config entry
 ├── model-object.tsx              → useGLTF + transform + hover/click wiring
-├── scene-config.ts               → pure registry: url, transform, label, target route
+├── scene-config.ts               → pure registry: url, transform, label, target route, focus preset
+├── scene-focus.ts                → pure focus geometry: fitDistance, focus presets, resolveFocus
+├── home-hero-store.ts            → tiny store bridging canvas clicks to the in-scene greeting
+├── home-hero.tsx                 → static greeting + subtitle for the fallback card grid only
+├── typewriter.tsx                → char-by-char greeting reveal with a caret
 └── home-fallback.tsx             → the current 4-card grid (graceful degradation)
 ```
 
@@ -126,11 +138,36 @@ transforms are eyeballed in `npm run dev`.
 
 ### 6. Interaction & navigation
 
+- Each model's single-click behavior is data in `scene-config.ts` — a `focus`
+  preset: `fit` re-centers on the model's bounding sphere (car), and `framing`
+  flies to a fixed camera + target (MacBook: a level, head-on "nose" view close
+  to the laptop; desk: an angled overview closer to the desk).
+- `resolveFocus` (`scene-focus.ts`, unit-tested) turns a preset + the model's
+  bounding-sphere info into a `FocusRequest` — a target point plus either a fixed
+  `cameraPos` (framing / empty-space reset) or a `fitDistance` derived from the
+  bounding-sphere radius (fit). The focus point is the gltf's world-space
+  bounding-box center, read directly from its world matrices (never
+  re-transformed, so the scale is not applied twice).
 - `ModelObject`:
-  - `onPointerOver` / `onPointerOut` → drei `useCursor` (pointer icon) + a subtle
-    group scale highlight.
-  - `onClick` → if `target` is set, `router.push(target)` via `useRouter` (client
-    component). No-op for models without a target.
+  - `onPointerOver` / `onPointerOut` → drei `useCursor` (pointer icon) + hover
+    label. No scale highlight.
+  - `onClick` → single click resolves the preset and runs the damped fly-to via
+    `SceneController` in `home-canvas.tsx` so the user can orbit around it.
+  - `onDoubleClick` → if `target` is set, `router.push(target)` via `useRouter`
+    (client component). No-op for models without a target. Both click handlers
+    skip drag releases (`event.delta > 2`).
+- Greeting tie-in: clicking the MacBook flips `home-hero-store.ts` into "macbook"
+  mode — a tiny `useSyncExternalStore` bridge (no zustand dependency) shared by
+  the canvas handlers and the models. The MacBook's `ModelObject` then renders
+  `<TypeWriter>` via drei `<Html>` anchored above the laptop, so "Hello, I'm Tony
+  Wu." types out in-scene with a caret; there is no corner overlay in the 3D
+  view. Clicking the desk or empty space flips back to "intro", hiding the
+  greeting. The static `HomeHero` (greeting + subtitle) remains only in the
+  card-grid fallback.
+- Clicking empty space (`onPointerMissed` on the `Canvas`) restores the default
+  framing (`DEFAULT_CAMERA`/`DEFAULT_TARGET` in `scene-focus.ts`) and the intro
+  hero. R3F suppresses `onPointerMissed` after a drag (delta > 2), so orbiting
+  never resets the view.
 - Hover label via drei `<Html>` above the MacBook: "Activity Telemetry".
 - Keyboard accessibility is out of scope for the 3D canvas; the fallback card grid
   provides keyboard-accessible navigation whenever it is shown.
@@ -155,7 +192,12 @@ transforms are eyeballed in `npm run dev`.
 - `components/home/scene-models.tsx` — maps `HOME_SCENE_MODELS` to `<ModelObject />`.
 - `components/home/model-object.tsx` — `useGLTF` + transform + hover/click wiring.
 - `components/home/scene-config.ts` — pure model registry (id, url, transform, label,
-  target).
+  target, focus preset).
+- `components/home/scene-focus.ts` — pure focus geometry (`fitDistance`,
+  `FocusPreset`, `FocusRequest`, `resolveFocus`, default framing constants).
+- `components/home/home-hero-store.ts` — dependency-free `intro | macbook` store
+  (`useSyncExternalStore`) bridging canvas clicks to the hero overlay.
+- `components/home/typewriter.tsx` — char-by-char greeting reveal with a caret.
 - `components/home/home-fallback.tsx` — the current 4-card grid, extracted from
   `app/page.tsx`.
 - `scripts/compress-glb.mjs` — one-time Draco compression for `public/*.glb`
@@ -180,12 +222,30 @@ transforms are eyeballed in `npm run dev`.
 
 - `tests/components/home/scene-config.test.ts` — registry shape: exactly three
   models, unique ids, every model has a url; `macbook` maps to
-  `/activity-telemetry`; `desk`/`car` have no `target`.
+  `/activity-telemetry`; `desk`/`car` have no `target`; each model has the right
+  `focus` preset (macbook `framing` + `hero: "macbook"`, desk `framing` +
+  `hero: "intro"`, car `fit`).
+- `tests/components/home/scene-focus.test.ts` — `fitDistance` frames a sphere
+  within a vertical fov; `resolveFocus` maps each preset to the right
+  `FocusRequest` + hero mode (fit → none; framing → fixed cameraPos + its preset
+  hero).
+- `tests/components/home/home-hero-store.test.ts` — `intro → macbook → intro`
+  transitions, subscription notifications, no-op on same mode.
+- `tests/components/home/home-hero.test.tsx` — the fallback's static greeting
+  + subtitle render.
+- `tests/components/home/typewriter.test.tsx` — reveals the text one character at
+  a time with a caret, then stops.
 - `npm run typecheck`, `npm run lint`, and `npm test` must pass.
 - Manual verification in `npm run dev`:
   - All three models load and are positioned/framed well.
-  - Clicking the MacBook navigates to `/activity-telemetry`.
-  - Hovering desk/car shows a pointer/highlight but clicking does not navigate.
+  - Hovering a model shows a pointer + label but no scale change.
+  - Clicking the MacBook swings the camera to a level, head-on "nose" view and
+    types "Hello, I'm Tony Wu." in-scene above the laptop (no corner text);
+    clicking the desk flies to the angled overview and hides the greeting;
+    clicking the car re-centers on it; dragging orbits around any view.
+  - Clicking empty space restores the default framing and hides the greeting.
+  - Double-clicking the MacBook navigates to `/activity-telemetry`; double-clicking
+    desk/car does nothing.
   - The card-grid fallback renders when WebGL is disabled (e.g. via devtools).
 - Note: the R3F canvas cannot be unit-tested in jsdom (no WebGL); 3D visuals and
   picking are verified manually.
@@ -195,6 +255,6 @@ transforms are eyeballed in `npm run dev`.
 - Wiring the desk/car to routes.
 - Immersive/full-screen homepage.
 - HDR environment lighting from a CDN.
-- Camera fly-to on click or model animations.
+- Per-model animations or auto-rotate.
 - AR / mobile-specific 3D controls.
 - Git/deployment policy for the GLB binaries.

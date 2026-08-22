@@ -4,7 +4,6 @@ import dynamic from "next/dynamic"
 import { Component, type ReactNode, useEffect, useState } from "react"
 
 import { HomeFallback } from "./home-fallback"
-import { HomeHero } from "./home-hero"
 
 // Client-only: three/drei never loads during SSR (a Server Component cannot use
 // ssr:false, so the dynamic import lives in this client component). home-canvas
@@ -64,9 +63,6 @@ export function HomeScene() {
           <div className="absolute inset-0">
             <HomeCanvas />
           </div>
-          <div className="pointer-events-none absolute inset-0 z-10 p-6">
-            <HomeHero />
-          </div>
         </div>
       </SceneErrorBoundary>
     )
@@ -77,13 +73,9 @@ export function HomeScene() {
   }
 
   // "loading" — matches SSR output so hydration is consistent; swaps after
-  // mount. Mirrors the scene overlay so the hero is in the initial HTML and
-  // there is no layout shift when the scene mounts.
+  // mount. Mirrors the scene container so there is no layout shift when the
+  // canvas mounts (the greeting lives in-scene, above the MacBook).
   return (
-    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 z-10 p-6">
-        <HomeHero />
-      </div>
-    </div>
+    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden" />
   )
 }

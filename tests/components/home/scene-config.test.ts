@@ -30,4 +30,19 @@ describe("HOME_SCENE_MODELS", () => {
       expect(m?.target).toBeUndefined()
     }
   })
+
+  it("wires each model to its focus preset", () => {
+    const macbook = HOME_SCENE_MODELS.find((m) => m.id === "macbook")
+    expect(macbook?.focus).toEqual(
+      expect.objectContaining({ type: "framing", hero: "macbook" }),
+    )
+
+    const desk = HOME_SCENE_MODELS.find((m) => m.id === "desk")
+    expect(desk?.focus).toEqual(
+      expect.objectContaining({ type: "framing", hero: "intro" }),
+    )
+
+    const car = HOME_SCENE_MODELS.find((m) => m.id === "car")
+    expect(car?.focus).toEqual({ type: "fit" })
+  })
 })
