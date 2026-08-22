@@ -743,3 +743,158 @@ describe("fetchAiUsageTimeSeriesByModel", () => {
     expect(result).toEqual([]);
   });
 });
+
+describe("timezone-aware bucketing", () => {
+  // The 30d chart must end at the viewer's current local day. At Sunday 02:18
+  // in Asia/Shanghai, UTC is still Saturday 18:18, so UTC-aligned buckets stop
+  // at Saturday and today's early-morning activity lands in yesterday's bucket.
+  // Non-zero milliseconds exercise the offset rounding bug that used to leak
+  // them into every bucket key and blank the charts.
+  const now = new Date("2026-08-22T18:18:16.987Z");
+
+  it("ends telemetry 30d buckets at the current local day", () => {
+    const buckets = generateBuckets(
+      getRangeStart("30d", now),
+      getBucketInterval("30d"),
+      now,
+      "Asia/Shanghai"
+    );
+    expect(buckets.length).toBe(31);
+    expect(buckets[0]).toBe("2026-07-23T16:00:00.000Z"); // local Jul 24 00:00
+    expect(buckets[buckets.length - 1]).toBe(
+      "2026-08-22T16:00:00.000Z" // local Sun Aug 23 00:00
+    );
+    buckets.forEach((bucket) => {
+      expect(new Date(bucket).getUTCHours()).toBe(16); // Asia/Shanghai midnight
+    });
+  });
+
+  it("ends AI usage 30d buckets at the current local day", () => {
+    const buckets = generateBuckets(
+      getAiUsageRangeStart("30d", now),
+      getAiUsageBucketInterval("30d"),
+      now,
+      "Asia/Shanghai"
+    );
+    expect(buckets.length).toBe(31);
+    expect(buckets[buckets.length - 1]).toBe("2026-08-22T16:00:00.000Z");
+  });
+
+  it("passes the timezone to telemetry $dateTrunc", () => {
+    const pipeline = buildTimeSeriesPipeline("30d", now, "Asia/Shanghai");
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: {
+        date: "$createdAt",
+        unit: "day",
+        binSize: 1,
+        timezone: "Asia/Shanghai",
+      },
+    });
+  });
+
+  it("passes the timezone to AI usage $dateTrunc (single series)", () => {
+    const pipeline = buildAiUsageTimeSeriesPipeline(
+      "30d",
+      now,
+      "Asia/Shanghai"
+    );
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      $dateTrunc: {
+        date: "$recorded_at",
+        unit: "day",
+        binSize: 1,
+        timezone: "Asia/Shanghai",
+      },
+    });
+  });
+
+  it("passes the timezone to AI usage $dateTrunc (per-model series)", () => {
+    const pipeline = buildAiUsageTimeSeriesByModelPipeline(
+      "30d",
+      now,
+      "Asia/Shanghai"
+    );
+    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
+    expect(groupStage.$group._id).toEqual({
+      bucket: {
+        $dateTrunc: {
+          date: "$recorded_at",
+          unit: "day",
+          binSize: 1,
+          timezone: "Asia/Shanghai",
+        },
+      },
+      model: "$model",
+    });
+  });
+
+  it("maps telemetry aggregation results into timezone-aligned buckets", async () => {
+    const sundayBucket = new Date("2026-08-22T16:00:00.000Z"); // local Sun Aug 23
+    const collection = makeMockCollection([
+      {
+        _id: sundayBucket,
+        leftClicks: 3,
+        rightClicks: 0,
+        movementMeters: 0.5,
+        keyPresses: 9,
+      },
+    ]);
+    const result = await fetchTimeSeries(collection, "30d", now, "Asia/Shanghai");
+    expect(result[result.length - 1]).toEqual({
+      bucket: sundayBucket.toISOString(),
+      leftClicks: 3,
+      rightClicks: 0,
+      movementMeters: 0.5,
+      keyPresses: 9,
+    });
+  });
+
+  it("maps AI usage aggregation results into timezone-aligned buckets", async () => {
+    const sundayBucket = new Date("2026-08-22T16:00:00.000Z");
+    const collection = makeMockCollection([
+      {
+        _id: sundayBucket,
+        costYuan: 0.25,
+        promptTokens: 1000,
+        completionTokens: 200,
+        totalTokens: 1200,
+      },
+    ]);
+    const result = await fetchAiUsageTimeSeries(
+      collection,
+      "30d",
+      now,
+      "Asia/Shanghai"
+    );
+    expect(result[result.length - 1]).toEqual({
+      bucket: sundayBucket.toISOString(),
+      costYuan: 0.25,
+      promptTokens: 1000,
+      completionTokens: 200,
+      totalTokens: 1200,
+    });
+  });
+
+  it("aligns per-model AI usage points to the viewer timezone", async () => {
+    const sundayBucket = new Date("2026-08-22T16:00:00.000Z");
+    const collection = makeMockCollection([
+      {
+        _id: { bucket: sundayBucket, model: "model-a" },
+        costYuan: 0.5,
+        totalTokens: 500,
+      },
+    ]);
+    const result = await fetchAiUsageTimeSeriesByModel(
+      collection,
+      "30d",
+      now,
+      "Asia/Shanghai"
+    );
+    const modelA = result.find((series) => series.model === "model-a")!;
+    expect(modelA.points[modelA.points.length - 1].bucket).toBe(
+      "2026-08-22T16:00:00.000Z"
+    );
+  });
+});

@@ -11,11 +11,18 @@ import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types"
 
 const POLL_INTERVAL_MS = 60_000
 
+// Bucket time series by the viewer's timezone so local days (e.g. "today")
+// appear in the charts; the API falls back to UTC when this is absent.
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 async function fetchTelemetry(
   range: TelemetryRange,
   signal?: AbortSignal
 ): Promise<TelemetryResponse> {
-  const response = await fetch(`/api/telemetry?range=${range}`, { signal })
+  const response = await fetch(
+    `/api/telemetry?range=${range}&tz=${encodeURIComponent(TIME_ZONE)}`,
+    { signal }
+  )
   if (!response.ok) {
     const error = await response
       .json()

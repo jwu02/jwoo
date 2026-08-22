@@ -8,6 +8,7 @@ import {
   fetchAiUsageTimeSeries,
   fetchAiUsageTimeSeriesByModel,
 } from "@/lib/telemetry/aggregation";
+import { isValidTimeZone } from "@/lib/telemetry/timezone";
 import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types";
 
 const VALID_RANGES: AiUsageRange[] = ["24h", "30d", "1y"];
@@ -19,6 +20,10 @@ function isValidRange(value: string | null): value is AiUsageRange {
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const rangeParam = searchParams.get("range");
+  // Bucket time series by the viewer's timezone so local days align with the
+  // labels (which the browser already renders in local time).
+  const timeZoneParam = searchParams.get("tz");
+  const timeZone = isValidTimeZone(timeZoneParam) ? timeZoneParam : "UTC";
 
   if (!isValidRange(rangeParam)) {
     return NextResponse.json(
@@ -41,8 +46,13 @@ export async function GET(request: Request): Promise<NextResponse> {
       fetchAiUsageByModel(aiUsageCollection),
       fetchAiUsageByProject(aiUsageCollection),
       fetchAiUsageByHarness(aiUsageCollection),
-      fetchAiUsageTimeSeries(aiUsageCollection, rangeParam),
-      fetchAiUsageTimeSeriesByModel(aiUsageCollection, rangeParam),
+      fetchAiUsageTimeSeries(aiUsageCollection, rangeParam, undefined, timeZone),
+      fetchAiUsageTimeSeriesByModel(
+        aiUsageCollection,
+        rangeParam,
+        undefined,
+        timeZone
+      ),
     ]);
 
     const response: AiUsageResponse = {

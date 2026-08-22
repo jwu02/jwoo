@@ -53,7 +53,12 @@ describe("GET /api/telemetry", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
     expect(fetchTotals).toHaveBeenCalledWith(mockTelemetryCollection);
     expect(fetchKeyCounts).toHaveBeenCalledWith(mockKeyboardCollection);
-    expect(fetchTimeSeries).toHaveBeenCalledWith(mockTelemetryCollection, "24h");
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
+      mockTelemetryCollection,
+      "24h",
+      undefined,
+      "UTC"
+    );
     expect(json).toEqual({
       totals: {
         leftClicks: 10,
@@ -72,6 +77,54 @@ describe("GET /api/telemetry", () => {
         },
       ],
     });
+  });
+
+  it("passes the viewer timezone to fetchTimeSeries", async () => {
+    (fetchTotals as jest.Mock).mockResolvedValue({
+      leftClicks: 0,
+      rightClicks: 0,
+      movementMeters: 0,
+      totalKeyPresses: 0,
+    });
+    (fetchKeyCounts as jest.Mock).mockResolvedValue({});
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request(
+      "http://localhost:3000/api/telemetry?range=30d&tz=Asia%2FShanghai"
+    );
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
+      mockTelemetryCollection,
+      "30d",
+      undefined,
+      "Asia/Shanghai"
+    );
+  });
+
+  it("falls back to UTC for an invalid timezone", async () => {
+    (fetchTotals as jest.Mock).mockResolvedValue({
+      leftClicks: 0,
+      rightClicks: 0,
+      movementMeters: 0,
+      totalKeyPresses: 0,
+    });
+    (fetchKeyCounts as jest.Mock).mockResolvedValue({});
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request(
+      "http://localhost:3000/api/telemetry?range=30d&tz=Not%2FAZone"
+    );
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
+      mockTelemetryCollection,
+      "30d",
+      undefined,
+      "UTC"
+    );
   });
 
   it("returns 400 for an invalid range", async () => {

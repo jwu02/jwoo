@@ -19,6 +19,7 @@ import {
   getAiUsageBucketInterval,
   RangeConfig,
 } from "./ranges";
+import { alignToInterval } from "./timezone";
 
 export function buildTotalsPipeline(): Record<string, unknown>[] {
   return [
@@ -59,7 +60,8 @@ export function buildKeyCountsPipeline(): Record<string, unknown>[] {
 
 export function buildTimeSeriesPipeline(
   range: TelemetryRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Record<string, unknown>[] {
   const start = getRangeStart(range, now);
   const interval = getBucketInterval(range);
@@ -74,6 +76,9 @@ export function buildTimeSeriesPipeline(
             unit: interval.unit,
             binSize: interval.binSize,
             ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
+            // Bucket by the viewer's local day; omitted (UTC) when not given,
+            // which is $dateTrunc's default.
+            ...(timeZone !== "UTC" ? { timezone: timeZone } : {}),
           },
         },
         leftClicks: { $sum: "$leftClicks" },
@@ -119,10 +124,11 @@ export async function fetchKeyCounts(collection: Collection): Promise<KeyCounts>
 export async function fetchTimeSeries(
   collection: Collection,
   range: TelemetryRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Promise<TimeSeriesPoint[]> {
   const raw = (await collection
-    .aggregate(buildTimeSeriesPipeline(range, now))
+    .aggregate(buildTimeSeriesPipeline(range, now, timeZone))
     .toArray()) as Array<{
     _id: Date;
     leftClicks: number;
@@ -136,7 +142,7 @@ export async function fetchTimeSeries(
 
   const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
 
-  const buckets = generateBuckets(start, interval, now);
+  const buckets = generateBuckets(start, interval, now, timeZone);
   return buckets.map((bucket) => {
     const item = rawMap.get(bucket);
     return {
@@ -152,12 +158,13 @@ export async function fetchTimeSeries(
 export function generateBuckets(
   start: Date,
   interval: RangeConfig,
-  now: Date
+  now: Date,
+  timeZone = "UTC"
 ): string[] {
   const buckets: string[] = [];
 
-  let current = alignToInterval(start, interval);
-  const end = alignToInterval(now, interval);
+  let current = alignToInterval(start, interval, timeZone);
+  const end = alignToInterval(now, interval, timeZone);
 
   while (current <= end) {
     buckets.push(current.toISOString());
@@ -165,53 +172,6 @@ export function generateBuckets(
   }
 
   return buckets;
-}
-
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function alignToInterval(date: Date, interval: RangeConfig): Date {
-  const aligned = new Date(date);
-  aligned.setUTCSeconds(0, 0);
-
-  if (interval.unit === "minute") {
-    // Floor to the bin boundary, mirroring MongoDB $dateTrunc (which anchors
-    // at the UTC epoch, so 30-minute bins land on :00 and :30).
-    aligned.setUTCMinutes(
-      aligned.getUTCMinutes() - (aligned.getUTCMinutes() % interval.binSize)
-    );
-  } else {
-    aligned.setUTCMinutes(0);
-  }
-
-  if (interval.unit === "day") {
-    // binSize > 1 must anchor at the UTC epoch to match MongoDB $dateTrunc,
-    // which also floors day bins relative to 1970-01-01.
-    const daysSinceEpoch = Math.floor(aligned.getTime() / MILLISECONDS_PER_DAY);
-    const floored = daysSinceEpoch - (daysSinceEpoch % interval.binSize);
-    aligned.setTime(floored * MILLISECONDS_PER_DAY);
-    return aligned;
-  }
-
-  if (interval.unit === "week" || interval.unit === "month") {
-    aligned.setUTCHours(0);
-  }
-
-  if (interval.unit === "week") {
-    const day = aligned.getUTCDay();
-    const daysSinceMonday = day === 0 ? 6 : day - 1;
-    aligned.setUTCDate(aligned.getUTCDate() - daysSinceMonday);
-  }
-
-  if (interval.unit === "month") {
-    aligned.setUTCDate(1);
-  }
-
-  if (interval.unit === "hour") {
-    const hour = aligned.getUTCHours();
-    aligned.setUTCHours(hour - (hour % interval.binSize));
-  }
-
-  return aligned;
 }
 
 function addInterval(date: Date, interval: RangeConfig): Date {
@@ -333,7 +293,8 @@ export function findProjectGroup(cwd: string): string | null {
 
 export function buildAiUsageTimeSeriesPipeline(
   range: AiUsageRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Record<string, unknown>[] {
   const start = getAiUsageRangeStart(range, now);
   const interval = getAiUsageBucketInterval(range);
@@ -348,6 +309,7 @@ export function buildAiUsageTimeSeriesPipeline(
             unit: interval.unit,
             binSize: interval.binSize,
             ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
+            ...(timeZone !== "UTC" ? { timezone: timeZone } : {}),
           },
         },
         costYuan: { $sum: "$cost_yuan" },
@@ -362,7 +324,8 @@ export function buildAiUsageTimeSeriesPipeline(
 
 export function buildAiUsageTimeSeriesByModelPipeline(
   range: AiUsageRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Record<string, unknown>[] {
   const start = getAiUsageRangeStart(range, now);
   const interval = getAiUsageBucketInterval(range);
@@ -378,6 +341,7 @@ export function buildAiUsageTimeSeriesByModelPipeline(
               unit: interval.unit,
               binSize: interval.binSize,
               ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
+              ...(timeZone !== "UTC" ? { timezone: timeZone } : {}),
             },
           },
           model: "$model",
@@ -482,13 +446,14 @@ export async function fetchAiUsageByHarness(
 export async function fetchAiUsageTimeSeries(
   collection: Collection,
   range: AiUsageRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Promise<AiUsageTimeSeriesPoint[]> {
   const start = getAiUsageRangeStart(range, now);
   const interval = getAiUsageBucketInterval(range);
 
   const raw = (await collection
-    .aggregate(buildAiUsageTimeSeriesPipeline(range, now))
+    .aggregate(buildAiUsageTimeSeriesPipeline(range, now, timeZone))
     .toArray()) as Array<{
     _id: Date;
     costYuan: number;
@@ -499,7 +464,7 @@ export async function fetchAiUsageTimeSeries(
 
   const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
 
-  const buckets = generateBuckets(start, interval, now);
+  const buckets = generateBuckets(start, interval, now, timeZone);
   return buckets.map((bucket) => {
     const item = rawMap.get(bucket);
     return {
@@ -515,13 +480,14 @@ export async function fetchAiUsageTimeSeries(
 export async function fetchAiUsageTimeSeriesByModel(
   collection: Collection,
   range: AiUsageRange,
-  now = new Date()
+  now = new Date(),
+  timeZone = "UTC"
 ): Promise<AiUsageModelTimeSeries[]> {
   const start = getAiUsageRangeStart(range, now);
   const interval = getAiUsageBucketInterval(range);
 
   const raw = (await collection
-    .aggregate(buildAiUsageTimeSeriesByModelPipeline(range, now))
+    .aggregate(buildAiUsageTimeSeriesByModelPipeline(range, now, timeZone))
     .toArray()) as Array<{
     _id: { bucket: Date; model: string };
     costYuan: number;
@@ -545,7 +511,7 @@ export async function fetchAiUsageTimeSeriesByModel(
     totalCost.set(model, (totalCost.get(model) ?? 0) + item.costYuan);
   }
 
-  const buckets = generateBuckets(start, interval, now);
+  const buckets = generateBuckets(start, interval, now, timeZone);
 
   // Highest total cost first, matching the by-model table order; tie-break by
   // model name for determinism.

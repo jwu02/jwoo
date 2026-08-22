@@ -94,11 +94,15 @@ describe("GET /api/ai-usage", () => {
     expect(fetchAiUsageByHarness).toHaveBeenCalledWith(mockAiUsageCollection);
     expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
-      "24h"
+      "24h",
+      undefined,
+      "UTC"
     );
     expect(fetchAiUsageTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
-      "24h"
+      "24h",
+      undefined,
+      "UTC"
     );
     expect(json).toEqual({
       totals: {
@@ -171,7 +175,73 @@ describe("GET /api/ai-usage", () => {
     expect(response.status).toBe(200);
     expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
-      "30d"
+      "30d",
+      undefined,
+      "UTC"
+    );
+  });
+
+  it("passes the viewer timezone to the time series fetchers", async () => {
+    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+      costYuan: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheHitTokens: 0,
+      cacheMissTokens: 0,
+    });
+    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request(
+      "http://localhost:3000/api/ai-usage?range=30d&tz=Asia%2FShanghai"
+    );
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+      mockAiUsageCollection,
+      "30d",
+      undefined,
+      "Asia/Shanghai"
+    );
+    expect(fetchAiUsageTimeSeriesByModel).toHaveBeenCalledWith(
+      mockAiUsageCollection,
+      "30d",
+      undefined,
+      "Asia/Shanghai"
+    );
+  });
+
+  it("falls back to UTC for an invalid timezone", async () => {
+    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+      costYuan: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheHitTokens: 0,
+      cacheMissTokens: 0,
+    });
+    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request(
+      "http://localhost:3000/api/ai-usage?range=30d&tz=Not%2FAZone"
+    );
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+      mockAiUsageCollection,
+      "30d",
+      undefined,
+      "UTC"
     );
   });
 

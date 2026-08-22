@@ -11,11 +11,18 @@ import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types"
 
 const POLL_INTERVAL_MS = 60_000
 
+// Bucket time series by the viewer's timezone so local days (e.g. "today")
+// appear in the charts; the API falls back to UTC when this is absent.
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 async function fetchAiUsage(
   range: AiUsageRange,
   signal?: AbortSignal
 ): Promise<AiUsageResponse> {
-  const response = await fetch(`/api/ai-usage?range=${range}`, { signal })
+  const response = await fetch(
+    `/api/ai-usage?range=${range}&tz=${encodeURIComponent(TIME_ZONE)}`,
+    { signal }
+  )
   if (!response.ok) {
     const error = await response
       .json()
