@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     // Ignore Claude worktree directories so lint does not traverse build output
     // from isolated development workspaces.
     ".claude/**",
+    // Ignore the vendored three.js Draco decoder bundle (minified third-party
+    // code) so lint does not fail on its require()/module globals.
+    "public/draco/**",
   ]),
 ]);
 
