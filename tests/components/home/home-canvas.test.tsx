@@ -16,6 +16,10 @@ const mockCamera = {
   fov: 45,
 }
 
+const mockCanvas: {
+  onPointerMissed?: () => void
+} = {}
+
 const mockOrbitControls: {
   onChange?: () => void
 } = {}
@@ -31,7 +35,14 @@ jest.mock("@react-three/fiber", () => {
     // <directionalLight>) to three objects; a DOM reconciler would report them
     // as unknown tags. Drop intrinsic elements so only the real components
     // (SceneController) mount and register their handlers.
-    Canvas: ({ children }: { children: unknown }) => {
+    Canvas: ({
+      children,
+      onPointerMissed,
+    }: {
+      children: unknown
+      onPointerMissed?: () => void
+    }) => {
+      mockCanvas.onPointerMissed = onPointerMissed
       const components = React.Children.toArray(children as React.ReactNode).filter(
         (child): boolean => typeof (child as { type?: unknown }).type !== "string",
       )
@@ -85,8 +96,25 @@ jest.mock("@/components/home/scene-models", () => {
 describe("HomeCanvas camera interaction", () => {
   beforeEach(() => {
     setHeroMode("intro")
+    mockCanvas.onPointerMissed = undefined
     mockOrbitControls.onChange = undefined
     mockSceneModels.onFocus = undefined
+  })
+
+  it("loads already engaged on the MacBook — the greeting types without a click", () => {
+    render(<HomeCanvas />)
+
+    // The initial camera is the MacBook's framing and the hero starts engaged,
+    // so the typed greeting is up on first load.
+    expect(getHeroMode()).toBe("macbook")
+  })
+
+  it("does nothing when empty space is clicked — no default-framing reset handler", () => {
+    render(<HomeCanvas />)
+
+    // Clicking empty space must not reset the camera to the default framing
+    // (or touch the hero mode), so no onPointerMissed handler may be installed.
+    expect(mockCanvas.onPointerMissed).toBeUndefined()
   })
 
   it("dismisses the engaged greeting when the camera moves after the fly-to settles", () => {

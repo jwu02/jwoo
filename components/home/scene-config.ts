@@ -22,13 +22,16 @@ export const HOME_SCENE_MODELS: HomeSceneModel[] = [
     // ~5mm). Initial value pending the human browser pass.
     position: [0, 0.75, 0],
     scale: [1, 1, 1],
-    // Straight-on "nose" view: level with the laptop (same y as the closed
-    // body), head-on from the front (+z), pulled in so the MacBook reads large
-    // while the typed greeting above it stays in frame. Tunable in dev.
+    // Overhead-forward keyboard view: camera in front (+z), raised so its gaze
+    // drops ~15° below horizontal onto the keyboard (atan of
+    // (cameraY - targetY) / cameraZ ≈ atan(0.17 / 0.65) ≈ 15°), showing the
+    // keys with the typed greeting staying above in frame. This preset also
+    // sets the scene's initial camera/target/hero on load (see home-canvas).
+    // Tunable in dev.
     focus: {
       type: "framing",
       target: [0, 0.78, 0],
-      cameraPos: [0, 0.8, 1.0],
+      cameraPos: [0, 0.95, 0.65],
       hero: "macbook",
     },
   },
@@ -62,6 +65,17 @@ export const HOME_SCENE_MODELS: HomeSceneModel[] = [
     position: [-3.5, 0, -3.5],
     rotation: [0, Math.PI / 4, 0],
     scale: [100, 100, 100],
-    focus: { type: "fit" },
+    // Low, front-right camera aimed at the car's right headlight. The nose is
+    // local +z (rotated to world +x/+z); facing the nose, the driver's right
+    // is -x, so the right headlight sits at the front-right corner, ~world
+    // (-2.48, 0.55, -0.92). Target = that headlight; the camera is ~2.8 units
+    // out in front-right at headlight height, so the headlight is the focal
+    // point with the front-right fender filling the frame. Tunable in dev.
+    focus: {
+      type: "framing",
+      target: [-2.48, 0.55, -0.92],
+      cameraPos: [-1.44, 0.9, 1.7],
+      hero: "intro",
+    },
   },
 ]

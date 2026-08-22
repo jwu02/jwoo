@@ -43,6 +43,8 @@ describe("HOME_SCENE_MODELS", () => {
     )
 
     const car = HOME_SCENE_MODELS.find((m) => m.id === "car")
-    expect(car?.focus).toEqual({ type: "fit" })
+    expect(car?.focus).toEqual(
+      expect.objectContaining({ type: "framing", hero: "intro" }),
+    )
   })
 })

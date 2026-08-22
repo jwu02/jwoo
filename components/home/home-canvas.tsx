@@ -11,7 +11,8 @@ import * as THREE from "three"
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib"
 
 import { setHeroMode } from "./home-hero-store"
-import { fitDistance, type FocusRequest, DEFAULT_CAMERA, DEFAULT_TARGET } from "./scene-focus"
+import { HOME_SCENE_MODELS, type HomeSceneModel } from "./scene-config"
+import { fitDistance, type FocusRequest } from "./scene-focus"
 import { SceneModels } from "./scene-models"
 
 // OrbitControls distance bounds — reused for the fly-to framing clamp. The low
@@ -20,6 +21,13 @@ const MIN_DISTANCE = 0.7
 const MAX_DISTANCE = 8
 // Exponential-smoothing constant: higher = snappier fly-to (~0.5s settle at 6).
 const FOCUS_SPEED = 6
+
+// The scene loads already framed on the MacBook (its keyboard view + typed
+// greeting), so the MacBook's framing preset doubles as the initial camera,
+// initial controls target, and initial hero. Tunable values live in
+// scene-config so the load view and the click-to-focus view stay in sync.
+const MACBOOK_FOCUS = HOME_SCENE_MODELS.find((model) => model.id === "macbook")!
+  .focus as Extract<HomeSceneModel["focus"], { type: "framing" }>
 
 type FlyTo = (request: FocusRequest) => void
 
@@ -50,7 +58,7 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
       const toTarget = new THREE.Vector3(...request.point)
       let toPos: THREE.Vector3
       if (request.cameraPos) {
-        // Fixed framing (desk overview / empty-space reset).
+        // Fixed framing (the explicit cameraPos of a framing preset).
         toPos = new THREE.Vector3(...request.cameraPos)
       } else {
         // Keep the camera's current direction, but set the distance from the
@@ -99,6 +107,7 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
       <OrbitControls
         ref={controlsRef}
         makeDefault
+        target={MACBOOK_FOCUS.target}
         enableDamping
         dampingFactor={0.08}
         maxPolarAngle={Math.PI / 2.05}
@@ -125,18 +134,19 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
 export function HomeCanvas() {
   const flyToRef = useRef<FlyTo | null>(null)
 
+  // A fresh scene is already the MacBook view, so its greeting types without a
+  // click. Reset on every mount so returning to home greets again (the camera
+  // remounts on client-side navigation, but the hero store persists).
+  useEffect(() => {
+    setHeroMode(MACBOOK_FOCUS.hero)
+  }, [])
+
   return (
     <div className="relative h-full w-full">
       <Canvas
-        camera={{ position: [0, 1.6, 3.4], fov: 45 }}
+        camera={{ position: MACBOOK_FOCUS.cameraPos, fov: 45 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => {
-          // R3F suppresses this for drags (delta > 2), so only a true click on
-          // empty space restores the default framing and the intro hero.
-          flyToRef.current?.({ point: DEFAULT_TARGET, radius: 0, cameraPos: DEFAULT_CAMERA })
-          setHeroMode("intro")
-        }}
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[4, 8, 5]} intensity={1.4} />

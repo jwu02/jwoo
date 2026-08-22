@@ -20,10 +20,6 @@ export type FocusRequest = {
 
 export type HeroMode = "intro" | "macbook"
 
-// Default framing, restored when the user clicks empty space.
-export const DEFAULT_TARGET: Vec3 = [0, 0, 0]
-export const DEFAULT_CAMERA: Vec3 = [0, 1.6, 3.4]
-
 /**
  * Distance the camera needs to be from a bounding sphere of `radius` for the
  * whole sphere to fit within a vertical `fovDeg`. Objects are rarely true
