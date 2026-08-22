@@ -108,6 +108,15 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
         onStart={() => {
           tween.current = null
         }}
+        // A user-initiated camera move (rotate/pan/zoom) after the fly-to has
+        // settled dismisses the engaged greeting. 'change' also fires while the
+        // fly-to tween is running (controls.update each frame), so gate on the
+        // tween: keep the greeting visible until it settles, then hide on any
+        // real camera movement. Plain clicks don't move the camera, so they
+        // never dispatch 'change' and don't flicker the greeting.
+        onChange={() => {
+          if (!tween.current) setHeroMode("intro")
+        }}
       />
     </>
   )
