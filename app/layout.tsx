@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { Roboto_Mono } from "next/font/google"
 
 import "./globals.css"
@@ -16,6 +17,13 @@ const robotoMono = Roboto_Mono({
   subsets: ["latin"],
   variable: "--font-sans",
 })
+
+export const metadata: Metadata = {
+  title: {
+    default: "Tony Wu",
+    template: "%s — Tony Wu",
+  },
+}
 
 export default function RootLayout({
   children,
