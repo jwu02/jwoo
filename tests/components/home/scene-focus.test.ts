@@ -58,7 +58,7 @@ describe("resolveFocus", () => {
   })
 
   it("overrides the fixed camera with a GLB camera pose and targets its gaze projection", () => {
-    // A GLB-authored camera (e.g. Camera_Xiaomi) wins over the preset's hand-tuned
+    // A GLB-authored camera (e.g. CameraXiaomi) wins over the preset's hand-tuned
     // cameraPos. The orbit target becomes where the camera's gaze line passes
     // nearest the node center (its projection onto the forward axis), so the view
     // direction reproduces the Blender-authored shot while the rotation center
@@ -78,8 +78,8 @@ describe("resolveFocus", () => {
     // Regression test for the desk view: aiming at the desk's bbox center (low,
     // mid-height including the legs) made the camera gaze too steeply downward
     // and pushed the desk top off-frame ("too below"). Projecting onto the
-    // Camera_Desk forward instead lands the target above the bbox center, so the
-    // shot matches Blender's top-down framing. Camera_Desk pose from homepage.glb:
+    // CameraDesk forward instead lands the target above the bbox center, so the
+    // shot matches Blender's top-down framing. CameraDesk pose from homepage.glb:
     // position [2.51,1.59,2.37], forward ≈ [0,-0.39,0.92]; desk bbox center ≈ [2.5,0.4,3.5].
     const camera: CameraPose = { position: [2.5, 1.6, 2.4], forward: [0, -0.39, 0.92] }
     const deskInfo: FocusInfo = { point: [2.5, 0.4, 3.5], radius: 1 }

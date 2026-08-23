@@ -19,7 +19,7 @@ export type FocusRequest = {
 }
 
 /**
- * World transform of a GLB-authored camera node (e.g. "Camera_Desk"), read off
+ * World transform of a GLB-authored camera node (e.g. "CameraDesk"), read off
  * the loaded scene. `forward` is the unit world-space direction the camera
  * gazes along (GLTF cameras look down their -Z axis).
  */
@@ -89,7 +89,7 @@ export function gazeTarget(camera: CameraPose, point: Vec3): Vec3 {
  * `info` is the model's bounding-sphere framing; "framing" ignores it and uses
  * the preset's fixed camera + target instead (no bbox needed for a fixed view).
  *
- * When `camera` is provided (a GLB-authored camera, e.g. Camera_Xiaomi), it wins
+ * When `camera` is provided (a GLB-authored camera, e.g. CameraXiaomi), it wins
  * over the preset's hand-tuned cameraPos: the camera flies to the authored
  * position and the orbit target becomes where the camera's gaze passes nearest
  * the clicked node (`gazeTarget`), reproducing the authored view direction.

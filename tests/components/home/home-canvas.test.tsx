@@ -1,8 +1,10 @@
-import { render } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import * as THREE from "three"
 
 import { HomeCanvas } from "@/components/home/home-canvas"
 import { getHeroMode, setHeroMode } from "@/components/home/home-hero-store"
+import { registerHomeScene } from "@/components/home/home-scene-resolver"
+import { getActiveView, setActiveView } from "@/components/home/home-view-store"
 import type { FocusRequest } from "@/components/home/scene-focus"
 
 // R3F/drei never run under jsdom (no WebGL), so the scene is driven through
@@ -22,7 +24,8 @@ const mockCanvas: {
 
 const mockOrbitControls: {
   onChange?: () => void
-} = {}
+  updateCalls: number
+} = { updateCalls: 0 }
 
 const mockSceneModels: {
   onFocus?: (request: FocusRequest) => void
@@ -60,17 +63,24 @@ jest.mock("@react-three/drei", () => {
       props: { onChange?: () => void },
       ref: unknown,
     ) => {
-      React.useEffect(() => {
-        if (ref && typeof ref === "object") {
-          // Stub the controls handle so SceneController.flyTo can read
-          // controls.target and arm its in-flight tween.
-          (ref as { current: unknown }).current = {
-            target: mockCamera.position.clone(),
-            update: () => {},
-          }
+      // Set the controls handle during render (R3F attaches refs at commit,
+      // before layout effects) so SceneController's mount-time useLayoutEffect
+      // sync can call update(). The stub update() mirrors three-stdlib: it
+      // records the call and, once the 'change' listener is attached in the
+      // passive effect below, dispatches it — the dispatch path that would
+      // dismiss the greeting if the sync ran too late.
+      if (ref && typeof ref === "object") {
+        ;(ref as { current: unknown }).current = {
+          target: mockCamera.position.clone(),
+          update: () => {
+            mockOrbitControls.updateCalls += 1
+            mockOrbitControls.onChange?.()
+          },
         }
+      }
+      React.useEffect(() => {
         mockOrbitControls.onChange = props.onChange
-      }, [ref, props.onChange])
+      }, [props.onChange])
       return null
     },
   )
@@ -96,17 +106,35 @@ jest.mock("@/components/home/scene-models", () => {
 describe("HomeCanvas camera interaction", () => {
   beforeEach(() => {
     setHeroMode("intro")
+    setActiveView(null)
+    registerHomeScene(null)
     mockCanvas.onPointerMissed = undefined
     mockOrbitControls.onChange = undefined
+    mockOrbitControls.updateCalls = 0
     mockSceneModels.onFocus = undefined
   })
 
-  it("loads already engaged on the MacBook — the greeting types without a click", () => {
+  it("loads already framed on the desk view with the greeting engaged", () => {
     render(<HomeCanvas />)
 
-    // The initial camera is the MacBook's framing and the hero starts engaged,
-    // so the typed greeting is up on first load.
+    // The desk view is the initial view (hero starts engaged so the typed
+    // greeting is up without a click) and the desk switcher button is active.
     expect(getHeroMode()).toBe("macbook")
+    expect(getActiveView()).toBe("desk")
+  })
+
+  it("syncs the controls baseline on mount so the initial camera seat doesn't dismiss the greeting", () => {
+    render(<HomeCanvas />)
+
+    // The mount-time useLayoutEffect calls controls.update() exactly once,
+    // before the 'change' listener is attached. Without it, OrbitControls'
+    // first frame-loop update() (lastPosition seeded at the origin) reads the
+    // camera seated at the desk preset as a user move and dismisses the
+    // greeting before the intro can type. The sync must stay silent: the
+    // greeting stays engaged and the desk view stays active.
+    expect(mockOrbitControls.updateCalls).toBe(1)
+    expect(getHeroMode()).toBe("macbook")
+    expect(getActiveView()).toBe("desk")
   })
 
   it("does nothing when empty space is clicked — no default-framing reset handler", () => {
@@ -144,5 +172,58 @@ describe("HomeCanvas camera interaction", () => {
     mockOrbitControls.onChange?.()
 
     expect(getHeroMode()).toBe("macbook")
+  })
+
+  it("flies to the car view, marks it active, and dismisses the greeting when the car button is clicked", () => {
+    // The switcher resolves against the loaded scene, which ModelObject
+    // registers in the real app; provide a stand-in so the car hotspot resolves
+    // to its authored CameraXiaomi view.
+    const scene = new THREE.Group()
+    const car = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1))
+    car.name = "XiaomiSu7Ultra"
+    car.position.set(1, 0, 1)
+    scene.add(car)
+    const camera = new THREE.Object3D()
+    camera.name = "CameraXiaomi"
+    camera.position.set(5, 6, 7)
+    scene.add(camera)
+    registerHomeScene(scene)
+
+    render(<HomeCanvas />) // loads on the desk view with the greeting engaged
+
+    fireEvent.click(screen.getByRole("button", { name: "Xiaomi SU7" }))
+
+    // The switch flies to the authored view and marks the car active; the car
+    // preset's hero is "intro", so the greeting is dismissed.
+    expect(getActiveView()).toBe("car")
+    expect(getHeroMode()).toBe("intro")
+  })
+
+  it("clears the active view when the camera moves after the fly-to settles", () => {
+    render(<HomeCanvas />)
+    // HomeCanvas subscribes to the store, so mutations happen inside act.
+    act(() => setActiveView("desk"))
+    expect(getActiveView()).toBe("desk")
+
+    // A user-initiated camera move fires OrbitControls 'change' with no tween
+    // in flight — the switcher should un-highlight.
+    act(() => mockOrbitControls.onChange?.())
+
+    expect(getActiveView()).toBeNull()
+  })
+
+  it("keeps the active view while the fly-to tween is still in flight", () => {
+    render(<HomeCanvas />)
+    // Arm a fly-to so 'change' during the tween doesn't count as a user move.
+    mockSceneModels.onFocus?.({
+      point: [0, 0.78, 0],
+      radius: 0,
+      cameraPos: [0, 0.8, 1.0],
+    })
+    act(() => setActiveView("desk"))
+
+    act(() => mockOrbitControls.onChange?.())
+
+    expect(getActiveView()).toBe("desk")
   })
 })
