@@ -19,7 +19,7 @@ import {
   getAiUsageBucketInterval,
   RangeConfig,
 } from "./ranges";
-import { alignToInterval } from "./timezone";
+import { alignToInterval, getTimezoneOffsetMs } from "./timezone";
 
 export function buildTotalsPipeline(): Record<string, unknown>[] {
   return [
@@ -168,13 +168,17 @@ export function generateBuckets(
 
   while (current <= end) {
     buckets.push(current.toISOString());
-    current = addInterval(current, interval);
+    current = addInterval(current, interval, timeZone);
   }
 
   return buckets;
 }
 
-function addInterval(date: Date, interval: RangeConfig): Date {
+function addInterval(
+  date: Date,
+  interval: RangeConfig,
+  timeZone = "UTC"
+): Date {
   const next = new Date(date);
   switch (interval.unit) {
     case "minute":
@@ -189,9 +193,19 @@ function addInterval(date: Date, interval: RangeConfig): Date {
     case "week":
       next.setUTCDate(next.getUTCDate() + interval.binSize * 7);
       break;
-    case "month":
-      next.setUTCMonth(next.getUTCMonth() + interval.binSize);
-      break;
+    case "month": {
+      // Month boundaries in a non-UTC timezone sit on the previous month's
+      // last UTC day (local Aug 1 00:00 in +8h == UTC Jul 31 16:00). Adding a
+      // month via setUTCMonth on the raw instant rolls over whenever that UTC
+      // day exceeds the next month's length (Sep 30 -> Oct 1), corrupting every
+      // following bucket and dropping the final month. Step a month in
+      // wall-clock space — shift by the offset, increment, shift back — which
+      // mirrors alignToInterval and lands on the same local day-of-month.
+      const offsetMs = getTimezoneOffsetMs(date, timeZone);
+      const local = new Date(date.getTime() + offsetMs);
+      local.setUTCMonth(local.getUTCMonth() + interval.binSize);
+      return new Date(local.getTime() - offsetMs);
+    }
   }
   return next;
 }

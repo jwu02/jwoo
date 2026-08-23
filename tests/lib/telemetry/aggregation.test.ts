@@ -780,6 +780,60 @@ describe("timezone-aware bucketing", () => {
     expect(buckets[buckets.length - 1]).toBe("2026-08-22T16:00:00.000Z");
   });
 
+  // Month-aligned bucket keys in a +8h zone sit on the previous month's last
+  // UTC day (local Aug 1 00:00 == UTC Jul 31 16:00). Advancing via setUTCMonth
+  // on those keys used to roll over (Sep 30 -> Oct 1) and corrupt every
+  // following bucket, ending the 1y series a month early.
+  it("keeps telemetry 1y monthly buckets aligned to local months and includes the current month", () => {
+    const august = new Date("2026-08-23T02:00:00.000Z"); // local Aug 23 10:00
+    const buckets = generateBuckets(
+      getRangeStart("1y", august),
+      getBucketInterval("1y"),
+      august,
+      "Asia/Shanghai"
+    );
+
+    expect(buckets.length).toBe(13);
+    expect(buckets[0]).toBe("2025-07-31T16:00:00.000Z"); // local Aug 1 2025
+    expect(buckets[buckets.length - 1]).toBe(
+      "2026-07-31T16:00:00.000Z" // local Aug 1 2026, the current month
+    );
+
+    buckets.forEach((bucket) => {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Shanghai",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(new Date(bucket));
+      const values = Object.fromEntries(
+        parts
+          .filter((p) => p.type !== "literal")
+          .map((p) => [p.type, p.value])
+      );
+      expect(values.day).toBe("01");
+      expect(values.hour).toBe("00");
+      expect(values.minute).toBe("00");
+    });
+  });
+
+  it("keeps AI usage 1y monthly buckets aligned to local months and includes the current month", () => {
+    const august = new Date("2026-08-23T02:00:00.000Z");
+    const buckets = generateBuckets(
+      getAiUsageRangeStart("1y", august),
+      getAiUsageBucketInterval("1y"),
+      august,
+      "Asia/Shanghai"
+    );
+
+    expect(buckets.length).toBe(13);
+    expect(buckets[buckets.length - 1]).toBe("2026-07-31T16:00:00.000Z");
+    expect(buckets[0]).toBe("2025-07-31T16:00:00.000Z");
+  });
+
   it("passes the timezone to telemetry $dateTrunc", () => {
     const pipeline = buildTimeSeriesPipeline("30d", now, "Asia/Shanghai");
     const groupStage = pipeline[1] as { $group: Record<string, unknown> };
