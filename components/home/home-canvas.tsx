@@ -11,7 +11,7 @@ import * as THREE from "three"
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib"
 
 import { setHeroMode } from "./home-hero-store"
-import { HOME_SCENE_MODELS, type HomeSceneModel } from "./scene-config"
+import { HOME_SCENE_HOTSPOTS, type HomeSceneHotspot } from "./scene-config"
 import { fitDistance, type FocusRequest } from "./scene-focus"
 import { SceneModels } from "./scene-models"
 
@@ -26,8 +26,8 @@ const FOCUS_SPEED = 6
 // greeting), so the MacBook's framing preset doubles as the initial camera,
 // initial controls target, and initial hero. Tunable values live in
 // scene-config so the load view and the click-to-focus view stay in sync.
-const MACBOOK_FOCUS = HOME_SCENE_MODELS.find((model) => model.id === "macbook")!
-  .focus as Extract<HomeSceneModel["focus"], { type: "framing" }>
+const MACBOOK_FOCUS = HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.id === "macbook")!
+  .focus as Extract<HomeSceneHotspot["focus"], { type: "framing" }>
 
 type FlyTo = (request: FocusRequest) => void
 

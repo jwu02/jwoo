@@ -1,33 +1,43 @@
-import type { FocusPreset, Vec3 } from "./scene-focus"
+import type { FocusPreset } from "./scene-focus"
 
-export type HomeSceneModel = {
+/** The single combined scene model, replacing the five individual per-model GLBs. */
+export const HOME_SCENE_MODEL = {
+  url: "/homepage.glb",
+} as const
+
+export type HomeSceneHotspot = {
   id: string
-  url: string
-  position: Vec3
-  scale: Vec3
-  rotation?: Vec3
+  /** Top-level node name inside homepage.glb that this hotspot maps to. */
+  node: string
   label?: string
   target?: string
+  /**
+   * Name of a camera node authored inside homepage.glb (e.g. "Camera_Xiaomi").
+   * When present and found in the loaded scene, its world position and rotation
+   * override the framing preset's cameraPos: the camera flies to the authored
+   * position and the orbit target is where the camera's gaze passes nearest the
+   * node (see resolveFocus). Falls back to the preset when the node is absent
+   * (e.g. the export hasn't included cameras yet).
+   */
+  camera?: string
   focus: FocusPreset
 }
 
-export const HOME_SCENE_MODELS: HomeSceneModel[] = [
+// All five models (plus the Garage and AI Usage props) are combined into one
+// homepage.glb with their transforms baked in by Blender, so the scene loads a
+// single model and the hotspots reference its top-level node names. The framing
+// camera positions were tuned against the old per-model layout; they may need a
+// browser pass against the combined arrangement (tunable in dev).
+export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
   {
     id: "macbook",
-    url: "/macbook_pro_14-inch_m5.glb",
+    node: "MacBook",
     label: "Activity Telemetry",
     target: "/activity-telemetry",
-    // Seated on the desk top (desk bbox top y≈0.736; MacBook bbox base sits at
-    // local y≈-0.009, so exact seat is 0.736 + 0.009 ≈ 0.745; 0.75 lands within
-    // ~5mm). Initial value pending the human browser pass.
-    position: [0, 0.75, 0],
-    scale: [1, 1, 1],
     // Overhead-forward keyboard view: camera in front (+z), raised so its gaze
-    // drops ~15° below horizontal onto the keyboard (atan of
-    // (cameraY - targetY) / cameraZ ≈ atan(0.17 / 0.65) ≈ 15°), showing the
-    // keys with the typed greeting staying above in frame. This preset also
-    // sets the scene's initial camera/target/hero on load (see home-canvas).
-    // Tunable in dev.
+    // drops ~15° below horizontal onto the keyboard, keeping the typed greeting
+    // above in frame. Also sets the scene's initial camera/target/hero on load
+    // (see home-canvas). Tunable in dev.
     focus: {
       type: "framing",
       target: [0, 0.78, 0],
@@ -37,13 +47,12 @@ export const HOME_SCENE_MODELS: HomeSceneModel[] = [
   },
   {
     id: "desk",
-    url: "/computer_desk.glb",
+    node: "Desk",
     label: "Computer Desk",
-    position: [0, 0, 0],
-    scale: [1, 1, 1],
+    // GLB-authored camera view (fallback: the hand-tuned preset below).
+    camera: "Camera_Desk",
     // Front, angled-overhead view of the desk surface: camera up in front (+z)
-    // looking down at ~30° with a slight side offset, so the surface (and the
-    // MacBook on it) reads at a diagonal. Tunable in dev.
+    // looking down at ~30° with a slight side offset. Tunable in dev.
     focus: {
       type: "framing",
       target: [0, 0.7, 0],
@@ -52,25 +61,29 @@ export const HOME_SCENE_MODELS: HomeSceneModel[] = [
     },
   },
   {
+    id: "flask",
+    node: "Water Flask",
+    label: "Water Flask",
+    // Bbox-fit view of the flask node alone (fit is computed per-node, not the
+    // whole combined scene). Tunable in dev.
+    focus: { type: "fit" },
+  },
+  {
+    id: "resume",
+    node: "Resume",
+    label: "Resume",
+    target: "/resume",
+    // Bbox-fit view of the resume node alone. Tunable in dev.
+    focus: { type: "fit" },
+  },
+  {
     id: "car",
-    url: "/2025_xiaomi_su7_ultra.glb",
+    node: "Xiaomi",
     label: "2025 Xiaomi SU7 Ultra",
-    // Native bbox is 0.022 × 0.015 × 0.051 (x/y/z); the long axis is z, so at
-    // scale 100 it becomes 2.2 × 1.5 × 5.1 units — z-length ≈ 2.8× the desk's
-    // 1.8-unit length (matches "~3× a desk's length"). Parked to the left (-x)
-    // of the desk and rotated ~45° around Y (+π/4 swings the nose toward +x/+z,
-    // i.e. toward the desk/camera), so it reads at a diagonal instead of facing
-    // the camera head-on. Base at y≈0 sits on the ground plane like the desk.
-    // Initial values pending the human browser pass.
-    position: [-3.5, 0, -3.5],
-    rotation: [0, Math.PI / 4, 0],
-    scale: [100, 100, 100],
-    // Low, front-right camera aimed at the car's right headlight. The nose is
-    // local +z (rotated to world +x/+z); facing the nose, the driver's right
-    // is -x, so the right headlight sits at the front-right corner, ~world
-    // (-2.48, 0.55, -0.92). Target = that headlight; the camera is ~2.8 units
-    // out in front-right at headlight height, so the headlight is the focal
-    // point with the front-right fender filling the frame. Tunable in dev.
+    // GLB-authored camera view (fallback: the hand-tuned preset below).
+    camera: "Camera_Xiaomi",
+    // Low, front-right camera aimed at the car's right headlight, so the
+    // front-right fender fills the frame. Tunable in dev.
     focus: {
       type: "framing",
       target: [-2.48, 0.55, -0.92],
