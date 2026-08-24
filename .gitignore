@@ -23,6 +23,9 @@
 *.pem
 /public/.glb-originals/
 
+# blender auto-save backups (source .blend is tracked intentionally)
+*.blend1
+
 # debug
 npm-debug.log*
 yarn-debug.log*
