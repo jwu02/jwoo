@@ -210,9 +210,14 @@ export function HomeCanvas() {
 
   return (
     <div className="relative h-full w-full">
+      {/* Cap device pixel ratio at 1.5: the fullscreen hero canvas on a
+          Retina display would otherwise render at 2x (4x the pixel fill),
+          which — combined with the heavy scene and rect area lights — is what
+          made panning to the car lag. 1.5 keeps it sharp on 2x/3x displays
+          while roughly halving the fill cost. Tunable in dev. */}
       <Canvas
         camera={{ position: DESK_FOCUS.cameraPos, fov: 45 }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
       >
         {/* The GLB exports no lights and no world, so this rig replicates the
