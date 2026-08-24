@@ -8,16 +8,7 @@ import { OrbitControls, useProgress } from "@react-three/drei"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
-// three-stdlib bundles the LTC BRDF tables as CJS; the upstream ESM build
-// (three/examples/jsm) is unparseable under Jest's node_modules transform-ignore.
-import { RectAreaLightUniformsLib } from "three-stdlib"
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib"
-
-// Physical rect area lights (Key_Light / Fill_Light below) need the LTC BRDF
-// lookup tables uploaded to the renderer's uniforms before the first frame.
-// init() is CPU-only (generates DataTextures), so module scope runs before the
-// <Canvas> mounts.
-RectAreaLightUniformsLib.init()
 
 import { setHeroMode } from "./home-hero-store"
 import { resolveHomeHotspot } from "./home-scene-resolver"
@@ -220,25 +211,14 @@ export function HomeCanvas() {
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
       >
-        {/* The GLB exports no lights and no world, so this rig replicates the
-            Blender scene (EEVEE, AgX) that the models were authored against:
-            Key_Light (area 600W) + Fill_Light (area 250W) + the World's gray
-            0.12 @ strength 3.0 ambient. Positions/orientations are the Blender
-            world transforms converted to the GLB's Y-up space (x,y,z)_blender
-            → (x,z,-y)_gltf; the emission axis is the light's local -Z.
-            Intensities are in three candela (Blender watts don't map 1:1) —
-            tunable in dev. */}
+        {/* The room light ships inside homepage.glb via KHR_lights_punctual —
+            RoomFill_Light (wide 140° spot from the ceiling, ~6.5 cd), authored
+            in the Blender scene and loaded with the model. The hemisphere keeps
+            a soft ambient floor so shadowed areas don't go fully black
+            (replaces the old "gray world @ strength 3.0" ambient). Light
+            intensity is tuned in Blender (energy → candela is linear, ~54 cd/W)
+            and re-exported to the GLB. */}
         <hemisphereLight args={[0xffffff, 0x2e2e2e, 0.55]} />
-        <rectAreaLight
-          args={["#ffffff", 14, 1.5, 1.5]}
-          position={[2.5, 2.8, 3.5]}
-          quaternion={[-0.7071, 0, 0, 0.7071]}
-        />
-        <rectAreaLight
-          args={["#ffffff", 6, 1.5, 1.5]}
-          position={[1.8, 1.8, 2.5]}
-          quaternion={[0.1078, 0.8903, 0.342, -0.2807]}
-        />
         <SceneController flyToRef={flyToRef} />
       </Canvas>
       <LoadingBar />
