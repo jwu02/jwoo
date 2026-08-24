@@ -143,6 +143,7 @@ export const en: ResumeData = {
     {
       title: "Personal Website",
       details: [
+        "Built a 3D homepage from a Blender-authored glb rendered with React Three Fiber, using the Blender MCP to construct the scene and position objects, with orbit/zoom controls, hover labels, and clickable objects that navigate or focus authored camera views",
         "Built a full activity telemetry stack — a desktop logger that records mouse and keyboard events directly into MongoDB, with a Next.js REST API and Recharts/SVG heatmap dashboard visualizing real-time usage trends",
         "Built an interactive knowledge graph using a personal Obsidian plugin that extracts note metadata (filenames, creation dates, and wikilinks) into MongoDB, rendered with PixiJS on WebGL and laid out with a d3-force simulation",
         "Implemented a Claude Code hook that pushes per-request large language model usage statistics (token counts, cost, and model) into MongoDB, and added an AI usage dashboard to the website to visualize them",
@@ -224,6 +225,7 @@ export const zh: ResumeData = {
     {
       title: "个人网站",
       details: [
+        "使用 Blender MCP 进行场景搭建与物体定位，从 Blender 导出 glb 模型，用 React Three Fiber 渲染 3D 首页，支持轨道/缩放控制、悬停标签，以及点击物体跳转页面或聚焦预设相机视角",
         "构建完整的活动遥测技术栈 — 桌面记录器将鼠标与键盘事件直接写入 MongoDB，配合 Next.js REST API 与 Recharts/SVG 热力图仪表盘，实时可视化使用趋势",
         "使用个人 Obsidian 插件将笔记元数据（文件名、创建日期与 wiki 链接）提取到 MongoDB，并基于 PixiJS（WebGL 渲染）与 d3-force 力导向布局构建交互式知识图谱",
         "实现 Claude Code hook，将每次请求的大语言模型使用统计（token 数量、费用与模型）写入 MongoDB，并在网站中新增 AI 用量仪表盘进行可视化展示",
