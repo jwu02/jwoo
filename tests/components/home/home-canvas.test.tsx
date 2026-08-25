@@ -56,19 +56,22 @@ jest.mock("@react-three/fiber", () => {
   }
 })
 
-jest.mock("@react-three/drei", () => {
+jest.mock("@react-three/drei", () => ({
+  useProgress: () => ({ active: false, progress: 0 }),
+}))
+
+// HomeCanvas renders HomeOrbitControls (three's current OrbitControls) rather
+// than drei's. Mock it the same way the drei <OrbitControls> used to be mocked:
+// expose a ref handle whose update() records the call and, once the 'change'
+// listener is attached in the passive effect below, dispatches it — the
+// dispatch path that would dismiss the greeting if the sync ran too late.
+jest.mock("@/components/home/home-orbit-controls", () => {
   const React = jest.requireActual<typeof import("react")>("react")
   const MockOrbitControls = React.forwardRef(
     (
       props: { onChange?: () => void },
       ref: unknown,
     ) => {
-      // Set the controls handle during render (R3F attaches refs at commit,
-      // before layout effects) so SceneController's mount-time useLayoutEffect
-      // sync can call update(). The stub update() mirrors three-stdlib: it
-      // records the call and, once the 'change' listener is attached in the
-      // passive effect below, dispatches it — the dispatch path that would
-      // dismiss the greeting if the sync ran too late.
       if (ref && typeof ref === "object") {
         ;(ref as { current: unknown }).current = {
           target: mockCamera.position.clone(),
@@ -85,10 +88,7 @@ jest.mock("@react-three/drei", () => {
     },
   )
   MockOrbitControls.displayName = "MockOrbitControls"
-  return {
-    OrbitControls: MockOrbitControls,
-    useProgress: () => ({ active: false, progress: 0 }),
-  }
+  return { HomeOrbitControls: MockOrbitControls }
 })
 
 jest.mock("@/components/home/scene-models", () => {

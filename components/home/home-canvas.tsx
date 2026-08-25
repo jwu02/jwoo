@@ -4,13 +4,14 @@
 // Imported first so it runs before this module's <Canvas> mounts.
 import "./three-console"
 
-import { OrbitControls, useProgress } from "@react-three/drei"
+import { useProgress } from "@react-three/drei"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
-import type { OrbitControls as OrbitControlsImpl } from "three-stdlib"
+import type { OrbitControls as OrbitControlsImpl } from "three/addons/controls/OrbitControls.js"
 
 import { setHeroMode } from "./home-hero-store"
+import { HomeOrbitControls } from "./home-orbit-controls"
 import { resolveHomeHotspot } from "./home-scene-resolver"
 import { HomeViewSwitcher } from "./home-view-switcher"
 import { setActiveView, useActiveView } from "./home-view-store"
@@ -140,12 +141,19 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
   return (
     <>
       <SceneModels onFocus={flyTo} />
-      <OrbitControls
+      {/* HomeOrbitControls uses three's current OrbitControls (not drei's
+          three-stdlib copy) so wheel zoom scales with the scroll delta —
+          otherwise a trackpad swipe's momentum tail keeps zooming after the
+          fingers lift. zoomSpeed is the sensitivity multiplier for that
+          delta-scaled step (0.95^(zoomSpeed * |deltaY| / 100)); 0.5 halves the
+          default. Tunable in dev. */}
+      <HomeOrbitControls
         ref={controlsRef}
         makeDefault
         target={DESK_FOCUS.target}
         enableDamping
         dampingFactor={0.08}
+        zoomSpeed={0.5}
         maxPolarAngle={Math.PI / 2.05}
         minDistance={MIN_DISTANCE}
         maxDistance={MAX_DISTANCE}

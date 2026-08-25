@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
   // transitive deps so Jest's next/jest transform can run them in tests.
   // next/jest matches transpilePackages entries as exact package directory
   // names, so every d3-* subpackage must be listed explicitly.
+  // "three" is included because its examples (three/addons/*, e.g. the
+  // OrbitControls home-orbit-controls.tsx builds from) are ESM-only too.
   transpilePackages: [
+    "three",
     "d3",
     "d3-array",
     "d3-axis",
