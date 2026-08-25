@@ -15,11 +15,14 @@ import type { FocusRequest } from "./scene-focus"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
 
-// World-space offsets above a hotspot node's bbox top for the hover label and
-// the MacBook greeting (the wrapping group sits at identity, so local == world).
-// Tunable in dev.
+// World-space offset above a hotspot node's bbox top for the hover label (the
+// wrapping group sits at identity, so local == world). Tunable in dev.
 const LABEL_OFFSET_Y = 0.12
-const GREETING_OFFSET_Y = 0.2
+// Screen-space margin above the MacBook's projected top edge for the greeting.
+// Anchoring in pixels (not world units) keeps the text reading as "above the
+// MacBook" from any camera angle, where a world offset drifts with parallax.
+// Tunable in dev.
+const GREETING_PIXEL_OFFSET = 96
 
 export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => void }) {
   const router = useRouter()
@@ -116,6 +119,30 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
     [hoveredHotspot, nodeAnchor],
   )
 
+  // Screen-space placement for the greeting: project the MacBook's bbox
+  // top-center into pixels and lift it a fixed margin. Unlike a world-space
+  // offset, this re-anchors each frame from the live projection, so the text
+  // stays "above the MacBook" on screen from any camera angle.
+  const greetingPosition = useCallback(
+    (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
+      const node = scene.getObjectByName(runtimeNodeName("MacBook"))
+      if (!node) return [0, 0]
+      node.updateWorldMatrix(true, true)
+      const box = new THREE.Box3().setFromObject(node)
+      if (box.isEmpty()) return [0, 0]
+      const center = new THREE.Vector3()
+      box.getCenter(center)
+      const top = new THREE.Vector3(center.x, box.max.y, center.z).project(camera)
+      const widthHalf = size.width / 2
+      const heightHalf = size.height / 2
+      return [
+        top.x * widthHalf + widthHalf,
+        -(top.y * heightHalf) + heightHalf - GREETING_PIXEL_OFFSET,
+      ]
+    },
+    [scene],
+  )
+
   return (
     <group
       onPointerMove={handlePointerMove}
@@ -125,12 +152,14 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
       <primitive object={scene} />
       {heroMode === "macbook" && macbookAnchor ? (
         <Html
-          position={[macbookAnchor.x, macbookAnchor.y + GREETING_OFFSET_Y, macbookAnchor.z]}
-          center
-          style={{ pointerEvents: "none" }}
+          position={[macbookAnchor.x, macbookAnchor.y, macbookAnchor.z]}
+          calculatePosition={greetingPosition}
+          // Bottom-center anchors to the projected point, so the text extends
+          // upward from GREETING_PIXEL_OFFSET px above the MacBook's top edge.
+          style={{ pointerEvents: "none", transform: "translate(-50%, -100%)" }}
         >
           <div className="whitespace-nowrap text-2xl font-semibold tracking-tight text-foreground">
-            <TypeWriter text="Hello, I'm Tony Wu." />
+            <TypeWriter text="Hi, I'm Tony." />
           </div>
         </Html>
       ) : null}

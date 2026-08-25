@@ -6,7 +6,7 @@ describe("HomeFallback", () => {
   it("renders the hero and links to all four sections", () => {
     render(<HomeFallback />)
 
-    expect(screen.getByText(/Hello, I'm Tony Wu\./)).toBeInTheDocument()
+    expect(screen.getByText(/Hi, I'm Tony\./)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /view dashboard/i })).toHaveAttribute(
       "href",
       "/activity-telemetry",

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 
-// Characters per tick; "Hello, I'm Tony Wu." (18 chars) finishes in ~1s.
+// Characters per tick; "Hi, I'm Tony." (13 chars) finishes in ~0.7s.
 const TYPE_SPEED_MS = 55
 
 export function TypeWriter({ text }: { text: string }) {
