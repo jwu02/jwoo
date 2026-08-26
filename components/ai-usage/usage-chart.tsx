@@ -18,6 +18,10 @@ import {
   formatTooltip,
   formatCompactNumber,
 } from "@/lib/telemetry/chart-format";
+import {
+  aiUsageColorMap,
+  aiUsageColorVar,
+} from "@/lib/telemetry/ai-usage-colors";
 
 interface UsageChartProps {
   data: AiUsageModelTimeSeries[];
@@ -29,7 +33,7 @@ interface UsageChartProps {
 interface Series {
   dataKey: string;
   name: string;
-  color: string; // CSS variable name, e.g. "--chart-1"
+  color: string; // full CSS color expression, e.g. "var(--chart-1)" or a color-mix shade
   /** Tooltip prefix rendered muted, e.g. the ¥ sign in the cost table. */
   prefix?: string;
   formatValue?: (value: number) => string; // tooltip value formatter
@@ -104,18 +108,23 @@ export function buildModelChartData(
   return { rows, series };
 }
 
-// Bar/legend color for a model, keyed to its position in the by-model table
-// (modelOrder) so chart bars and table rows share one color per model even
-// when a range only shows a subset of the models. Falls back to the series
-// position when the model isn't in the table (e.g. no modelOrder given).
+// Bar/legend color for a model. Sibling models of a known provider (deepseek,
+// kimi) get a distinct stepped shade from `colorMap`; everything else falls
+// back to the --chart-N slot at its position in the by-model table (modelOrder),
+// so chart bars and table rows share one color per model even when a range only
+// shows a subset of the models. The series position is used when the model
+// isn't in the table (e.g. no modelOrder given).
 function chartColorForModel(
   model: string,
   modelOrder: string[],
-  seriesIndex: number
+  seriesIndex: number,
+  colorMap: Map<string, string>
 ): string {
+  const fromMap = colorMap.get(model);
+  if (fromMap) return fromMap;
   const tableIndex = modelOrder.indexOf(model);
   const index = tableIndex >= 0 ? tableIndex : seriesIndex;
-  return `--chart-${(index % 5) + 1}`;
+  return aiUsageColorVar(model, index);
 }
 
 function UsageChartTooltip({
@@ -278,7 +287,7 @@ function MiniStackedBarChart({
                 dataKey={entry.dataKey}
                 name={entry.name}
                 stackId="models"
-                fill={`var(${entry.color})`}
+                fill={entry.color}
                 // No stroke and no radius: a border reads as an outline, and a
                 // rounded top segment tapers narrower than the one below it.
                 // Square, stroke-less fills keep every segment uniform.
@@ -301,6 +310,18 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
     [data, modelOrder]
   );
 
+  // Assign a distinct shade per known-provider model. Uses the table order
+  // (modelOrder) when present — the same set the breakdown table colors — so
+  // chart bars, legend swatches and table rows agree on one color per model.
+  // Unknown models simply stay out of the map and fall back to --chart-N.
+  const colorMap = useMemo(
+    () =>
+      aiUsageColorMap(
+        modelOrder.length > 0 ? modelOrder : data.map((entry) => entry.model)
+      ),
+    [data, modelOrder]
+  );
+
   // Keyed by model name so one legend toggle hides the model in both the cost
   // and tokens charts (they share the same models, hence one legend).
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -320,14 +341,14 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
   const tokenSeries: Series[] = series.map((entry, index) => ({
     dataKey: entry.tokensKey,
     name: entry.model,
-    color: chartColorForModel(entry.model, modelOrder, index),
+    color: chartColorForModel(entry.model, modelOrder, index, colorMap),
     formatValue: formatCompactNumber,
   }));
 
   const costSeries: Series[] = series.map((entry, index) => ({
     dataKey: entry.costKey,
     name: entry.model,
-    color: chartColorForModel(entry.model, modelOrder, index),
+    color: chartColorForModel(entry.model, modelOrder, index, colorMap),
     prefix: "¥",
     formatValue,
   }));
@@ -381,7 +402,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
                   <span
                     className="inline-block h-2 w-2 rounded-sm"
                     style={{
-                      backgroundColor: `var(${entry.color})`,
+                      backgroundColor: entry.color,
                       opacity: isHidden ? 0.5 : 1,
                     }}
                   />

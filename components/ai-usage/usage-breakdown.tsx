@@ -5,6 +5,10 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { formatCompactNumber } from "@/lib/telemetry/chart-format";
+import {
+  aiUsageColorMap,
+  aiUsageColorVar,
+} from "@/lib/telemetry/ai-usage-colors";
 
 export interface UsageBreakdownRow {
   /** Stable unique key for the row. */
@@ -83,6 +87,9 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
   }
 
   const sorted = [...rows].sort((a, b) => b.costYuan - a.costYuan);
+  // Sibling models of a known provider get distinct shades (matching the chart
+  // legend), so the table rows read as separate models within one brand hue.
+  const colorMap = aiUsageColorMap(rows.map((row) => row.label));
   const totals = {
     tokens: rows.reduce((sum, row) => sum + row.totalTokens, 0),
     cost: rows.reduce((sum, row) => sum + row.costYuan, 0),
@@ -99,7 +106,8 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
       </thead>
       <tbody>
         {sorted.map((row, index) => {
-          const color = `var(--chart-${(index % 5) + 1})`;
+          const color =
+            colorMap.get(row.label) ?? aiUsageColorVar(row.label, index);
           const label = (
             <span data-label={row.label} className="font-medium">
               {row.label}
