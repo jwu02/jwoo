@@ -112,7 +112,6 @@ export const en: ResumeData = {
     "Foreign Languages",
     "Content Creation",
     "Self Improvement",
-    "Psychology",
     "Gym",
   ],
   workExperiences: [
@@ -196,7 +195,7 @@ export const zh: ResumeData = {
     },
     { group: "开发实践", data: ["敏捷开发（Agile）", "系统设计", "分层架构"] },
   ],
-  interests: ["外语学习", "内容创作", "自我提升", "心理学", "健身"],
+  interests: ["外语学习", "内容创作", "自我提升", "健身"],
   workExperiences: [
     {
       position: "Python软件工程师",
