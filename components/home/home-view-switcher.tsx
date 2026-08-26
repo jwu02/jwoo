@@ -33,7 +33,7 @@ export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherP
               aria-pressed={isActive}
               onClick={() => onSelectView(view.id)}
               className={cn(
-                "rounded-full",
+                "cursor-pointer rounded-full",
                 isActive &&
                   // Solid foreground pill with background-colored text. On hover
                   // it flips to a light muted background with foreground text —
