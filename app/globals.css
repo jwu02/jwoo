@@ -175,6 +175,12 @@
   body:has(.resume-page) header {
     display: none !important;
   }
+  /* The A4 sheet is exactly the @page size, so force a white page body so the
+     dark site background can never bleed into any gap (e.g. a hairline of
+     sub-millimetre rounding, or the print dialog's own header/footer zone). */
+  body:has(.resume-page) {
+    background: #fff !important;
+  }
 }
 
 /* Knowledge graph hover highlighting (Obsidian-style). d3 joins classes onto
