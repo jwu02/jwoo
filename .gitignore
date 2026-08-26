@@ -21,7 +21,6 @@
 # misc
 .DS_Store
 *.pem
-/public/.glb-originals/
 
 # blender auto-save backups (source .blend is tracked intentionally)
 *.blend1

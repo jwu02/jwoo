@@ -11,17 +11,18 @@ import { registerHomeScene, resolveHomeHotspot } from "./home-scene-resolver"
 import { setActiveView } from "./home-view-store"
 import { resolveClickAction } from "./scene-click"
 import { HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL, runtimeNodeName } from "./scene-config"
+import { projectNodeTopToScreen, projectObjectAboveToScreen } from "./scene-label"
 import type { FocusRequest } from "./scene-focus"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
 
-// World-space offset above a hotspot node's bbox top for the hover label (the
-// wrapping group sits at identity, so local == world). Tunable in dev.
-const LABEL_OFFSET_Y = 0.12
-// Screen-space margin above the MacBook's projected top edge for the greeting.
-// Anchoring in pixels (not world units) keeps the text reading as "above the
-// MacBook" from any camera angle, where a world offset drifts with parallax.
+// Screen-space margin (in px) above a hotspot's projected top edge for the hover
+// tooltip, and above the MacBook's for the greeting. Anchoring in pixels rather
+// than world units keeps both reading as "above the object" from any camera
+// angle, where a world offset drifts with parallax (see projectNodeTopToScreen).
 // Tunable in dev.
+const LABEL_PIXEL_OFFSET = 8
+const LABEL_HEIGHT = 28
 const GREETING_PIXEL_OFFSET = 96
 
 export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => void }) {
@@ -41,10 +42,16 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
   }, [scene])
 
   // Keyed by the sanitized runtime node names three assigns on load (see
-  // runtimeNodeName) so hits resolved off the live scene match the config.
+  // runtimeNodeName) so hits resolved off the live scene match the config. Only
+  // interactive hotspots are hoverable (cursor + label); non-interactive ones
+  // like the desk supply a camera view but never show a tooltip or pointer.
   const hotspotByNode = useMemo(
     () =>
-      new Map(HOME_SCENE_HOTSPOTS.map((hotspot) => [runtimeNodeName(hotspot.node), hotspot])),
+      new Map(
+        HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.interactive !== false).map(
+          (hotspot) => [runtimeNodeName(hotspot.node), hotspot],
+        ),
+      ),
     [],
   )
   const hoveredHotspot = hoveredNode ? hotspotByNode.get(hoveredNode) ?? null : null
@@ -125,22 +132,35 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
   // stays "above the MacBook" on screen from any camera angle.
   const greetingPosition = useCallback(
     (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
-      const node = scene.getObjectByName(runtimeNodeName("MacBook"))
-      if (!node) return [0, 0]
-      node.updateWorldMatrix(true, true)
-      const box = new THREE.Box3().setFromObject(node)
-      if (box.isEmpty()) return [0, 0]
-      const center = new THREE.Vector3()
-      box.getCenter(center)
-      const top = new THREE.Vector3(center.x, box.max.y, center.z).project(camera)
-      const widthHalf = size.width / 2
-      const heightHalf = size.height / 2
-      return [
-        top.x * widthHalf + widthHalf,
-        -(top.y * heightHalf) + heightHalf - GREETING_PIXEL_OFFSET,
-      ]
+      return projectNodeTopToScreen(
+        scene.getObjectByName(runtimeNodeName("MacBook")),
+        camera,
+        size,
+        GREETING_PIXEL_OFFSET,
+      )
     },
     [scene],
+  )
+
+  // Screen-space placement for the hover tooltip. Unlike the greeting (which
+  // anchors the MacBook's bbox top-center), the tooltip hugs the hovered node's
+  // projected ON-SCREEN silhouette: it projects the node's bbox corners and sits
+  // just above the topmost one, centered over the object. Re-derived each frame
+  // from the live projection, this keeps the tooltip pinned to the object's top
+  // edge at any camera angle — a single world anchor (or world offset) drifts off
+  // the object's visible top from overhead views like the desk camera.
+  const labelPosition = useCallback(
+    (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
+      if (!hoveredHotspot) return [0, 0]
+      return projectObjectAboveToScreen(
+        scene.getObjectByName(runtimeNodeName(hoveredHotspot.node)),
+        camera,
+        size,
+        LABEL_PIXEL_OFFSET,
+        LABEL_HEIGHT,
+      )
+    },
+    [scene, hoveredHotspot],
   )
 
   return (
@@ -165,9 +185,12 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
       ) : null}
       {hoveredHotspot?.label && labelAnchor ? (
         <Html
-          position={[labelAnchor.x, labelAnchor.y + LABEL_OFFSET_Y, labelAnchor.z]}
-          center
-          style={{ pointerEvents: "none" }}
+          position={[labelAnchor.x, labelAnchor.y, labelAnchor.z]}
+          calculatePosition={labelPosition}
+          // Bottom-center anchors to the projected top minus a pixel margin, so
+          // the tooltip sits just above the object's top edge from any angle
+          // instead of floating away with a world-space offset.
+          style={{ pointerEvents: "none", transform: "translate(-50%, -100%)" }}
         >
           <div className="whitespace-nowrap rounded-md border bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm">
             {hoveredHotspot.label}

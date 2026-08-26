@@ -18,8 +18,9 @@ export type ClickAction =
  * `delta` is the pointer's movement since pointerdown; R3F dispatches onClick
  * after a drag that *started* on the object, so a drag release (delta > 2) is
  * ignored — rotating the scene must never navigate or re-focus. A hotspot with
- * a `target` page navigates immediately on a single click; the rest (Desk /
- * Flask / Car) keep the camera-focus behavior.
+ * a `target` page navigates immediately on a single click; the rest (Flask /
+ * Car) keep the camera-focus behavior. A non-interactive hotspot (e.g. the
+ * desk, which only supplies a camera view for the switcher) is ignored.
  */
 export function resolveClickAction(
   object: SceneNode | null,
@@ -32,6 +33,7 @@ export function resolveClickAction(
   if (!name) return { kind: "ignore" }
   const hotspot = hotspots.find((h) => runtimeNodeName(h.node) === name)
   if (!hotspot) return { kind: "ignore" }
+  if (hotspot.interactive === false) return { kind: "ignore" }
   return hotspot.target
     ? { kind: "navigate", target: hotspot.target }
     : { kind: "focus", hotspot }

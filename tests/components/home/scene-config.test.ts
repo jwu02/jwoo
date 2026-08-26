@@ -1,6 +1,3 @@
-import { closeSync, existsSync, openSync, readSync } from "node:fs"
-import { join } from "node:path"
-
 import {
   HOME_HERO_ID,
   HOME_SCENE_HOTSPOTS,
@@ -18,14 +15,14 @@ describe("HOME_SCENE_MODEL", () => {
 
 describe("HOME_SCENE_HOTSPOTS", () => {
   it("defines one hotspot per interactive model with unique ids and node names", () => {
-    expect(HOME_SCENE_HOTSPOTS).toHaveLength(6)
-    expect(new Set(HOME_SCENE_HOTSPOTS.map((h) => h.id)).size).toBe(6)
-    expect(new Set(HOME_SCENE_HOTSPOTS.map((h) => h.node)).size).toBe(6)
+    expect(HOME_SCENE_HOTSPOTS).toHaveLength(7)
+    expect(new Set(HOME_SCENE_HOTSPOTS.map((h) => h.id)).size).toBe(7)
+    expect(new Set(HOME_SCENE_HOTSPOTS.map((h) => h.node)).size).toBe(7)
   })
 
-  it("covers the six interactive glb nodes", () => {
+  it("covers the seven interactive glb nodes", () => {
     const nodes = HOME_SCENE_HOTSPOTS.map((h) => h.node)
-    for (const name of ["MacBook", "Desk", "WaterFlask", "Resume", "XiaomiSu7Ultra", "AiUsage"]) {
+    for (const name of ["MacBook", "Desk", "WaterBottle", "Bonsai", "Resume", "XiaomiSu7Ultra", "AiUsage"]) {
       expect(nodes).toContain(name)
     }
   })
@@ -52,10 +49,20 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     expect(aiUsage?.camera).toBeUndefined()
   })
 
-  it("leaves desk, flask, and car without a nav target", () => {
-    for (const id of ["desk", "flask", "car"]) {
+  it("leaves desk, bottle, bonsai, and car without a nav target", () => {
+    for (const id of ["desk", "bottle", "bonsai", "car"]) {
       const h = HOME_SCENE_HOTSPOTS.find((x) => x.id === id)
       expect(h?.target).toBeUndefined()
+    }
+  })
+
+  it("marks only the desk as non-interactive — it is a camera view, not a clickable object", () => {
+    for (const hotspot of HOME_SCENE_HOTSPOTS) {
+      if (hotspot.id === "desk") {
+        expect(hotspot.interactive).toBe(false)
+      } else {
+        expect(hotspot.interactive).not.toBe(false)
+      }
     }
   })
 
@@ -67,8 +74,11 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     // The desk view keeps the intro greeting engaged above the MacBook.
     expect(desk?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "macbook" }))
 
-    const flask = HOME_SCENE_HOTSPOTS.find((h) => h.id === "flask")
-    expect(flask?.focus).toEqual({ type: "fit" })
+    const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")
+    expect(bottle?.focus).toEqual({ type: "fit" })
+
+    const bonsai = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bonsai")
+    expect(bonsai?.focus).toEqual({ type: "fit" })
 
     const car = HOME_SCENE_HOTSPOTS.find((h) => h.id === "car")
     expect(car?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "intro" }))
@@ -82,8 +92,8 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     expect(car?.camera).toBe("CameraXiaomi")
   })
 
-  it("leaves macbook, flask, and resume without a GLB camera", () => {
-    for (const id of ["macbook", "flask", "resume"]) {
+  it("leaves macbook, bottle, bonsai, and resume without a GLB camera", () => {
+    for (const id of ["macbook", "bottle", "bonsai", "resume"]) {
       const h = HOME_SCENE_HOTSPOTS.find((x) => x.id === id)
       expect(h?.camera).toBeUndefined()
     }
@@ -128,12 +138,12 @@ describe("runtimeNodeName", () => {
   it("sanitizes special characters in authoring names the way three does on load", () => {
     // three r185's GLTFLoader runs PropertyBinding.sanitizeNodeName on every
     // node (spaces → underscores, [].:/ stripped). The GLB is authored with
-    // CamelCase names ("WaterFlask") that pass through unchanged, but the
+    // CamelCase names ("WaterBottle") that pass through unchanged, but the
     // sanitizer guards against any future space/dot name silently breaking
     // hotspot matching against the loaded scene.
     expect(runtimeNodeName("Water Flask")).toBe("Water_Flask")
     expect(runtimeNodeName("AI Usage")).toBe("AI_Usage")
-    expect(runtimeNodeName("WaterFlask")).toBe("WaterFlask")
+    expect(runtimeNodeName("WaterBottle")).toBe("WaterBottle")
     expect(runtimeNodeName("MacBook")).toBe("MacBook")
   })
 
@@ -141,51 +151,19 @@ describe("runtimeNodeName", () => {
     const runtimeNames = new Map(
       HOME_SCENE_HOTSPOTS.map((hotspot) => [runtimeNodeName(hotspot.node), hotspot.id]),
     )
-    expect(runtimeNames.get("WaterFlask")).toBe("flask")
+    expect(runtimeNames.get("WaterBottle")).toBe("bottle")
+    expect(runtimeNames.get("Bonsai")).toBe("bonsai")
     expect(runtimeNames.get("AiUsage")).toBe("ai-usage")
     expect(runtimeNames.get("MacBook")).toBe("macbook")
     expect(runtimeNames.get("XiaomiSu7Ultra")).toBe("car")
 
     // A hover hit on a mesh under the top-level node walks up to its runtime
-    // name, which must map back to the flask hotspot.
+    // name, which must map back to the bottle hotspot.
     const scene: SceneNode = { name: "Scene", parent: null }
-    const flask = { name: "WaterFlask", parent: scene }
-    const mesh = { name: "polySurface10", parent: flask }
+    const bottle = { name: "WaterBottle", parent: scene }
+    const mesh = { name: "polySurface10", parent: bottle }
     const resolved = resolveTopLevelNode(mesh, scene)
-    expect(resolved).toBe("WaterFlask")
-    expect(resolved && runtimeNames.get(resolved)).toBe("flask")
-  })
-})
-
-// The hotspot node names are only meaningful if they line up with the actual
-// top-level nodes of homepage.glb. The pristine original lives in the
-// git-ignored .glb-originals/ dir, so this suite skips when it's absent
-// (fresh checkout / CI without the binary asset).
-const glbPath = join(process.cwd(), "public/.glb-originals/homepage.glb")
-const describeGlb = existsSync(glbPath) ? describe : describe.skip
-
-function readGlbTopLevelNames(): string[] {
-  const fd = openSync(glbPath, "r")
-  try {
-    const head = Buffer.alloc(20)
-    readSync(fd, head, 0, 20, 0)
-    const chunkLen = head.readUInt32LE(12)
-    expect(head.toString("ascii", 16, 20)).toBe("JSON")
-    const body = Buffer.alloc(chunkLen)
-    readSync(fd, body, 0, chunkLen, 20)
-    const json = JSON.parse(body.toString("utf8"))
-    const scene = json.scenes[json.scene ?? 0]
-    return scene.nodes.map((index: number) => json.nodes[index].name)
-  } finally {
-    closeSync(fd)
-  }
-}
-
-describeGlb("homepage.glb hotspot coverage", () => {
-  it("every hotspot node name is a top-level node of homepage.glb", () => {
-    const names = new Set(readGlbTopLevelNames())
-    for (const hotspot of HOME_SCENE_HOTSPOTS) {
-      expect(names.has(hotspot.node)).toBe(true)
-    }
+    expect(resolved).toBe("WaterBottle")
+    expect(resolved && runtimeNames.get(resolved)).toBe("bottle")
   })
 })

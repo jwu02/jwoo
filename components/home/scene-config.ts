@@ -6,7 +6,7 @@ import type { FocusPreset } from "./scene-focus"
  * three r185's GLTFLoader sanitizes every node name on load via
  * PropertyBinding.sanitizeNodeName (spaces → underscores, [].:/ stripped), so an
  * authoring name like "Water Flask" would load as "Water_Flask" and never match
- * the config. The GLB is authored with CamelCase names ("WaterFlask") that pass
+ * the config. The GLB is authored with CamelCase names ("WaterBottle") that pass
  * through unchanged, but mapping every node through the same sanitizer keeps
  * hotspots resolving against the live scene graph if a future export uses
  * spaces or dots.
@@ -46,6 +46,13 @@ export type HomeSceneHotspot = {
   label?: string
   target?: string
   /**
+   * Whether the hotspot is interactive (hover tooltip + click action). Defaults
+   * to true; set to false for a hotspot that only supplies a camera view for the
+   * switcher / initial frame and should not make the object itself hoverable or
+   * clickable (e.g. the desk, which is scenery rather than a clickable object).
+   */
+  interactive?: boolean
+  /**
    * Name of a camera node authored inside homepage.glb (e.g. "CameraXiaomi").
    * When present and found in the loaded scene, its world position and rotation
    * override the framing preset's cameraPos: the camera flies to the authored
@@ -83,6 +90,11 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
     id: "desk",
     node: "Desk",
     label: "Computer Desk",
+    // The desk is the hero/scenery surface, not a clickable object, so it is not
+    // interactive: it supplies only the initial frame (HOME_HERO_ID) and the
+    // "Desk" switcher view via its focus below, and is excluded from hover
+    // tooltips and click actions.
+    interactive: false,
     // GLB-authored camera view (fallback: the hand-tuned preset below).
     camera: "CameraDesk",
     // Front, angled-overhead view of the desk surface: camera up in front (+z)
@@ -97,11 +109,18 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
     },
   },
   {
-    id: "flask",
-    node: "WaterFlask",
-    label: "Water Flask",
-    // Bbox-fit view of the flask node alone (fit is computed per-node, not the
+    id: "bottle",
+    node: "WaterBottle",
+    label: "Water Bottle",
+    // Bbox-fit view of the bottle node alone (fit is computed per-node, not the
     // whole combined scene). Tunable in dev.
+    focus: { type: "fit" },
+  },
+  {
+    id: "bonsai",
+    node: "Bonsai",
+    label: "Bonsai",
+    // Bbox-fit view of the bonsai tree node alone. Tunable in dev.
     focus: { type: "fit" },
   },
   {

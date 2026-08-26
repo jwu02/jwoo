@@ -10,8 +10,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "compress:glb": "node scripts/compress-glb.mjs"
+    "test": "jest"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

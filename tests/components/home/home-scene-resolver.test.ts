@@ -48,13 +48,13 @@ describe("resolveHomeHotspot", () => {
   })
 
   it("resolves a bbox-fit hotspot from its node's world bounding box", () => {
-    const flaskNode = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2))
-    flaskNode.name = "WaterFlask"
-    flaskNode.position.set(0, 1, 0)
-    registerHomeScene(new THREE.Group().add(flaskNode))
-    const flask = HOME_SCENE_HOTSPOTS.find((h) => h.id === "flask")!
+    const bottleNode = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2))
+    bottleNode.name = "WaterBottle"
+    bottleNode.position.set(0, 1, 0)
+    registerHomeScene(new THREE.Group().add(bottleNode))
+    const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")!
 
-    const resolved = resolveHomeHotspot(flask)!
+    const resolved = resolveHomeHotspot(bottle)!
 
     // Point is the world bbox center; radius is half the box diagonal
     // (2×2×2 box → diagonal √12 ≈ 3.464 → radius ≈ 1.732).
@@ -81,18 +81,18 @@ describe("resolveHomeHotspot", () => {
 
   it("recomputes bboxes for a freshly registered scene", () => {
     const before = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2))
-    before.name = "WaterFlask"
+    before.name = "WaterBottle"
     before.position.set(0, 0, 0)
     registerHomeScene(new THREE.Group().add(before))
-    const flask = HOME_SCENE_HOTSPOTS.find((h) => h.id === "flask")!
-    expect(resolveHomeHotspot(flask)!.request.point).toEqual([0, 0, 0])
+    const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")!
+    expect(resolveHomeHotspot(bottle)!.request.point).toEqual([0, 0, 0])
 
     // A new scene must not reuse the previous scene's cached bbox (registering
-    // clears the cache) — the flask now sits at y=1.
+    // clears the cache) — the bottle now sits at y=1.
     const after = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2))
-    after.name = "WaterFlask"
+    after.name = "WaterBottle"
     after.position.set(0, 1, 0)
     registerHomeScene(new THREE.Group().add(after))
-    expect(resolveHomeHotspot(flask)!.request.point).toEqual([0, 1, 0])
+    expect(resolveHomeHotspot(bottle)!.request.point).toEqual([0, 1, 0])
   })
 })
