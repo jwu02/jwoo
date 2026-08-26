@@ -30,4 +30,12 @@ describe("ResumeView", () => {
     render(<ResumeView />)
     expect(await screen.findByText("吴家聪")).toBeInTheDocument()
   })
+
+  it("opens the print dialog when Download Resume is clicked", () => {
+    const printSpy = jest.fn()
+    window.print = printSpy as unknown as typeof window.print
+    render(<ResumeView />)
+    fireEvent.click(screen.getByRole("button", { name: /download resume/i }))
+    expect(printSpy).toHaveBeenCalledTimes(1)
+  })
 })
