@@ -35,7 +35,11 @@ export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherP
               className={cn(
                 "rounded-full",
                 isActive &&
-                  "bg-foreground text-background hover:bg-foreground hover:text-background",
+                  // Solid foreground pill with background-colored text. On hover
+                  // it flips to a light muted background with foreground text —
+                  // a translucent foreground tint can never lighten near-black
+                  // enough to read as a hover state. Tunable in dev.
+                  "bg-foreground text-background hover:bg-muted hover:text-foreground",
               )}
             >
               {view.label}
