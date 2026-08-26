@@ -13,16 +13,16 @@ const OPTIONS: { value: Locale; label: string }[] = [
 
 export function LanguageToggle({ locale, onChange }: LanguageToggleProps) {
   return (
-    <div className="flex items-center gap-1 rounded-md border p-1 print:hidden">
+    <div className="flex items-center gap-1 rounded-full border p-1 print:hidden">
       {OPTIONS.map((option) => (
         <button
           key={option.value}
           type="button"
           aria-pressed={locale === option.value}
           className={cn(
-            "rounded-md px-3 py-1 text-sm font-medium",
+            "cursor-pointer rounded-full px-3 py-1 text-sm font-medium",
             locale === option.value
-              ? "bg-primary text-primary-foreground"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
               : "text-muted-foreground hover:bg-accent"
           )}
           onClick={() => onChange(option.value)}

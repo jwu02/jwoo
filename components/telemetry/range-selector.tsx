@@ -29,13 +29,13 @@ export function RangeSelector<T extends Range>({
   options,
 }: RangeSelectorProps<T>) {
   return (
-    <div className="inline-flex rounded-lg border border-border bg-card p-1">
+    <div className="inline-flex rounded-full border border-border bg-card p-1">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`cursor-pointer rounded-md px-3 py-1 text-sm font-medium outline-none transition-colors ${
+          className={`cursor-pointer rounded-full px-3 py-1 text-sm font-medium outline-none transition-colors ${
             value === option.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"

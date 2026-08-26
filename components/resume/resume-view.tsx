@@ -33,7 +33,7 @@ export function ResumeView() {
 
   return (
     <div className="flex flex-col">
-      <div className="mb-4 flex justify-end">
+      <div className="mt-6 flex justify-center">
         <LanguageToggle locale={locale} onChange={handleChange} />
       </div>
       <ResumeA4Page data={data} />
