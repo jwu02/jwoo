@@ -8,10 +8,13 @@ import { HomeFallback } from "./home-fallback"
 // Client-only: three/drei never loads during SSR (a Server Component cannot use
 // ssr:false, so the dynamic import lives in this client component). home-canvas
 // has a named export, so resolve it via .then (documented next/dynamic pattern).
-const HomeCanvas = dynamic(() => import("./home-canvas").then((m) => m.HomeCanvas), {
-  ssr: false,
-  loading: () => null,
-})
+const HomeCanvas = dynamic(
+  () => import("./home-canvas").then((m) => m.HomeCanvas),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
 
 export function isWebGLAvailable(): boolean {
   if (typeof document === "undefined") return false
@@ -59,7 +62,7 @@ export function HomeScene() {
   if (mode === "scene") {
     return (
       <SceneErrorBoundary onError={() => setMode("fallback")}>
-        <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden">
+        <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]">
           <div className="absolute inset-0">
             <HomeCanvas />
           </div>
@@ -76,6 +79,6 @@ export function HomeScene() {
   // mount. Mirrors the scene container so there is no layout shift when the
   // canvas mounts (the greeting lives in-scene, above the MacBook).
   return (
-    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden" />
+    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]" />
   )
 }

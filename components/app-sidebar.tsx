@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 const NAV_ITEMS = [
@@ -28,14 +29,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
+        <div className="flex">
+          <SidebarTrigger className="hidden md:inline-flex" />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">Tony Wu</span>
-                <span className="text-xs text-sidebar-foreground/70">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                TW
+              </div>
+              <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate font-semibold">Tony Wu</span>
+                <span className="truncate text-xs text-sidebar-foreground/70">
                   Personal website
                 </span>
               </div>
