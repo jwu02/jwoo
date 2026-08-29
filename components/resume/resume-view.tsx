@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react"
 import { Download } from "lucide-react"
 
 import { getResumeData } from "@/lib/resume/locale-data"
+import { printResume } from "@/lib/resume/print-resume"
 import type { Locale } from "@/lib/resume/types"
 import { LanguageToggle } from "./language-toggle"
 import { ResumeA4Page } from "./resume-a4-page"
@@ -39,7 +40,7 @@ export function ResumeView() {
         <LanguageToggle locale={locale} onChange={handleChange} />
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={() => printResume()}
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
           <Download className="size-4" />
