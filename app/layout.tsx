@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
+import { Analytics } from "@vercel/analytics/next"
 import { Roboto_Mono } from "next/font/google"
 
 import "./globals.css"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
   SidebarProvider,
@@ -42,9 +42,8 @@ export default function RootLayout({
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>
-                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
                   <SidebarTrigger className="-ml-1" />
-                  <Separator orientation="vertical" className="mr-2 h-4" />
                 </header>
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 print:p-0">
                   {children}
@@ -53,6 +52,7 @@ export default function RootLayout({
             </SidebarProvider>
           </TooltipProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
