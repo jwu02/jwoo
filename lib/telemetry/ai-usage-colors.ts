@@ -9,6 +9,7 @@
 //
 //   - any `deepseek-*` model / `DeepSeek Harness`  -> --ai-deepseek  (blue)
 //   - any `kimi-*` model                           -> --ai-kimi      (purple)
+//   - any `glm-*` model                            -> --ai-glm       (yellow)
 //   - the `Claude Code` harness                    -> --claude-orange (orange)
 //   - the `OpenCode` harness                       -> --ai-opencode   (white)
 //
@@ -31,6 +32,7 @@ const FAMILY_KEYWORDS: { familyVar: string; matches: (n: string) => boolean }[] 
   [
     { familyVar: "--ai-deepseek", matches: (n) => n.includes("deepseek") },
     { familyVar: "--ai-kimi", matches: (n) => n.includes("kimi") },
+    { familyVar: "--ai-glm", matches: (n) => n.includes("glm") },
     { familyVar: "--claude-orange", matches: (n) => n.includes("claude") },
     {
       familyVar: "--ai-opencode",

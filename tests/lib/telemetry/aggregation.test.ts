@@ -635,6 +635,14 @@ describe("findProjectGroup", () => {
     ).toBe("work");
   });
 
+  it("maps assessment-management-system to its own group", () => {
+    expect(
+      findProjectGroup(
+        "/Users/jwu02/Developer/PersonalProjects/assessment-management-system"
+      )
+    ).toBe("assessment-management-system");
+  });
+
   it("maps the dashboard and its siblings to the personal-website group", () => {
     expect(
       findProjectGroup(

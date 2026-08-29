@@ -292,6 +292,7 @@ export const OTHERS_PROJECT = "others";
 // Anything matching no key aggregates into the OTHERS_PROJECT row.
 const PROJECT_GROUPS: Record<string, string> = {
   "training-management-system": "training-management-system",
+  "assessment-management-system": "assessment-management-system",
   "report-generator": "report-generator",
   kamkiu: "work",
   "personal-website": "personal-website",

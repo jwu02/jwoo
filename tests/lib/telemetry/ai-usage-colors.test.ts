@@ -17,6 +17,10 @@ describe("aiUsageColorVar", () => {
       expect(aiUsageColorVar("kimi-k2.7-code", 0)).toBe("var(--ai-kimi)");
     });
 
+    it("maps glm models to the yellow var", () => {
+      expect(aiUsageColorVar("glm-5.3-flash", 0)).toBe("var(--ai-glm)");
+    });
+
     it("maps the Claude Code harness to the orange var", () => {
       expect(aiUsageColorVar("Claude Code", 0)).toBe("var(--claude-orange)");
       expect(aiUsageColorVar("claude-code", 0)).toBe("var(--claude-orange)");
@@ -88,6 +92,13 @@ describe("aiUsageColorMap", () => {
     expect(a.get("deepseek-v4-pro")).toBe(b.get("deepseek-v4-pro"));
     // And the two models still differ within each map.
     expect(a.get("deepseek-v4-flash")).not.toBe(a.get("deepseek-v4-pro"));
+  });
+
+  it("gives glm siblings distinct yellow shades", () => {
+    const map = aiUsageColorMap(["glm-5.3-flash", "glm-5-air"]);
+    expect(map.size).toBe(2);
+    expect(new Set(map.values()).size).toBe(2);
+    expect([...map.values()].every((c) => c.includes("--ai-glm"))).toBe(true);
   });
 
   it("gives kimi siblings distinct purple shades", () => {
