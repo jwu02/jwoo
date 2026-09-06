@@ -58,7 +58,7 @@ function buildLanguages(locale: Locale): LanguageItem[] {
 }
 
 export const en: ResumeData = {
-  header: { name: "Tony Wu", profession: "Software Engineer" },
+  header: { name: "Tony Wu", profession: "AI Full-Stack Engineer" },
   titles: {
     education: "Education",
     foreignLanguages: "Languages",
@@ -79,7 +79,7 @@ export const en: ResumeData = {
   ],
   languages: buildLanguages("en"),
   technicalSkills: [
-    { group: "Programming Languages", data: ["Python", "Java", "JavaScript"] },
+    { group: "Languages", data: ["Python", "Java", "JavaScript"] },
     {
       group: "Frontend",
       data: ["React.js", "Next.js", "Tailwind CSS", "shadcn/ui", "PyQt6"],
@@ -122,9 +122,10 @@ export const en: ResumeData = {
       end: "Present",
       bullets: [
         "Built and deployed an automated OQC reporting system with PyQt, FastAPI, Celery/Redis, and Docker, reducing manual report processing by 95% and saving 6+ hours/day by automating data pipelines across multiple reporting workflows",
-        "Developed and deployed a full-stack training management platform using Next.js, FastAPI, and MinIO, containerized with Docker and hosted on Linux servers with Caddy reverse proxy for secure service routing.",
         "Built a real-time manufacturing performance dashboard with PyQt, to monitor live process metrics, improving visibility into production and enabling faster operational decisions",
         "Built a PyQt-based data analysis platform for process engineers, standardizing analytical workflows and reducing onboarding time for new engineers",
+        "Designed and deployed a shared Nginx reverse-proxy infrastructure for multiple Dockerized applications, using hostname-based routing and a shared Docker network to centralize HTTP/HTTPS ingress, TLS termination, and backend access while keeping application databases isolated",
+        "Developed and deployed a full-stack training management platform using Next.js, FastAPI, and MinIO, containerized with Docker and hosted on Linux servers with Caddy reverse proxy for secure service routing",
       ],
     },
   ],
@@ -158,7 +159,7 @@ export const en: ResumeData = {
 }
 
 export const zh: ResumeData = {
-  header: { name: "吴家聪", profession: "软件工程师" },
+  header: { name: "吴家聪", profession: "AI 全栈工程师" },
   titles: {
     education: "教育背景",
     foreignLanguages: "语言能力",
@@ -204,9 +205,10 @@ export const zh: ResumeData = {
       end: "至今",
       bullets: [
         "使用 PyQt、FastAPI、Celery/Redis 和 Docker 构建并部署自动化 OQC 报告系统，通过自动化多个报告工作流程的数据管道，将人工报告处理量减少 95%，每天节省 6 小时以上工时",
-        "使用 Next.js、FastAPI 和 MinIO 开发并部署全栈培训管理平台，采用 Docker 容器化部署，托管于 Linux 服务器，并通过 Caddy 反向代理实现安全的服务路由",
         "使用 PyQt 构建实时制造绩效监控仪表盘，实时监控生产过程指标，提升生产可视化能力，加快运营决策速度",
         "为工艺工程师构建基于 PyQt 的数据分析平台，规范分析工作流程，缩短新工程师的上手时间",
+        "设计并部署共享 Nginx 反向代理基础设施，为多个 Docker 化应用提供统一的 HTTP/HTTPS 入口，通过基于域名的流量路由和共享 Docker 网络集中实现 TLS 终止与后端服务访问，同时保持各应用数据库的网络隔离",
+        "使用 Next.js、FastAPI 和 MinIO 开发并部署全栈培训管理平台，采用 Docker 容器化部署，托管于 Linux 服务器，并通过 Caddy 反向代理实现安全的服务路由",
       ],
     },
   ],
