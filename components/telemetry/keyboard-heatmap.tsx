@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 
-import { keyIntensity, keycapColor } from "@/lib/telemetry/heatmap-colors"
 import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout"
 import { KeyCounts } from "@/lib/telemetry/types"
 import { computeTooltipPosition } from "@/lib/telemetry/tooltip-position"
@@ -18,11 +17,16 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value)
 }
 
-// A keycap count maps to a tint; the tooltip hugs the key's on-screen edge.
+// A keycap count drives a continuous heatmap overlay on top of the keyboard; the
+// tooltip hugs the key's on-screen edge. The overlay is toggleable above the
+// scene. The tooltip/a11y layer positions against the scene container (which
+// the toggle lives outside of), so adding it never shifts the tooltip.
 export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   // Single source of truth for hover — the 3D press, tooltip, and a11y buttons
   // all converge here, so the pointer and focus paths stay in lock-step.
   const [hovered, setHovered] = useState<string | null>(null)
+  // Default to showing the heatmap overlay; the toggle above the scene flips it.
+  const [showOverlay, setShowOverlay] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   // The canvas lives behind the dynamic import, so the wrapper reaches its
@@ -41,17 +45,6 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
     }
     return max
   }, [keyCountMap])
-
-  // Resting cap colour per physical id. Keys with no GLB node (Section) still
-  // get an entry — harmlessly ignored by the model, which only tints node keys.
-  const tints = useMemo(() => {
-    const out: Record<string, string> = {}
-    for (const key of PHYSICAL_KEYS) {
-      const count = keyCountMap.get(key.id) ?? 0
-      out[key.id] = keycapColor(keyIntensity(count, maxCount))
-    }
-    return out
-  }, [keyCountMap, maxCount])
 
   const hoveredKey = useMemo(
     () => PHYSICAL_KEYS.find((key) => key.id === hovered),
@@ -118,44 +111,70 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
   )
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      <KeyboardScene
-        tints={tints}
-        hovered={hovered}
-        onHover={setHovered}
-        canvasApiRef={canvasApiRef}
-      />
-
-      {hoveredKey && (
-        <div
-          ref={tooltipRef}
-          className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
+    <div className="w-full">
+      <div className="mb-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showOverlay}
+          aria-label="Show keyboard heatmap"
+          onClick={() => setShowOverlay((value) => !value)}
+          className={`relative flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            showOverlay ? "bg-primary" : "bg-muted"
+          }`}
         >
-          {hoveredKey.id === "Touch ID" ? (
-            <div className="font-medium">Touch ID untracked</div>
-          ) : (
-            <>
-              <div className="font-medium">
-                {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
-              </div>
-              {hoveredBreakdown.length > 1 && (
-                <div className="mt-1 text-[10px] text-muted-foreground">
-                  {hoveredBreakdown.map(({ label, count }) => (
-                    <div key={label} className="flex justify-between gap-3">
-                      <span>{label}</span>
-                      <span className="tabular-nums">{formatNumber(count)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-background shadow transition-transform ${
+              showOverlay ? "translate-x-[18px]" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+        <span className="text-sm text-muted-foreground">Heatmap</span>
+      </div>
 
-      {/* Visually hidden but focusable — Tab reaches each key and drives the 3D
-          press + tooltip via the same hover pipeline. */}
-      <div className="sr-only">{a11yButtons}</div>
+      <div ref={containerRef} className="relative w-full">
+        <KeyboardScene
+          counts={keyCountMap}
+          maxCount={maxCount}
+          showOverlay={showOverlay}
+          hovered={hovered}
+          onHover={setHovered}
+          canvasApiRef={canvasApiRef}
+        />
+
+        {hoveredKey && (
+          <div
+            ref={tooltipRef}
+            className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
+          >
+            {hoveredKey.id === "Touch ID" ? (
+              <div className="font-medium">Touch ID untracked</div>
+            ) : (
+              <>
+                <div className="font-medium">
+                  {formatNumber(keyCountMap.get(hoveredKey.id) ?? 0)} presses
+                </div>
+                {hoveredBreakdown.length > 1 && (
+                  <div className="mt-1 text-[10px] text-muted-foreground">
+                    {hoveredBreakdown.map(({ label, count }) => (
+                      <div key={label} className="flex justify-between gap-3">
+                        <span>{label}</span>
+                        <span className="tabular-nums">
+                          {formatNumber(count)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Visually hidden but focusable — Tab reaches each key and drives the 3D
+            press + tooltip via the same hover pipeline. */}
+        <div className="sr-only">{a11yButtons}</div>
+      </div>
     </div>
   )
 }

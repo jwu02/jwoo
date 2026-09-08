@@ -63,11 +63,13 @@ function clamp01(value: number): number {
 }
 
 /**
- * The keycap colour for a given intensity (0..1), reproducing the old SVG ramp
- * exactly: lightness 0.25..0.64, chroma 0..0.16, a constant warm hue of 45°.
+ * The overlay colour for a given intensity (0..1). A warm hue of 45° from the
+ * original SVG ramp, pushed hotter for the continuous overlay: lightness
+ * 0.25..0.67 and chroma 0..0.24, so the top of the ramp reads as a vivid
+ * orange instead of the muted legacy #d8662a.
  */
 export function keycapColor(intensity: number): string {
-  const l = 0.25 + intensity * 0.39
-  const c = intensity * 0.16
+  const l = 0.25 + intensity * 0.42
+  const c = intensity * 0.24
   return oklchToSrgbHex(l, c, 45)
 }

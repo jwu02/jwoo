@@ -10,14 +10,18 @@ import { Suspense } from "react"
 import { KeyboardModel, type KeyboardCanvasApi } from "./keyboard-model"
 
 interface KeyboardCanvasProps {
-  tints: Record<string, string>
+  counts: Map<string, number>
+  maxCount: number
+  showOverlay: boolean
   hovered: string | null
   onHover: (id: string | null) => void
   canvasApiRef: React.MutableRefObject<KeyboardCanvasApi | null>
 }
 
 export function KeyboardCanvas({
-  tints,
+  counts,
+  maxCount,
+  showOverlay,
   hovered,
   onHover,
   canvasApiRef,
@@ -42,7 +46,9 @@ export function KeyboardCanvas({
       <directionalLight position={[0.15, 1, 0.1]} intensity={1.4} />
       <Suspense fallback={null}>
         <KeyboardModel
-          tints={tints}
+          counts={counts}
+          maxCount={maxCount}
+          showOverlay={showOverlay}
           hovered={hovered}
           onHover={onHover}
           canvasApiRef={canvasApiRef}

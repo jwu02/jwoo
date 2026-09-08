@@ -47,7 +47,9 @@ class SceneErrorBoundary extends Component<
 type SceneMode = "loading" | "scene" | "fallback"
 
 interface KeyboardSceneProps {
-  tints: Record<string, string>
+  counts: Map<string, number>
+  maxCount: number
+  showOverlay: boolean
   hovered: string | null
   onHover: (id: string | null) => void
   canvasApiRef: React.MutableRefObject<KeyboardCanvasApi | null>

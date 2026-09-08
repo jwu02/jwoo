@@ -79,6 +79,23 @@ describe("KeyboardHeatmap", () => {
     expect(screen.getByText("Touch ID untracked")).toBeInTheDocument()
   })
 
+  it("renders the heatmap toggle on by default", () => {
+    render(<KeyboardHeatmap keys={{}} />)
+    expect(screen.getByRole("switch", { name: "Show keyboard heatmap" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    )
+  })
+
+  it("toggles the heatmap overlay off and back on", () => {
+    render(<KeyboardHeatmap keys={{}} />)
+    const toggle = screen.getByRole("switch", { name: "Show keyboard heatmap" })
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-checked", "false")
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-checked", "true")
+  })
+
   it("falls back to a degenerate anchor for keys with no GLB node (Section)", () => {
     // Section (§/±) has no node in the model — getAnchor is unavailable/unset in
     // jsdom, so the tooltip must still render at the container's top centre. The

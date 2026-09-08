@@ -39,10 +39,10 @@ describe("oklchToSrgbHex", () => {
 });
 
 describe("keycapColor", () => {
-  it("reproduces the full ramp at the three pinned intensities", () => {
+  it("reproduces the intensified ramp at the three pinned intensities", () => {
     expect(keycapColor(0)).toBe("#222222");
-    expect(keycapColor(0.5)).toBe("#78442d");
-    expect(keycapColor(1)).toBe("#d8662a");
+    expect(keycapColor(0.5)).toBe("#8c3d12");
+    expect(keycapColor(1)).toBe("#ff4c00");
   });
 
   // Perceived lightness of a hex colour (Rec.601 luma over sRGB).

@@ -2,10 +2,18 @@
 
 import { useCursor, useGLTF } from "@react-three/drei"
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 
 import { resolveTopLevelNode } from "@/components/home/scene-hit"
+import { keyIntensity, keycapColor } from "@/lib/telemetry/heatmap-colors"
+import {
+  heatAlpha,
+  hexRgba,
+  mapNodeToUv,
+  uvToCanvas,
+  type Footprint,
+} from "@/lib/telemetry/key-heatmap-layer"
 import {
   KEYBOARD_DRACO_PATH,
   KEYBOARD_MODEL_URL,
@@ -31,6 +39,21 @@ const HOVER_EMISSIVE = 0.35
 /** Warm glow colour for the hovered keycap (the ramp's hot orange). */
 const HOVER_EMISSIVE_HEX = "#ff8a50"
 
+/** Texture width (px) for the heatmap overlay; height scales with footprint. */
+const OVERLAY_CANVAS_WIDTH = 1024
+
+/** Approximate key-column pitch in texture px, used for blob radius + blur. */
+const OVERLAY_KEY_COLUMNS = 14
+
+/** Blob radius as a fraction of one key column → overlap fills inter-key gaps. */
+const OVERLAY_RADIUS_SCALE = 0.9
+
+/** Blur radius as a fraction of one key column → continuous spectrum, no dots. */
+const OVERLAY_BLUR_SCALE = 0.4
+
+/** Overlay plane lifts off the caps by a small fraction of the model height. */
+const OVERLAY_LIFT_SCALE = 0.05
+
 export interface KeyboardCanvasApi {
   /** Project a key's 3D node into a tooltip anchor (container-content px). */
   getAnchor(physicalId: string): TooltipAnchor | null
@@ -43,9 +66,22 @@ interface KeyDef {
   material: THREE.MeshStandardMaterial
 }
 
+interface OverlayInfo {
+  texture: THREE.CanvasTexture
+  x: number
+  y: number
+  z: number
+  width: number
+  depth: number
+}
+
 interface KeyboardModelProps {
-  /** physical id → cap colour (sRGB hex), recomputed on each poll. */
-  tints: Record<string, string>
+  /** physical id → press count, recomputed on each poll. */
+  counts: Map<string, number>
+  /** Highest count across all keys, floored at 1 (see keyboard-heatmap). */
+  maxCount: number
+  /** Whether the continuous heatmap overlay is shown above the caps. */
+  showOverlay: boolean
   /** The currently hovered physical id, or null. */
   hovered: string | null
   /** Called with the hovered physical id (or null) on pointer/focus changes. */
@@ -64,7 +100,9 @@ function findFirstMesh(object: THREE.Object3D): THREE.Mesh | null {
 }
 
 export function KeyboardModel({
-  tints,
+  counts,
+  maxCount,
+  showOverlay,
   hovered,
   onHover,
   canvasApiRef,
@@ -74,8 +112,9 @@ export function KeyboardModel({
   const size = useThree((state) => state.size)
 
   // Resolve each physical id's GLB node once, snapshot its rest height, and
-  // clone the shared cap material so tinting one keycap never affects the
-  // chassis (whose second primitive reuses the same cap material).
+  // clone the shared cap material so the hover glow on one keycap never affects
+  // the chassis (whose second primitive reuses the same cap material). The caps
+  // keep their natural GLB colour — the heatmap is a separate overlay layer.
   const registry = useMemo(() => {
     const byId = new Map<string, KeyDef>()
     for (const id of Object.keys(PHYSICAL_KEY_NODE)) {
@@ -115,14 +154,6 @@ export function KeyboardModel({
     }
   }, [hovered])
 
-  // Apply the resting heatmap tint to every keycap's cloned material.
-  useEffect(() => {
-    for (const [id, def] of registry) {
-      const hex = tints[id]
-      if (hex) def.material.color.set(hex)
-    }
-  }, [tints, registry])
-
   // Frame the top-down camera to fit the whole keyboard, and re-fit on resize.
   const boundsRef = useRef<Bounds3 | null>(null)
   const applyFrame = useCallback(() => {
@@ -151,6 +182,95 @@ export function KeyboardModel({
   useEffect(() => {
     applyFrame()
   }, [size, applyFrame])
+
+  // Build the continuous heatmap overlay texture whenever the counts change:
+  // a radial-gradient blob per hot key, at the key's footprint UV, smeared by a
+  // smoothing blur into one continuous colour spectrum. Cold keys (count 0) are
+  // skipped so the natural cap shows through the transparent background.
+  const [overlay, setOverlay] = useState<OverlayInfo | null>(null)
+  useEffect(() => {
+    if (!showOverlay) return
+    scene.updateMatrixWorld(true)
+    const box = new THREE.Box3().setFromObject(scene)
+    if (box.isEmpty()) return
+
+    const footprint: Footprint = {
+      minX: box.min.x,
+      maxX: box.max.x,
+      minZ: box.min.z,
+      maxZ: box.max.z,
+    }
+    const width = footprint.maxX - footprint.minX
+    const depth = footprint.maxZ - footprint.minZ
+
+    const canvasWidth = OVERLAY_CANVAS_WIDTH
+    const canvasHeight = Math.max(
+      1,
+      Math.round(canvasWidth * (depth / width)),
+    )
+    const canvas = document.createElement("canvas")
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const keyPitch = canvasWidth / OVERLAY_KEY_COLUMNS
+    const radius = keyPitch * OVERLAY_RADIUS_SCALE
+    // Blur the whole layer so neighbouring keys meld into a continuous field.
+    ctx.filter = `blur(${Math.round(keyPitch * OVERLAY_BLUR_SCALE)}px)`
+
+    const nodePos = new THREE.Vector3()
+    for (const [id, def] of registry) {
+      const count = counts.get(id) ?? 0
+      if (count <= 0) continue
+      const intensity = keyIntensity(count, maxCount)
+      def.node.getWorldPosition(nodePos)
+      const { u, v } = mapNodeToUv(nodePos.x, nodePos.z, footprint)
+      const { x, y } = uvToCanvas(u, v, canvasWidth, canvasHeight)
+      const color = keycapColor(intensity)
+      const alpha = heatAlpha(intensity)
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, radius)
+      grad.addColorStop(0, hexRgba(color, alpha))
+      grad.addColorStop(1, hexRgba(color, 0))
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(x, y, radius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.wrapS = THREE.ClampToEdgeWrapping
+    texture.wrapT = THREE.ClampToEdgeWrapping
+    // Pin flipY so uvToCanvas's inverted vertical mapping is enforced, not
+    // implicit — a silent flipY change would mirror the overlay top-to-bottom.
+    texture.flipY = true
+
+    const modelHeight = box.max.y - box.min.y
+    const overlayY = box.max.y + modelHeight * OVERLAY_LIFT_SCALE
+    // This effect derives a canvas texture from the loaded GLB scene — an
+    // external system — and reflects it in state via the texture swap below.
+    // There is no reactive (non-effect) way to rasterize after the scene loads,
+    // so a one-shot setState is intentional; the rule is a false positive here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOverlay((prev) => {
+      prev?.texture.dispose()
+      return {
+        texture,
+        x: (box.min.x + box.max.x) / 2,
+        y: overlayY,
+        z: (box.min.z + box.max.z) / 2,
+        width,
+        depth,
+      }
+    })
+    return () => {
+      setOverlay((prev) => {
+        prev?.texture.dispose()
+        return null
+      })
+    }
+  }, [scene, registry, counts, maxCount, showOverlay])
 
   // Expose the tooltip anchor projection via the api ref the wrapper owns.
   useEffect(() => {
@@ -220,6 +340,22 @@ export function KeyboardModel({
       onPointerDown={handlePointerDown}
     >
       <primitive object={scene} />
+      {showOverlay && overlay && (
+        <mesh
+          position={[overlay.x, overlay.y, overlay.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          // Transparent overlay must never intercept hover — let events fall
+          // through to the keycaps below so the press + tooltip still work.
+          raycast={() => null}
+        >
+          <planeGeometry args={[overlay.width, overlay.depth]} />
+          <meshBasicMaterial
+            map={overlay.texture}
+            transparent
+            depthWrite={false}
+          />
+        </mesh>
+      )}
     </group>
   )
 }
