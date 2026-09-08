@@ -304,9 +304,9 @@ const R5_ROW: PhysicalKeyDef[] = [
 
 // Arrow keys — stacked to the right of the bottom-row modifiers.  Left and
 // right arrows are half-height like the up/down pair, sitting on the same row
-// as the down arrow (2px hairline gap above the stack top).  Each keycap is
-// labelled with a lucide chevron icon (ChevronUp/Down/Left/Right, see KEY_ICONS
-// in keyboard-heatmap.tsx) rather than a display label.
+// as the down arrow (2px hairline gap above the stack top).  Their printed
+// chevron glyphs live in the 3D model (keyboard.glb legends), so the ids carry
+// no rendered label here — they are counted and announced, not drawn.
 const ARROW_Y = R5_Y;
 const ARROW_HALF = Math.floor((KH - 2) / 2);
 

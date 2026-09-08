@@ -1,0 +1,225 @@
+"use client"
+
+import { useCursor, useGLTF } from "@react-three/drei"
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
+import { useCallback, useEffect, useMemo, useRef } from "react"
+import * as THREE from "three"
+
+import { resolveTopLevelNode } from "@/components/home/scene-hit"
+import {
+  KEYBOARD_DRACO_PATH,
+  KEYBOARD_MODEL_URL,
+  PHYSICAL_KEY_NODE,
+  glbNodeName,
+  physicalIdForNode,
+} from "@/lib/telemetry/key-node-map"
+import type { TooltipAnchor } from "@/lib/telemetry/tooltip-position"
+
+import { fitTopDown, type Bounds3 } from "./keyboard-camera"
+import { projectKeyAnchor } from "./keyboard-projection"
+import {
+  KEY_PRESS_DEPTH_M,
+  createSpring,
+  springIsSettled,
+  stepSpring,
+  type SpringState,
+} from "./keyboard-spring"
+
+/** Hover read-from-above: emissive lift added to the pressed keycap. Tunable in dev. */
+const HOVER_EMISSIVE = 0.35
+
+/** Warm glow colour for the hovered keycap (the ramp's hot orange). */
+const HOVER_EMISSIVE_HEX = "#ff8a50"
+
+export interface KeyboardCanvasApi {
+  /** Project a key's 3D node into a tooltip anchor (container-content px). */
+  getAnchor(physicalId: string): TooltipAnchor | null
+}
+
+interface KeyDef {
+  node: THREE.Object3D
+  cap: THREE.Mesh
+  restY: number
+  material: THREE.MeshStandardMaterial
+}
+
+interface KeyboardModelProps {
+  /** physical id → cap colour (sRGB hex), recomputed on each poll. */
+  tints: Record<string, string>
+  /** The currently hovered physical id, or null. */
+  hovered: string | null
+  /** Called with the hovered physical id (or null) on pointer/focus changes. */
+  onHover: (id: string | null) => void
+  canvasApiRef: React.MutableRefObject<KeyboardCanvasApi | null>
+}
+
+/** Depth-first search for the first actual Mesh in a subtree (the keycap). */
+function findFirstMesh(object: THREE.Object3D): THREE.Mesh | null {
+  if ((object as THREE.Mesh).isMesh) return object as THREE.Mesh
+  for (const child of object.children) {
+    const mesh = findFirstMesh(child)
+    if (mesh) return mesh
+  }
+  return null
+}
+
+export function KeyboardModel({
+  tints,
+  hovered,
+  onHover,
+  canvasApiRef,
+}: KeyboardModelProps) {
+  const { scene } = useGLTF(KEYBOARD_MODEL_URL, KEYBOARD_DRACO_PATH)
+  const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
+  const size = useThree((state) => state.size)
+
+  // Resolve each physical id's GLB node once, snapshot its rest height, and
+  // clone the shared cap material so tinting one keycap never affects the
+  // chassis (whose second primitive reuses the same cap material).
+  const registry = useMemo(() => {
+    const byId = new Map<string, KeyDef>()
+    for (const id of Object.keys(PHYSICAL_KEY_NODE)) {
+      const nodeName = glbNodeName(id)
+      if (!nodeName) continue
+      const node = scene.getObjectByName(nodeName)
+      if (!node) continue
+      const cap = findFirstMesh(node)
+      if (!cap) continue
+      const source = cap.material as THREE.MeshStandardMaterial
+      const material = source.clone() as THREE.MeshStandardMaterial
+      material.emissive = new THREE.Color(HOVER_EMISSIVE_HEX)
+      material.emissiveIntensity = 0
+      cap.material = material
+      byId.set(id, { node, cap, restY: node.position.y, material })
+    }
+    return byId
+  }, [scene])
+
+  // Spring state per key (persistent, so a re-hover resumes from the current
+  // value instead of snapping to the target).
+  const springsRef = useRef(new Map<string, SpringState>())
+  const activeRef = useRef(new Set<string>())
+  const hoveredRef = useRef<string | null>(hovered)
+  const prevHoveredRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    hoveredRef.current = hovered
+    // Wake the spring for the newly-backed-off key (target 0) and the newly
+    // pressed key (target 1) so both animate; the animator settles and drops
+    // each once it reaches its target.
+    const prev = prevHoveredRef.current
+    if (prev !== hovered) {
+      if (prev) activeRef.current.add(prev)
+      if (hovered) activeRef.current.add(hovered)
+      prevHoveredRef.current = hovered
+    }
+  }, [hovered])
+
+  // Apply the resting heatmap tint to every keycap's cloned material.
+  useEffect(() => {
+    for (const [id, def] of registry) {
+      const hex = tints[id]
+      if (hex) def.material.color.set(hex)
+    }
+  }, [tints, registry])
+
+  // Frame the top-down camera to fit the whole keyboard, and re-fit on resize.
+  const boundsRef = useRef<Bounds3 | null>(null)
+  const applyFrame = useCallback(() => {
+    const bounds = boundsRef.current
+    if (!bounds) return
+    const aspect = size.width / Math.max(size.height, 1)
+    const frame = fitTopDown({ bounds, fovDeg: camera.fov, aspect })
+    // The default up (+Y) is parallel to this top-down view, which degenerates
+    // lookAt — so set world −Z as screen-up BEFORE the first lookAt.
+    camera.up.set(frame.up.x, frame.up.y, frame.up.z)
+    camera.position.set(
+      frame.cameraPos.x,
+      frame.cameraPos.y,
+      frame.cameraPos.z,
+    )
+    camera.lookAt(frame.target.x, frame.target.y, frame.target.z)
+  }, [camera, size])
+
+  useEffect(() => {
+    const box = new THREE.Box3().setFromObject(scene)
+    if (box.isEmpty()) return
+    boundsRef.current = { min: box.min.clone(), max: box.max.clone() }
+    applyFrame()
+  }, [scene, applyFrame])
+
+  useEffect(() => {
+    applyFrame()
+  }, [size, applyFrame])
+
+  // Expose the tooltip anchor projection via the api ref the wrapper owns.
+  useEffect(() => {
+    canvasApiRef.current = {
+      getAnchor: (physicalId: string): TooltipAnchor | null => {
+        const nodeName = glbNodeName(physicalId)
+        if (!nodeName) return null
+        const node = scene.getObjectByName(nodeName)
+        if (!node) return null
+        return projectKeyAnchor(node, camera, size)
+      },
+    }
+    return () => {
+      canvasApiRef.current = null
+    }
+  }, [scene, camera, size, canvasApiRef])
+
+  useCursor(hovered != null)
+
+  const handlePointerMove = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      const name = resolveTopLevelNode(event.object, scene)
+      onHover(name ? physicalIdForNode(name) : null)
+    },
+    [scene, onHover],
+  )
+  const handlePointerOut = useCallback(() => onHover(null), [onHover])
+  // iOS taps don't reliably fire pointermove — treat a pointerdown as a tap.
+  const handlePointerDown = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      const name = resolveTopLevelNode(event.object, scene)
+      onHover(name ? physicalIdForNode(name) : null)
+    },
+    [scene, onHover],
+  )
+
+  // Advance the active springs and write the press depth + emissive onto the
+  // keycap nodes. No React state per frame.
+  useFrame((_state, delta) => {
+    const dt = Math.min(delta, 1 / 30)
+    const current = hoveredRef.current
+    for (const id of activeRef.current) {
+      const def = registry.get(id)
+      if (!def) continue
+      const target = current === id ? 1 : 0
+      const spring =
+        springsRef.current.get(id) ?? createSpring(0)
+      const next = stepSpring(spring, target, dt)
+      springsRef.current.set(id, next)
+      def.node.position.y = def.restY - KEY_PRESS_DEPTH_M * next.value
+      def.material.emissiveIntensity = next.value * HOVER_EMISSIVE
+      if (springIsSettled(next)) {
+        activeRef.current.delete(id)
+        // Snap exactly to rest/pressed on settle to avoid sub-pixel drift.
+        if (target === 0) def.node.position.y = def.restY
+        else def.node.position.y = def.restY - KEY_PRESS_DEPTH_M
+      }
+    }
+  })
+
+  return (
+    <group
+      onPointerMove={handlePointerMove}
+      onPointerOut={handlePointerOut}
+      onPointerDown={handlePointerDown}
+    >
+      <primitive object={scene} />
+    </group>
+  )
+}
