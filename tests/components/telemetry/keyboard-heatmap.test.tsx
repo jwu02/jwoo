@@ -41,7 +41,7 @@ describe("KeyboardHeatmap", () => {
   })
 
   it("aggregates multiple telemetry labels onto the same physical key", () => {
-    // "2" key = labels ["2", "@", "€"]; @ is shift+2, € is option+2.
+    // "2" key = labels ["2", "@"]; @ is shift+2, € (option+2) is not tracked.
     render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} />)
     expect(screen.getByRole("button", { name: "2: 8 presses" })).toBeInTheDocument()
   })
@@ -59,7 +59,8 @@ describe("KeyboardHeatmap", () => {
     // Single-character labels are always listed, sorted by count desc.
     expect(screen.getByText("@")).toBeInTheDocument()
     expect(screen.getByText("2")).toBeInTheDocument()
-    expect(screen.getByText("€")).toBeInTheDocument()
+    // The € option character is intentionally not tracked, so it stays hidden.
+    expect(screen.queryByText("€")).not.toBeInTheDocument()
     // Counts rendered as tabular-nums.
     expect(screen.getByText("3")).toBeInTheDocument()
   })

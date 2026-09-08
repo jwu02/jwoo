@@ -208,9 +208,10 @@ describe("buildKeyCountMap", () => {
     // the same letter.  The key layout maps the uppercase letter directly.
     const keys: KeyCounts = { E: 10, "€": 3 };
     const result = buildKeyCountMap(keys);
-    // E key: labels = ["E"]; "€" maps to key "2" on UK Mac
+    // E key: labels = ["E"]. "€" (option+2) is intentionally not tracked as a
+    // currency symbol, so it never lands on the "2" key.
     expect(result.get("E")).toBe(10);
-    expect(result.get("2")).toBe(3);
+    expect(result.has("2")).toBe(false);
   });
 
   it("maps Forward Delete onto the Delete key (Fn+Delete)", () => {
@@ -254,7 +255,7 @@ describe("buildKeyCountMap", () => {
     // UK Mac base with @/" swapped to US-style: shift+2 = @, shift+' = "
     const keys: KeyCounts = {
       "3": 10,
-      "£": 5,
+      "£": 5, // shift+3 — intentionally not tracked (currency symbol)
       "#": 2, // option+3 on UK Mac
       "'": 8,
       '"': 4, // shift+' → " on the Quote key
@@ -263,7 +264,8 @@ describe("buildKeyCountMap", () => {
       "@": 6, // shift+2 → @ on the "2" key
     };
     const result = buildKeyCountMap(keys);
-    expect(result.get("3")).toBe(17);
+    // "3" key = "3" + "#"; the "£" press is dropped from the count.
+    expect(result.get("3")).toBe(12);
     expect(result.get("Quote")).toBe(12);
     expect(result.get("Semicolon")).toBe(15);
     expect(result.get("2")).toBe(6);
@@ -308,9 +310,10 @@ describe("label coverage", () => {
     "Keypad Enter","Keypad =","Keypad Clear","Numpad Enter",
   ];
 
-  // Labels the Python client can emit only for keys that exist on external
-  // keyboards / macOS keycodes (F13-F20, media, numpad). These are not
-  // rendered on the M3 Air layout and are intentionally dropped.
+  // Labels the Python client can emit but that are intentionally dropped:
+  // external-keyboard / macOS keycodes (F13-F20, media, numpad) not rendered on
+  // the M3 Air layout, plus the £/€ currency symbols that are deliberately not
+  // tracked as heatmap characters.
   const INTENTIONALLY_UNMAPPED = [
     "F13","F14","F15","F16","F17","F18","F19","F20",
     "Volume Up","Volume Down","Mute",
@@ -318,6 +321,7 @@ describe("label coverage", () => {
     "Keypad 5","Keypad 6","Keypad 7","Keypad 8","Keypad 9",
     "Keypad .","Keypad *","Keypad +","Keypad -","Keypad /",
     "Keypad Enter","Keypad =","Keypad Clear",
+    "£","€",
   ];
 
   it("maps every expected label to a physical key", () => {

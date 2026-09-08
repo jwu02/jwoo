@@ -33,8 +33,8 @@ export interface PhysicalKeyDef {
 //
 // Multiple labels → single physical key examples:
 //   "1" key  → "1", "!"        (base + shift)
-//   "3" key  → "3", "£", "#"   (base + shift + option)
-//   "2" key  → "2", "@", "€"   (base + shift + option; @/" swapped to US-style)
+//   "3" key  → "3", "#"        (base + option; "£" shift char not tracked)
+//   "2" key  → "2", "@"        (base + shift; "€" option char not tracked; @/" swapped to US-style)
 //   ";" key  → ";", ":"        (base + shift)
 //   "'" key  → "'", '"'        (base + shift; @/" swapped to US-style)
 //   Delete   → "Delete", "Forward Delete"  (Fn+Delete)
@@ -129,10 +129,12 @@ const R1_ROW: PhysicalKeyDef[] = [
     labels: ["Section", "Grave", "§", "±"] },
   { id: "1", displayLabel: "1", shiftLabel: "!", x: kx(1), y: R1_Y, width: K, height: KH,
     labels: symbols("1", "!") },
+  // Currency symbols (€ option+2, £ shift+3) are drawn on the keycap via
+  // optionLabel/shiftLabel but deliberately NOT tracked as heatmap characters.
   { id: "2", displayLabel: "2", shiftLabel: "@", optionLabel: "€", x: kx(2), y: R1_Y, width: K, height: KH,
-    labels: symbols("2", "@", "€") },
+    labels: symbols("2", "@") },
   { id: "3", displayLabel: "3", shiftLabel: "£", optionLabel: "#", x: kx(3), y: R1_Y, width: K, height: KH,
-    labels: symbols("3", "£", "#") },
+    labels: symbols("3", "#") },
   { id: "4", displayLabel: "4", shiftLabel: "$", x: kx(4), y: R1_Y, width: K, height: KH,
     labels: symbols("4", "$") },
   { id: "5", displayLabel: "5", shiftLabel: "%", x: kx(5), y: R1_Y, width: K, height: KH,
