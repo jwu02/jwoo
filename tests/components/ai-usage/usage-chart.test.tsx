@@ -3,6 +3,7 @@ import { cloneElement } from "react";
 import {
   UsageChart,
   formatCostAxisLabel,
+  formatMillionsAxisLabel,
   buildModelChartData,
 } from "@/components/ai-usage/usage-chart";
 import { AiUsageModelTimeSeries } from "@/lib/telemetry/types";
@@ -173,6 +174,15 @@ describe("formatCostAxisLabel", () => {
   });
 });
 
+describe("formatMillionsAxisLabel", () => {
+  it("shows the value in millions with no M suffix", () => {
+    expect(formatMillionsAxisLabel(1_250_000)).toBe("1.25");
+    expect(formatMillionsAxisLabel(500_000)).toBe("0.5");
+    expect(formatMillionsAxisLabel(1_000_000)).toBe("1");
+    expect(formatMillionsAxisLabel(0)).toBe("0");
+  });
+});
+
 describe("buildModelChartData", () => {
   it("builds wide rows with per-model token and cost keys", () => {
     const { rows, series } = buildModelChartData(buildModelData());
@@ -276,7 +286,7 @@ describe("UsageChart", () => {
     }
   });
 
-  it("shortens y-axis labels to M/K", () => {
+  it("labels the tokens chart in millions and keeps ticks unit-free", () => {
     const { container } = render(
       <UsageChart data={buildModelData()} range="24h" />
     );
@@ -285,12 +295,14 @@ describe("UsageChart", () => {
       container.querySelectorAll(".recharts-cartesian-axis-tick-value")
     ).map((el) => el.textContent);
 
-    // The tokens y-axis shows a value in the millions (e.g. "1.3M"), and no
-    // axis renders a full 4+ digit number — the compact formatter is wired up.
-    expect(
-      tickLabels.some((label) => /\d+(\.\d+)?[MK]$/.test(label ?? ""))
-    ).toBe(true);
+    // The unit now lives in the tokens heading, so no tick carries an M/K
+    // suffix, and no axis renders a full 4+ digit number.
+    expect(tickLabels.some((label) => /[MK]$/.test(label ?? ""))).toBe(false);
     expect(tickLabels.some((label) => /000$/.test(label ?? ""))).toBe(false);
+
+    // The "(M)" unit sits next to the "Tokens" heading (above the chart),
+    // mirroring the "Cost (¥)" heading.
+    expect(container.textContent).toContain("Tokens (M)");
   });
 
   it("prefixes per-model cost values with the yuan sign in the tooltip", async () => {

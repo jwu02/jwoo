@@ -61,6 +61,14 @@ export function formatCostAxisLabel(value: number): string {
   return Number(value.toFixed(decimals)).toString();
 }
 
+// Tokens y-axis labels: the unit lives in the axis label ("(M)"), not on every
+// tick, so ticks are the value in millions with no M suffix. Recharts picks
+// "nice" ticks (0, 0.25M, 0.5M, …); two decimals keeps those exact while the
+// trim drops trailing zeros (0.5M → "0.5", 1M → "1").
+export function formatMillionsAxisLabel(value: number): string {
+  return Number((value / 1_000_000).toFixed(2)).toString();
+}
+
 // Flattens per-model time series into chart rows that Recharts can draw
 // stacked bars from. Each row carries one `tokens:<model>` and one
 // `cost:<model>` value, so both charts can share the same bucket list while
@@ -370,13 +378,14 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
         </div>
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            Tokens
+            Tokens (M)
           </h3>
           <MiniStackedBarChart
             data={rows}
             range={range}
             series={tokenSeries}
             hidden={hidden}
+            yTickFormatter={formatMillionsAxisLabel}
           />
         </div>
         {costSeries.length > 0 && (
