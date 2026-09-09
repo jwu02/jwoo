@@ -33,12 +33,6 @@ import {
   type SpringState,
 } from "./keyboard-spring"
 
-/** Hover read-from-above: emissive lift added to the pressed keycap. Tunable in dev. */
-const HOVER_EMISSIVE = 0.35
-
-/** Warm glow colour for the hovered keycap (the ramp's hot orange). */
-const HOVER_EMISSIVE_HEX = "#ff8a50"
-
 /** Texture width (px) for the heatmap overlay; height scales with footprint. */
 const OVERLAY_CANVAS_WIDTH = 1024
 
@@ -63,7 +57,6 @@ interface KeyDef {
   node: THREE.Object3D
   cap: THREE.Mesh
   restY: number
-  material: THREE.MeshStandardMaterial
 }
 
 interface OverlayInfo {
@@ -111,10 +104,10 @@ export function KeyboardModel({
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
   const size = useThree((state) => state.size)
 
-  // Resolve each physical id's GLB node once, snapshot its rest height, and
-  // clone the shared cap material so the hover glow on one keycap never affects
-  // the chassis (whose second primitive reuses the same cap material). The caps
-  // keep their natural GLB colour — the heatmap is a separate overlay layer.
+  // Resolve each physical id's GLB node once and snapshot its rest height. The
+  // caps keep their natural GLB colour — the heatmap is a separate overlay layer,
+  // and hover only presses the cap down (no material mutation), so the chassis'
+  // shared cap-material primitive is never disturbed.
   const registry = useMemo(() => {
     const byId = new Map<string, KeyDef>()
     for (const id of Object.keys(PHYSICAL_KEY_NODE)) {
@@ -124,12 +117,7 @@ export function KeyboardModel({
       if (!node) continue
       const cap = findFirstMesh(node)
       if (!cap) continue
-      const source = cap.material as THREE.MeshStandardMaterial
-      const material = source.clone() as THREE.MeshStandardMaterial
-      material.emissive = new THREE.Color(HOVER_EMISSIVE_HEX)
-      material.emissiveIntensity = 0
-      cap.material = material
-      byId.set(id, { node, cap, restY: node.position.y, material })
+      byId.set(id, { node, cap, restY: node.position.y })
     }
     return byId
   }, [scene])
@@ -309,8 +297,8 @@ export function KeyboardModel({
     [scene, onHover],
   )
 
-  // Advance the active springs and write the press depth + emissive onto the
-  // keycap nodes. No React state per frame.
+  // Advance the active springs and write the press depth onto the keycap nodes.
+  // No React state per frame.
   useFrame((_state, delta) => {
     const dt = Math.min(delta, 1 / 30)
     const current = hoveredRef.current
@@ -323,7 +311,6 @@ export function KeyboardModel({
       const next = stepSpring(spring, target, dt)
       springsRef.current.set(id, next)
       def.node.position.y = def.restY - KEY_PRESS_DEPTH_M * next.value
-      def.material.emissiveIntensity = next.value * HOVER_EMISSIVE
       if (springIsSettled(next)) {
         activeRef.current.delete(id)
         // Snap exactly to rest/pressed on settle to avoid sub-pixel drift.
