@@ -6,7 +6,7 @@ export function Interests({ data }: { data: ResumeData }) {
   return (
     <div>
       <SectionTitle title={data.titles.interests} />
-      <div>
+      <div className="flex flex-wrap gap-0.5">
         {data.interests.map((interest, index) => (
           <Badge key={index} variant="outline">
             {interest}

@@ -7,7 +7,7 @@ export function Languages({ data }: { data: ResumeData }) {
   return (
     <div>
       <SectionTitle title={data.titles.foreignLanguages} />
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {data.languages.map((language) => (
           <div key={language.key} className="flex flex-col gap-1">
             <div className="flex items-center justify-between">

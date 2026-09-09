@@ -5,7 +5,7 @@ export function WorkExperience({ data }: { data: ResumeData }) {
   return (
     <div>
       <SectionTitle title={data.titles.workExperiences} />
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {data.workExperiences.map((experience, index) => (
           <div key={index}>
             <div className="flex justify-between">
@@ -15,7 +15,7 @@ export function WorkExperience({ data }: { data: ResumeData }) {
               </h3>
             </div>
             <h4 className="font-semibold text-muted-foreground">{experience.company}</h4>
-            <ul className="list-disc pl-5">
+            <ul className="list-[square] pl-5">
               {experience.bullets.map((detail, index) => (
                 <li key={index}>{detail}</li>
               ))}

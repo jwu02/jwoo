@@ -5,7 +5,7 @@ export function Education({ data }: { data: ResumeData }) {
   return (
     <div>
       <SectionTitle title={data.titles.education} />
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {data.education.map((item, index) => (
           <div key={index}>
             <div className="font-bold">{item.school}</div>

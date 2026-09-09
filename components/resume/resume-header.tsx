@@ -14,16 +14,12 @@ export function ResumeHeader({ data }: { data: ResumeData }) {
           alt={data.header.name}
         />
       </div>
-      <div className="flex-1 min-w-0 flex items-center justify-between gap-5">
-        <div className="min-w-0">
-          <div className="text-5xl font-black">{data.header.name}</div>
-          <div className="text-2xl text-muted-foreground font-bold">
-            {data.header.profession}
-          </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+        <div className="text-5xl font-black">{data.header.name}</div>
+        <div className="text-2xl text-muted-foreground font-bold">
+          {data.header.profession}
         </div>
-        <div className="shrink-0 mr-6">
-          <Contacts />
-        </div>
+        <Contacts />
       </div>
     </div>
   )

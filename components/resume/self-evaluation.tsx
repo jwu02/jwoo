@@ -5,7 +5,7 @@ export function SelfEvaluation({ data }: { data: ResumeData }) {
   return (
     <div>
       <SectionTitle title={data.titles.selfEvaluation} />
-      <ul className="flex flex-col list-disc pl-5">
+      <ul className="flex flex-col list-[square] pl-5">
         {data.selfEvaluation.map((evaluation, index) => (
           <li key={index}>{evaluation}</li>
         ))}
