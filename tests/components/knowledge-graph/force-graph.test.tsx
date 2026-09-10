@@ -123,7 +123,7 @@ describe("ForceGraph", () => {
     });
   });
 
-  it("shows an HTML filename label and highlights the hovered node + its links", async () => {
+  it("shows an HTML note label and highlights the hovered node + its links", async () => {
     const nodes = [
       { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
       { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
@@ -153,6 +153,8 @@ describe("ForceGraph", () => {
       expect(container.querySelector("[data-testid='kg-node-label']")).toBeTruthy();
     });
 
+    // The tooltip shows the node id, matching the labels drawn when zoomed in —
+    // an id is the note's own title, so no transformation is involved.
     expect(container.querySelector("[data-testid='kg-node-label']")?.textContent).toBe("A.md");
 
     const linkAB = linkSpriteBySource(container, "A.md")!;

@@ -148,7 +148,12 @@ export function KeyboardModel({
     const bounds = boundsRef.current
     if (!bounds) return
     const aspect = size.width / Math.max(size.height, 1)
-    const frame = fitTopDown({ bounds, fovDeg: camera.fov, aspect })
+    // Fill the canvas width (the taller h-96 card keeps width as the binding
+    // axis) with a hair to spare. margin 1 = keys just touch the frame; 1.01 is
+    // ~1% headroom (fill ≈ 1/1.01 ≈ 99%), so it reads as flush without pinching
+    // against the card edge. Lower crops the top/bottom rows; higher grows the
+    // gap. Tunable in dev.
+    const frame = fitTopDown({ bounds, fovDeg: camera.fov, aspect, margin: 1.01 })
     // The default up (+Y) is parallel to this top-down view, which degenerates
     // lookAt — so set world −Z as screen-up BEFORE the first lookAt.
     camera.up.set(frame.up.x, frame.up.y, frame.up.z)

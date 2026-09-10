@@ -59,8 +59,8 @@ export function computeDegrees(
 
 // Zoom transform (scale k + translate x/y) that fits the given positioned
 // nodes inside a viewport with `padding` around the edges, clamped to the
-// graph's zoom scaleExtent [0.1, 4]. Kept framework-free so it is unit-
-// testable; the component wraps the result in a d3.zoomIdentity.
+// graph's zoom range (NODE_MIN_ZOOM..NODE_MAX_ZOOM). Kept framework-free so it
+// is unit-testable; the component wraps the result in a d3.zoomIdentity.
 export function computeFitTransform(
   nodes: Array<{ x?: number; y?: number }>,
   viewportWidth: number,
@@ -93,8 +93,8 @@ export function computeFitTransform(
   const fitW = viewportWidth - padding * 2;
   const fitH = viewportHeight - padding * 2;
   const k = Math.max(
-    0.1,
-    Math.min(4, Math.min(fitW / (contentW || 1), fitH / (contentH || 1)))
+    NODE_MIN_ZOOM,
+    Math.min(NODE_MAX_ZOOM, Math.min(fitW / (contentW || 1), fitH / (contentH || 1)))
   );
 
   const centerX = minX + contentW / 2;
@@ -134,7 +134,7 @@ export function computeRoughInitialTransform(
   }
 
   const k = Math.max(
-    0.1,
+    NODE_MIN_ZOOM,
     Math.min(1, (margin * Math.min(viewportWidth, viewportHeight)) / (2 * maxRadius))
   );
   return {
@@ -144,6 +144,15 @@ export function computeRoughInitialTransform(
   };
 }
 
+// Above this zoom, every node shows its name instead of only the hovered one.
+// Below it the graph is too dense for the labels to read, so they would be
+// noise; the value is inside the zoom scaleExtent [0.1, 4] so it is reachable.
+//
+// A node id is already the note's own title — the API serves the notes
+// collection's `filename` field, which holds a human-readable name rather than
+// a vault path. Labels draw the id verbatim; there is nothing to strip.
+export const LABEL_ZOOM_THRESHOLD = 1.5;
+
 // Node size model — single source of truth for sprite scale, the force-collide
 // radius, and the texture resolution the node circles are rasterized at.
 export const NODE_BASE_RADIUS = 4;
@@ -152,8 +161,10 @@ export function nodeRadius(degree: number): number {
   return NODE_BASE_RADIUS + Math.sqrt(degree);
 }
 
-// The two multipliers that can magnify a node past its texture's native pixel
-// detail: the d3-zoom scaleExtent max and the hover growth factor.
+// The zoom range the graph is clamped to — the d3-zoom scaleExtent, and the
+// bounds every fit helper clamps to. One definition, so a change here cannot
+// leave the fit helpers and the gesture disagreeing about the reachable range.
+export const NODE_MIN_ZOOM = 0.1;
 export const NODE_MAX_ZOOM = 4;
 export const NODE_HOVER_SCALE = 1.3;
 

@@ -33,6 +33,16 @@ describe("fitTopDown", () => {
     expect(frame.up).toEqual({ x: 0, y: 0, z: -1 });
   });
 
+  it("honours a custom screen-up axis (mouse: world +Z at the top)", () => {
+    const frame = fitTopDown({
+      bounds: KEYBOARD_BOUNDS,
+      fovDeg: 40,
+      aspect: 2.2,
+      up: { x: 0, y: 0, z: 1 },
+    });
+    expect(frame.up).toEqual({ x: 0, y: 0, z: 1 });
+  });
+
   it("wide viewbox (aspect 2.5): depth binds → distance ≈ 0.183", () => {
     const frame = fitTopDown({
       bounds: KEYBOARD_BOUNDS,

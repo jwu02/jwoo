@@ -33,7 +33,7 @@ describe("KeyboardHeatmap", () => {
   })
 
   it("renders one focusable sr-only button per physical key (79 incl. Backtick)", () => {
-    render(<KeyboardHeatmap keys={{}} />)
+    render(<KeyboardHeatmap keys={{}} showOverlay />)
     expect(screen.getAllByRole("button")).toHaveLength(79)
     expect(screen.getByRole("button", { name: /Backtick/ })).toBeInTheDocument()
     // The model has no node for the removed §/± key, but it is still announced.
@@ -42,17 +42,17 @@ describe("KeyboardHeatmap", () => {
 
   it("aggregates multiple telemetry labels onto the same physical key", () => {
     // "2" key = labels ["2", "@"]; @ is shift+2, € (option+2) is not tracked.
-    render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} />)
+    render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} showOverlay />)
     expect(screen.getByRole("button", { name: "2: 8 presses" })).toBeInTheDocument()
   })
 
   it("labels Touch ID as untracked rather than with a count", () => {
-    render(<KeyboardHeatmap keys={{}} />)
+    render(<KeyboardHeatmap keys={{}} showOverlay />)
     expect(screen.getByRole("button", { name: "Touch ID" })).toBeInTheDocument()
   })
 
   it("shows the count and per-label breakdown when a key is focused", () => {
-    render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} />)
+    render(<KeyboardHeatmap keys={{ "2": 5, "@": 3 }} showOverlay />)
     fireEvent.focus(screen.getByRole("button", { name: "2: 8 presses" }))
 
     expect(screen.getByText("8 presses")).toBeInTheDocument()
@@ -66,7 +66,7 @@ describe("KeyboardHeatmap", () => {
   })
 
   it("clears the tooltip on blur", () => {
-    render(<KeyboardHeatmap keys={{}} />)
+    render(<KeyboardHeatmap keys={{}} showOverlay />)
     const button = screen.getByRole("button", { name: "A: 0 presses" })
     fireEvent.focus(button)
     expect(screen.getByText("0 presses")).toBeInTheDocument()
@@ -75,33 +75,16 @@ describe("KeyboardHeatmap", () => {
   })
 
   it("shows Touch ID untracked copy on focus", () => {
-    render(<KeyboardHeatmap keys={{}} />)
+    render(<KeyboardHeatmap keys={{}} showOverlay />)
     fireEvent.focus(screen.getByRole("button", { name: "Touch ID" }))
     expect(screen.getByText("Touch ID untracked")).toBeInTheDocument()
-  })
-
-  it("renders the heatmap toggle on by default", () => {
-    render(<KeyboardHeatmap keys={{}} />)
-    expect(screen.getByRole("switch", { name: "Show keyboard heatmap" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    )
-  })
-
-  it("toggles the heatmap overlay off and back on", () => {
-    render(<KeyboardHeatmap keys={{}} />)
-    const toggle = screen.getByRole("switch", { name: "Show keyboard heatmap" })
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute("aria-checked", "false")
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute("aria-checked", "true")
   })
 
   it("falls back to a degenerate anchor for keys with no GLB node (Section)", () => {
     // Section (§/±) has no node in the model — getAnchor is unavailable/unset in
     // jsdom, so the tooltip must still render at the container's top centre. The
     // key point is it renders without a canvas rather than failing.
-    render(<KeyboardHeatmap keys={{ "§": 9, "±": 4 }} />)
+    render(<KeyboardHeatmap keys={{ "§": 9, "±": 4 }} showOverlay />)
     fireEvent.focus(screen.getByRole("button", { name: /^Section/ }))
     expect(screen.getByText("13 presses")).toBeInTheDocument()
   })

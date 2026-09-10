@@ -11,6 +11,9 @@ import type { KeyboardCanvasApi } from "./keyboard-model"
 
 interface KeyboardHeatmapProps {
   keys: KeyCounts
+  /** Whether the continuous heatmap overlay is shown. Owned by the page — the
+   *  toggle renders above the scene card, not inside it. */
+  showOverlay: boolean
 }
 
 function formatNumber(value: number): string {
@@ -18,15 +21,14 @@ function formatNumber(value: number): string {
 }
 
 // A keycap count drives a continuous heatmap overlay on top of the keyboard; the
-// tooltip hugs the key's on-screen edge. The overlay is toggleable above the
-// scene. The tooltip/a11y layer positions against the scene container (which
-// the toggle lives outside of), so adding it never shifts the tooltip.
-export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
+// tooltip hugs the key's on-screen edge. The overlay is toggleable from the page
+// (above the scene card), so this component only renders the scene. The
+// tooltip/a11y layer positions against the scene container, so the toggle never
+// shifts the tooltip.
+export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
   // Single source of truth for hover — the 3D press, tooltip, and a11y buttons
   // all converge here, so the pointer and focus paths stay in lock-step.
   const [hovered, setHovered] = useState<string | null>(null)
-  // Default to showing the heatmap overlay; the toggle above the scene flips it.
-  const [showOverlay, setShowOverlay] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   // The canvas lives behind the dynamic import, so the wrapper reaches its
@@ -112,26 +114,6 @@ export function KeyboardHeatmap({ keys }: KeyboardHeatmapProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-2 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showOverlay}
-          aria-label="Show keyboard heatmap"
-          onClick={() => setShowOverlay((value) => !value)}
-          className={`relative flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            showOverlay ? "bg-primary" : "bg-muted"
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 rounded-full bg-background shadow transition-transform ${
-              showOverlay ? "translate-x-[18px]" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-        <span className="text-sm text-muted-foreground">Heatmap</span>
-      </div>
-
       <div ref={containerRef} className="relative w-full">
         <KeyboardScene
           counts={keyCountMap}

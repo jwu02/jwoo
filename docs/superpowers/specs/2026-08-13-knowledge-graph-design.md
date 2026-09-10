@@ -44,10 +44,13 @@ Document schema:
 
 ```ts
 {
-  filename: string;   // e.g. "Projects/My Project.md"
+  filename: string;   // the note's own title, e.g. "CNC Machining". Not a vault
+                      // path: the sync stores the note name, so ids carry no
+                      // directory prefix and no ".md" suffix. A title may still
+                      // end in ".md" by coincidence (e.g. "Claude Code CLAUDE.md").
   createdAt: Date;    // file birthtime
-  links: string[];    // resolved outgoing [[...]] target filenames,
-                      // e.g. ["Another Note.md"]
+  links: string[];    // resolved outgoing [[...]] targets, in the same
+                      // title form as `filename`, e.g. ["Another Note"]
 }
 ```
 
@@ -163,8 +166,11 @@ Goal: match Obsidian’s graph view while fitting the site’s light/dark theme.
   so hub notes stand out.
 - **Edges:** thin 1px lines at low opacity (`var(--foreground)` at ~15–20%
   opacity).
-- **Labels:** normally hidden to reduce clutter. On hover, a tooltip shows the
-  note filename.
+- **Labels:** hidden below `LABEL_ZOOM_THRESHOLD` to reduce clutter, where
+  hovering shows a tooltip with the note's name instead. At or above it, every
+  node shows its name at once. The text holds a fixed 12px at any zoom because
+  the label layer lives in DOM space rather than inside the zoomed world, and
+  long titles wrap onto further lines under their node.
 - **Active/hover state:** hovered node gets a ring or brighter fill; connected
   edges become more opaque.
 - **Playback cursor:** nodes fade in as they appear, rather than popping.

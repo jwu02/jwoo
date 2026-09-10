@@ -3,12 +3,13 @@
 import dynamic from "next/dynamic"
 import { Component, type ReactNode, useEffect, useState } from "react"
 
-import type { KeyboardCanvasApi } from "./keyboard-model"
+import type { MouseCanvasApi } from "./mouse-model"
+import type { MouseRegion } from "@/lib/telemetry/mouse-node-map"
 
 // Client-only: three/drei never loads during SSR (a Server Component cannot use
 // ssr:false, so the dynamic import lives in this client component).
-const KeyboardCanvas = dynamic(
-  () => import("./keyboard-canvas").then((m) => m.KeyboardCanvas),
+const MouseCanvas = dynamic(
+  () => import("./mouse-canvas").then((m) => m.MouseCanvas),
   {
     ssr: false,
     loading: () => null,
@@ -46,22 +47,16 @@ class SceneErrorBoundary extends Component<
 
 type SceneMode = "loading" | "scene" | "fallback"
 
-interface KeyboardSceneProps {
-  counts: Map<string, number>
-  maxCount: number
-  showOverlay: boolean
-  hovered: string | null
-  onHover: (id: string | null) => void
-  canvasApiRef: React.MutableRefObject<KeyboardCanvasApi | null>
+interface MouseSceneProps {
+  hovered: MouseRegion | null
+  onHover: (region: MouseRegion | null) => void
+  canvasApiRef: React.MutableRefObject<MouseCanvasApi | null>
 }
 
-// The keyboard fills a fixed-height box. The height is set taller than the mouse
-// scene's h-80 so the card is more keyboard-shaped (width/height < the model's
-// ~2.4:1 aspect): width then becomes the camera's binding axis, so the keyboard
-// fills the card left–right instead of shrinking to fit the height. The mouse is
-// left on its own (shorter) box; both models centre vertically, so they still read
-// as a joined row.
-export function KeyboardScene(props: KeyboardSceneProps) {
+// The mouse fills a fixed-height box, matched to the keyboard scene so the two
+// cards share a baseline. The camera frames the mouse's own footprint (it is a
+// static top-down object — not draggable, so no slide path is reserved).
+export function MouseScene(props: MouseSceneProps) {
   const [mode, setMode] = useState<SceneMode>("loading")
 
   useEffect(() => {
@@ -76,9 +71,9 @@ export function KeyboardScene(props: KeyboardSceneProps) {
   if (mode === "scene") {
     return (
       <SceneErrorBoundary onError={() => setMode("fallback")}>
-        <div className="relative h-96 w-full">
+        <div className="relative h-80 w-full">
           <div className="absolute inset-0">
-            <KeyboardCanvas {...props} />
+            <MouseCanvas {...props} />
           </div>
         </div>
       </SceneErrorBoundary>
@@ -87,15 +82,14 @@ export function KeyboardScene(props: KeyboardSceneProps) {
 
   if (mode === "fallback") {
     return (
-      <div className="flex h-96 w-full items-center justify-center">
+      <div className="flex h-80 w-full items-center justify-center">
         <p className="text-sm text-muted-foreground">
-          Keyboard heatmap requires WebGL.
+          Mouse telemetry requires WebGL.
         </p>
       </div>
     )
   }
 
-  // "loading" — matches SSR output so hydration stays consistent. Mirrors the
-  // scene container so there is no layout shift when the canvas mounts.
-  return <div className="h-96 w-full" />
+  // "loading" — matches SSR output so hydration stays consistent.
+  return <div className="h-80 w-full" />
 }

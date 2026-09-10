@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { SummaryCards } from "@/components/telemetry/summary-cards"
 import { MouseVisual } from "@/components/telemetry/mouse-visual"
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap"
+import { HeatmapToggle } from "@/components/telemetry/heatmap-toggle"
 import { RangeSelector, TELEMETRY_RANGE_OPTIONS } from "@/components/telemetry/range-selector"
 import { ActivityChart } from "@/components/telemetry/activity-chart"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
@@ -34,6 +35,9 @@ async function fetchTelemetry(
 
 export default function ActivityTelemetryPage() {
   const [range, setRange] = useState<TelemetryRange>("24h")
+  // The heatmap overlay toggle lives above the keyboard/mouse row (owned here so
+  // it doesn't add height to the keyboard card, keeping the two cards aligned).
+  const [showOverlay, setShowOverlay] = useState(true)
   const [data, setData] = useState<TelemetryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -103,13 +107,21 @@ export default function ActivityTelemetryPage() {
         <div className="space-y-8">
           <SummaryCards totals={data.totals} />
 
-          <div className="grid gap-8 md:grid-cols-[1fr_240px]">
-            <KeyboardHeatmap keys={data.keys} />
-            <MouseVisual
-              leftClicks={data.totals.leftClicks}
-              rightClicks={data.totals.rightClicks}
-              movementMeters={data.totals.movementMeters}
-            />
+          <div>
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <HeatmapToggle
+                showOverlay={showOverlay}
+                onToggle={() => setShowOverlay((value) => !value)}
+              />
+            </div>
+            <div className="grid gap-8 md:grid-cols-[1fr_240px]">
+              <KeyboardHeatmap keys={data.keys} showOverlay={showOverlay} />
+              <MouseVisual
+                leftClicks={data.totals.leftClicks}
+                rightClicks={data.totals.rightClicks}
+                movementMeters={data.totals.movementMeters}
+              />
+            </div>
           </div>
 
           <div>

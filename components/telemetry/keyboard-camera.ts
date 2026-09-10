@@ -46,10 +46,16 @@ export interface FitTopDownOptions {
    * the top row don't clip. Tunable in dev.
    */
   margin?: number
+  /**
+   * Screen-up world axis. Default (0,0,−1) puts world −Z at the top (function
+   * row on top for the keyboard); the mouse passes (0,0,1) so its front (+Z)
+   * sits at the top, matching the old SVG's buttons-at-top layout.
+   */
+  up?: Vec3
 }
 
 export function fitTopDown(options: FitTopDownOptions): TopDownFrame {
-  const { bounds, fovDeg, aspect, margin = 1.15 } = options
+  const { bounds, fovDeg, aspect, margin = 1.15, up } = options
 
   const halfW = (bounds.max.x - bounds.min.x) / 2
   const halfD = (bounds.max.z - bounds.min.z) / 2
@@ -59,13 +65,14 @@ export function fitTopDown(options: FitTopDownOptions): TopDownFrame {
     y: (bounds.min.y + bounds.max.y) / 2,
     z: (bounds.min.z + bounds.max.z) / 2,
   }
-  // Default camera up (0,0,−1) → world −Z is screen up (function row on top).
-  const up: Vec3 = { x: 0, y: 0, z: -1 }
+  // Screen-up axis. Default (0,0,−1) → world −Z is screen up (function row on
+  // top); the mouse passes (0,0,1) → world +Z (its front) is screen up.
+  const resolvedUp: Vec3 = up ?? { x: 0, y: 0, z: -1 }
 
   const distance = computeDistance(halfW, halfD, fovDeg, aspect, margin)
   const cameraPos: Vec3 = { x: center.x, y: center.y + distance, z: center.z }
 
-  return { target: center, cameraPos, up }
+  return { target: center, cameraPos, up: resolvedUp }
 }
 
 // Distance so the sphere of the keyboard's horizontal (X) and vertical (Z)

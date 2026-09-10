@@ -6,7 +6,10 @@ import {
   computeRoughInitialTransform,
   getVisibleEdges,
   getVisibleNodes,
+  LABEL_ZOOM_THRESHOLD,
   nodeRadius,
+  NODE_MAX_ZOOM,
+  NODE_MIN_ZOOM,
 } from "@/lib/knowledge-graph/graph-data";
 import type { NoteDoc } from "@/lib/knowledge-graph/types";
 
@@ -209,6 +212,19 @@ describe("computeRoughInitialTransform", () => {
       x: 300,
       y: 200,
     });
+  });
+});
+
+describe("LABEL_ZOOM_THRESHOLD", () => {
+  it("sits inside the zoom range so both label modes stay reachable", () => {
+    // A threshold at or above the max zoom would mean the all-labels mode can
+    // never trigger — the graph would silently never show them. At or below the
+    // min zoom it is the reverse: labels on for every possible view, and the
+    // hover-only mode unreachable. Every value used so far (1, 1.5, 2) is
+    // deliberately allowed; the point is that the threshold has to be a scale
+    // the gesture can actually land on, not that it clears natural scale.
+    expect(LABEL_ZOOM_THRESHOLD).toBeGreaterThan(NODE_MIN_ZOOM);
+    expect(LABEL_ZOOM_THRESHOLD).toBeLessThan(NODE_MAX_ZOOM);
   });
 });
 

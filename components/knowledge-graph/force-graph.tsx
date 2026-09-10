@@ -9,8 +9,11 @@ import {
   computeFitTransform,
   computeNodeTextureRadius,
   computeRoughInitialTransform,
+  LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
   NODE_HOVER_SCALE,
+  NODE_MAX_ZOOM,
+  NODE_MIN_ZOOM,
   nodeRadius,
 } from "@/lib/knowledge-graph/graph-data";
 import { usePixiApp } from "./use-pixi-app";
@@ -72,12 +75,38 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [showAllLabels, setShowAllLabels] = useState(false);
 
   const labelRef = useRef<HTMLDivElement>(null);
+  const labelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Mirrors showAllLabels for the pointer/tick/zoom callbacks. Those run outside
+  // React's render cycle, and the label layer has to be positioned in the same
+  // zoom event that flips the flag — before the state change commits.
+  //
+  // Starts false rather than derived from LABEL_ZOOM_THRESHOLD: at mount no
+  // transform has been applied yet, so k is still the placeholder 1 and would
+  // read as "past the threshold" at a threshold of 1 — flashing every label on
+  // before the first tick frames the graph. The threshold is re-evaluated the
+  // moment a transform lands, including the programmatic fit, so the flag is
+  // correct within the first frame.
+  const showAllLabelsRef = useRef(false);
 
   const graphNodes = useMemo<GraphNode[]>(() => nodes.map((node) => ({ ...node })), [nodes]);
   const graphEdges = useMemo(() => edges.map((edge) => ({ ...edge })), [edges]);
   const degrees = useMemo(() => computeDegrees(graphNodes, graphEdges), [graphNodes, graphEdges]);
+
+  // Adjacency in render-friendly form, so the labels can be styled from hoveredId
+  // declaratively. applyHover keeps its own copy for the sprites, which it drives
+  // imperatively — this one exists purely to compute label emphasis during render.
+  const neighborsById = useMemo(() => {
+    const neighbors = new Map<string, Set<string>>();
+    for (const node of graphNodes) neighbors.set(node.id, new Set());
+    for (const edge of graphEdges) {
+      neighbors.get(edge.source)?.add(edge.target);
+      neighbors.get(edge.target)?.add(edge.source);
+    }
+    return neighbors;
+  }, [graphNodes, graphEdges]);
 
   const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
   const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
@@ -99,18 +128,44 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
   const userInteractedRef = useRef(false);
   const colorsRef = useRef({ node: 0, hover: 0, link: 0, leaf: 0 });
 
+  // Screen position for a node's label, in wrapper coordinates. Labels live in
+  // DOM space rather than inside the zoomed Pixi world, so the text stays a
+  // fixed 12px however far the graph is zoomed.
+  const labelScreenPosition = useCallback((node: GraphNode) => {
+    const transform = zoomTransformRef.current;
+    const radius = nodeRadiusRef.current.get(node.id) ?? NODE_BASE_RADIUS;
+    return {
+      x: (node.x ?? 0) * transform.k + transform.x,
+      y: (node.y ?? 0) * transform.k + transform.y + radius + 6,
+    };
+  }, []);
+
   const positionLabel = useCallback(() => {
     const label = labelRef.current;
     const hovered = hoveredIdRef.current;
     if (!label || hovered === null) return;
+    // With every label drawn, the layer already shows this node's name — the
+    // tooltip would only stack the same text on top of it.
+    if (showAllLabelsRef.current) return;
     const node = nodesByIdRef.current.get(hovered);
     if (!node || node.x === undefined || node.y === undefined) return;
-    const transform = zoomTransformRef.current;
-    const screenX = node.x * transform.k + transform.x;
-    const screenY = node.y * transform.k + transform.y;
-    const radius = nodeRadiusRef.current.get(hovered) ?? NODE_BASE_RADIUS;
-    label.style.transform = `translate3d(${screenX}px, ${screenY + radius + 6}px, 0) translateX(-50%)`;
-  }, []);
+    const { x, y } = labelScreenPosition(node);
+    label.style.transform = `translate3d(${x}px, ${y}px, 0) translateX(-50%)`;
+  }, [labelScreenPosition]);
+
+  // Positions the whole label layer. Skipped while zoomed out, so the hot
+  // per-tick path stays O(1) — the simulation runs ~300 ticks on load, long
+  // before anyone has zoomed in far enough for the labels to matter.
+  const positionAllLabels = useCallback(() => {
+    if (!showAllLabelsRef.current) return;
+    const nodesById = nodesByIdRef.current;
+    for (const [id, el] of labelElsRef.current) {
+      const node = nodesById.get(id);
+      if (!node || node.x === undefined || node.y === undefined) continue;
+      const { x, y } = labelScreenPosition(node);
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) translateX(-50%)`;
+    }
+  }, [labelScreenPosition]);
 
   const updateLinkSprite = useCallback(
     (sprite: import("pixi.js").Sprite, source: GraphNode, target: GraphNode) => {
@@ -203,6 +258,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
           }
         }
         positionLabel();
+        positionAllLabels();
 
         if (sim && sim.alpha() < 0.1) sim.alphaTarget(0.3).restart();
       };
@@ -227,7 +283,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       document.addEventListener("pointermove", handleMove);
       document.addEventListener("pointerup", handleUp);
     },
-    [updateLinkSprite, positionLabel]
+    [updateLinkSprite, positionLabel, positionAllLabels]
   );
 
   // Build the Pixi scene and d3-force simulation once per data set.
@@ -431,6 +487,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
           updateLinkSprite(linkSpriteArr[i], link.source, link.target);
         }
         positionLabel();
+        positionAllLabels();
 
         // Snap to a rough initial frame on the first tick. d3 seeded every node
         // with a phyllotaxis position when the simulation was constructed, so
@@ -460,7 +517,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       cancelled = true;
       teardownWorld();
     };
-  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, startDrag, updateLinkSprite]);
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite]);
 
   // d3-zoom drives the Pixi world container transform.
   useEffect(() => {
@@ -469,7 +526,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
 
     const zoom = d3
       .zoom<HTMLDivElement, unknown>()
-      .scaleExtent([0.1, 4])
+      .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
       .on("zoom", (event) => {
         if (event.sourceEvent) {
           userInteractedRef.current = true;
@@ -481,7 +538,18 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
           world.position.set(event.transform.x, event.transform.y);
           world.scale.set(event.transform.k);
         }
+
+        // Flip the all-labels mode only on a crossing, not on every zoom frame —
+        // the ref is updated first so the positioning below happens in this same
+        // event, with the labels already in place as they fade in.
+        const pastThreshold = event.transform.k >= LABEL_ZOOM_THRESHOLD;
+        if (pastThreshold !== showAllLabelsRef.current) {
+          showAllLabelsRef.current = pastThreshold;
+          setShowAllLabels(pastThreshold);
+        }
+
         positionLabel();
+        positionAllLabels();
       });
 
     const selection = d3.select(wrapper).call(zoom);
@@ -493,7 +561,7 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       zoomBehaviorRef.current = null;
       zoomSelectionRef.current = null;
     };
-  }, [positionLabel]);
+  }, [positionLabel, positionAllLabels]);
 
   return (
     <div
@@ -501,17 +569,64 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       className="relative h-full w-full overflow-hidden touch-none"
       data-testid="kg-graph-wrapper"
     >
+      {/* One label per node, drawn from the start so crossing the zoom
+          threshold only has to toggle opacity — the labels are already
+          positioned by the time they fade in. Positioned in DOM space rather
+          than the zoomed Pixi world, so the text holds a fixed 12px. */}
+      <div
+        data-testid="kg-label-layer"
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-0 z-10 transition-opacity ${
+          showAllLabels ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {nodes.map((node) => {
+          const isHovered = hoveredId === node.id;
+          // Mirrors applyHover's rule for the sprites: anything that is neither
+          // the hovered node nor one of its neighbours is backgrounded, and its
+          // label has to fade with its dot or the highlight reads as a mismatch.
+          const isDimmed =
+            hoveredId !== null && !isHovered && !neighborsById.get(hoveredId)?.has(node.id);
+          return (
+            <div
+              key={node.id}
+              data-node-id={node.id}
+              ref={(el) => {
+                if (el) labelElsRef.current.set(node.id, el);
+                else labelElsRef.current.delete(node.id);
+              }}
+              // Only the opacity is React's; style.transform is written directly
+              // by the positioning loop, and React leaves keys it was never
+              // given alone when it reconciles this style object.
+              style={{ opacity: isDimmed ? 0.15 : 1 }}
+              // Titles run up to ~70 characters, which as a single line would
+              // stretch several hundred pixels across the graph; the max width
+              // wraps them under their node instead. The cap is in DOM pixels
+              // because this layer is not zoomed.
+              className={`absolute left-0 top-0 max-w-[11rem] text-center text-xs leading-tight font-medium wrap-break-word [text-shadow:0_0_3px_var(--background),0_0_3px_var(--background)] ${
+                isHovered ? "text-primary" : "text-foreground/80"
+              }`}
+            >
+              {node.id}
+            </div>
+          );
+        })}
+      </div>
+
       {/* Always mounted so positionLabel() (called from pointerover before any
           React commit) always finds the element; visibility is CSS-gated. */}
       <div
         ref={labelRef}
         data-testid="kg-node-label"
-        aria-hidden={hoveredId === null}
-        className={`pointer-events-none absolute left-0 top-0 z-10 whitespace-nowrap text-xs font-medium text-primary transition-opacity [text-shadow:0_0_3px_var(--background),0_0_3px_var(--background)] ${
-          hoveredId === null ? "opacity-0" : "opacity-100"
+        aria-hidden={hoveredId === null || showAllLabels}
+        // Wraps on the same terms as the zoomed-in labels: it draws the same
+        // string, and as one line a long title would overflow the clipped
+        // wrapper instead of staying readable.
+        className={`pointer-events-none absolute left-0 top-0 z-10 max-w-[11rem] text-center text-xs leading-tight font-medium text-primary wrap-break-word transition-opacity [text-shadow:0_0_3px_var(--background),0_0_3px_var(--background)] ${
+          hoveredId === null || showAllLabels ? "opacity-0" : "opacity-100"
         }`}
       >
-        {hoveredId}
+        {hoveredId === null ? "" : hoveredId}
       </div>
     </div>
   );
