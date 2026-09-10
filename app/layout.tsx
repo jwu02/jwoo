@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     default: "Tony Wu",
     template: "%s — Tony Wu",
   },
+  icons: {
+    icon: "/miyamura.jpg",
+  },
 }
 
 export default function RootLayout({
