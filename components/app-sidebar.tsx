@@ -1,6 +1,6 @@
 "use client"
 
-import { Activity, Bot, FileText, Home, Sparkle } from "lucide-react"
+import { Activity, Bot, FileText, Globe, Home } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { title: "Home", url: "/", icon: Home },
   { title: "Activity Telemetry", url: "/activity-telemetry", icon: Activity },
   { title: "AI Usage", url: "/ai-usage", icon: Bot },
-  { title: "Knowledge Graph", url: "/knowledge-graph", icon: Sparkle },
+  { title: "Knowledge Graph", url: "/knowledge-graph", icon: Globe },
   { title: "Resume", url: "/resume", icon: FileText },
 ]
 

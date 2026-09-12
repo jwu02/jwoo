@@ -1,4 +1,4 @@
-import { Activity, Bot, FileText, Sparkle } from "lucide-react"
+import { Activity, Bot, FileText, Globe, Sparkle } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -54,7 +54,7 @@ export function HomeFallback() {
         <Card>
           <CardHeader>
             <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Sparkle />
+              <Globe />
             </div>
             <CardTitle>Knowledge Graph</CardTitle>
             <CardDescription>
