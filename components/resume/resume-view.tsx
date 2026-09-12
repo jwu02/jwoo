@@ -35,7 +35,7 @@ export function ResumeView() {
   const data = getResumeData(locale)
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col px-4 md:px-0">
       <div className="mt-6 flex items-center justify-center gap-2 print:hidden">
         <LanguageToggle locale={locale} onChange={handleChange} />
         <button

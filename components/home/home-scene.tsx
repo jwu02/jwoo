@@ -69,7 +69,7 @@ export function HomeScene() {
             without this they paint over the nav menu: the mobile sheet at z-50,
             the desktop sidebar at z-10. Scoping their z-index here means the
             scene as a whole sits at z-index auto, below both. */}
-        <div className="relative isolate -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]">
+        <div className="relative isolate h-[calc(100vh-3.5rem)] overflow-hidden md:-mx-4 md:-mb-4 md:h-[100vh]">
           <div className="absolute inset-0">
             <HomeCanvas />
           </div>
@@ -86,6 +86,6 @@ export function HomeScene() {
   // mount. Mirrors the scene container so there is no layout shift when the
   // canvas mounts (the greeting lives in-scene, above the MacBook).
   return (
-    <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]" />
+    <div className="relative h-[calc(100vh-3.5rem)] overflow-hidden md:-mx-4 md:-mb-4 md:h-[100vh]" />
   )
 }

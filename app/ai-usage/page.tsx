@@ -75,7 +75,7 @@ export default function AiUsagePage() {
   const isEmpty = data !== null && data.totals.totalTokens === 0
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI Usage</h1>

@@ -41,7 +41,7 @@ export default function KnowledgeGraphPage() {
 
   if (error) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
+      <div className="flex h-[calc(100vh-4rem)] flex-col p-4 md:p-6">
         <ErrorBanner message={error} onRetry={load} />
       </div>
     );
@@ -58,7 +58,7 @@ export default function KnowledgeGraphPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col -mx-4 -mb-4">
+    <div className="flex flex-1 flex-col md:-mx-4 md:-mb-4">
       <div className="flex-1 overflow-hidden">
         <ForceGraph nodes={data.nodes} edges={data.edges} />
       </div>
