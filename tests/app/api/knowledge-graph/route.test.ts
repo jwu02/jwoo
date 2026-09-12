@@ -50,7 +50,7 @@ describe("GET /api/knowledge-graph", () => {
     expect(response.status).toBe(200);
     expect(json).toEqual(builtGraph);
     expect(response.headers.get("cache-control")).toBe("no-store, max-age=0");
-    expect(mockedWriteCache).toHaveBeenCalledWith(builtGraph, expect.any(Date));
+    expect(mockedWriteCache).toHaveBeenCalledWith(builtGraph);
   });
 
   it("serves the cached graph without querying the database on a cache hit", async () => {

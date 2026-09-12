@@ -2,17 +2,11 @@ import type { KnowledgeGraphResponse } from "./types";
 
 export const KNOWLEDGE_GRAPH_CACHE_KEY = "knowledge-graph";
 
-// Seconds from now until the next UTC midnight. Used as the cache TTL so the
-// snapshot expires exactly at midnight and the first request after rebuilds it
-// — a lazy daily rotation, no cron required.
-export function secondsUntilMidnightUtc(now: Date): number {
-  const nextMidnightUtc = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1
-  );
-  return Math.max(1, Math.ceil((nextMidnightUtc - now.getTime()) / 1000));
-}
+// The snapshot lives for three hours from the moment it is written; the first
+// request after it expires rebuilds it from MongoDB — a lazy rotation, no cron
+// required. The window rolls from the write rather than aligning to 3-hour UTC
+// boundaries, so refreshes stagger instead of every instance rebuilding at once.
+export const KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS = 3 * 60 * 60;
 
 function isValidGraph(data: unknown): data is KnowledgeGraphResponse {
   if (!data || typeof data !== "object") return false;
@@ -49,15 +43,12 @@ export async function readCache(): Promise<KnowledgeGraphResponse | null> {
   }
 }
 
-export async function writeCache(
-  data: KnowledgeGraphResponse,
-  now: Date
-): Promise<void> {
+export async function writeCache(data: KnowledgeGraphResponse): Promise<void> {
   const cache = await getRuntimeCache();
   if (!cache) return;
   try {
     await cache.set(KNOWLEDGE_GRAPH_CACHE_KEY, data, {
-      ttl: secondsUntilMidnightUtc(now),
+      ttl: KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS,
     });
   } catch {
     // Best-effort: a failed cache write must not fail the request — the

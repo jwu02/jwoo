@@ -18,24 +18,10 @@ async function loadCacheModule() {
   return await import("@/lib/knowledge-graph/cache");
 }
 
-describe("secondsUntilMidnightUtc", () => {
-  it("returns whole seconds from now until the next UTC midnight", async () => {
-    const { secondsUntilMidnightUtc } = await loadCacheModule();
-    const now = new Date("2026-08-16T15:30:00.000Z");
-    expect(secondsUntilMidnightUtc(now)).toBe(8.5 * 3600); // 30600
-  });
-
-  it("floors at 1 second for a cache written right before midnight", async () => {
-    const { secondsUntilMidnightUtc } = await loadCacheModule();
-    const now = new Date("2026-08-16T23:59:59.999Z");
-    expect(secondsUntilMidnightUtc(now)).toBe(1);
-  });
-
-  it("always targets the next day's midnight, not today's", async () => {
-    const { secondsUntilMidnightUtc } = await loadCacheModule();
-    // Just past midnight — the window must still be ~24h, not ~0s.
-    const now = new Date("2026-08-16T00:00:01.000Z");
-    expect(secondsUntilMidnightUtc(now)).toBe(24 * 3600 - 1);
+describe("KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS", () => {
+  it("is three hours", async () => {
+    const { KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS } = await loadCacheModule();
+    expect(KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS).toBe(3 * 60 * 60);
   });
 });
 
@@ -82,14 +68,13 @@ describe("runtime-cache-backed graph cache", () => {
     expect(await readCache()).toBeNull();
   });
 
-  it("writes data with a TTL until the next UTC midnight", async () => {
+  it("writes data with a three-hour TTL", async () => {
     const { writeCache } = await loadCacheModule();
-    const now = new Date("2026-08-16T15:30:00.000Z");
 
-    await writeCache(sampleData, now);
+    await writeCache(sampleData);
 
     expect(fakeCache.set).toHaveBeenCalledWith("knowledge-graph", sampleData, {
-      ttl: 30600,
+      ttl: 10800,
     });
   });
 
@@ -100,6 +85,6 @@ describe("runtime-cache-backed graph cache", () => {
     const { readCache, writeCache } = await loadCacheModule();
 
     expect(await readCache()).toBeNull();
-    await expect(writeCache(sampleData, new Date())).resolves.toBeUndefined();
+    await expect(writeCache(sampleData)).resolves.toBeUndefined();
   });
 });
