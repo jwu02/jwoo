@@ -44,6 +44,11 @@ const nextConfig: NextConfig = {
     "internmap",
     "robust-predicates",
   ],
+  // Allow LAN devices (e.g. a phone on the same Wi-Fi) to hit dev-only
+  // resources like /_next/webpack-hmr. Patterns are matched per DNS label by
+  // Next's own matcher, which rejects a bare "*" — a wildcard must span
+  // multiple segments, so "*.*" alone would only cover 2-label hosts.
+  allowedDevOrigins: ["192.168.*.*"],
   // Pin the Turbopack root to this project directory so Next.js does not
   // walk up to the parent repository root when multiple package-lock.json
   // files are present (e.g. in a git worktree).
