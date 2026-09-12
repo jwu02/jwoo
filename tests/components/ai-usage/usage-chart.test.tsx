@@ -438,6 +438,29 @@ describe("UsageChart", () => {
     expect(yuanSigns.every((span) => span.textContent === "¥")).toBe(true);
   });
 
+  it("raises the cost tooltip above the tokens chart that follows it", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    await readTooltipItems(0);
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.textContent?.includes("model-b"));
+    expect(tooltip).toBeTruthy();
+
+    // Both charts render inside a `.recharts-wrapper`, which recharts styles
+    // `position: relative` with no z-index — so the tokens chart, later in
+    // document order, paints over everything in the cost chart. A cost tooltip
+    // taller than the 12rem chart box is clamped to the chart's top edge and
+    // spills down over the tokens chart, where the bars then cover its numbers.
+    // Recharts portals the tooltip into its own chart's wrapper without a
+    // z-index ("The Tooltip itself has a separate portal and is not included in
+    // the zIndex system"), and merging `wrapperStyle` last makes the tooltip the
+    // one place to break that `z-index: auto` tie: a positive z-index lifts the
+    // tooltip out of the wrapper's paint order, since neither wrapper is a
+    // stacking context.
+    expect(Number((tooltip as HTMLElement).style.zIndex)).toBeGreaterThan(0);
+  });
+
   it("shortens each model's token value in the tooltip to M/K", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 

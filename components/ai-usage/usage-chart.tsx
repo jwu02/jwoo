@@ -292,7 +292,17 @@ function MiniStackedBarChart({
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
-            <Tooltip content={<UsageChartTooltip range={range} series={series} />} />
+            <Tooltip
+              content={<UsageChartTooltip range={range} series={series} />}
+              // Recharts portals the tooltip into its own chart's wrapper, which
+              // is `position: relative` with no z-index. Two stacked charts then
+              // paint in document order, so a tooltip taller than the 12rem box
+              // (see `h-48` above) is clamped to the chart's top edge, spills
+              // over the chart below it, and gets covered by that chart's bars.
+              // The wrapper is not a stacking context, so a positive z-index on
+              // the tooltip lifts it back out of that paint order.
+              wrapperStyle={{ zIndex: 1 }}
+            />
             {series.map((entry) => (
               <Bar
                 key={entry.dataKey}
