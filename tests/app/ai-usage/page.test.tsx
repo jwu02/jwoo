@@ -77,7 +77,7 @@ describe("AiUsagePage", () => {
     render(<AiUsagePage />);
     await screen.findByText("claude-opus-5");
 
-    fireEvent.click(screen.getByRole("button", { name: "By project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project" }));
 
     expect(await screen.findByText("work")).toBeInTheDocument();
     expect(screen.getByText("personal-website")).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("AiUsagePage", () => {
     render(<AiUsagePage />);
     await screen.findByText("claude-opus-5");
 
-    fireEvent.click(screen.getByRole("button", { name: "By harness" }));
+    fireEvent.click(screen.getByRole("button", { name: "Harness" }));
 
     expect(await screen.findByText("claude-code")).toBeInTheDocument();
     expect(screen.getByText("api")).toBeInTheDocument();

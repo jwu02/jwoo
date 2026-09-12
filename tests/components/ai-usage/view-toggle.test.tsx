@@ -4,41 +4,39 @@ import { ViewToggle } from "@/components/ai-usage/view-toggle";
 describe("ViewToggle", () => {
   it("renders a button for each view", () => {
     render(<ViewToggle value="model" onChange={() => {}} />);
-    expect(
-      screen.getByRole("button", { name: "By model" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "By project" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "By harness" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Model" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Harness" })).toBeInTheDocument();
   });
 
   it("marks the active view as pressed", () => {
     const { rerender } = render(
       <ViewToggle value="model" onChange={() => {}} />
     );
-    expect(
-      screen.getByRole("button", { name: "By model" })
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: "By project" })
-    ).toHaveAttribute("aria-pressed", "false");
-    expect(
-      screen.getByRole("button", { name: "By harness" })
-    ).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Model" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Project" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "Harness" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
 
     rerender(<ViewToggle value="harness" onChange={() => {}} />);
-    expect(
-      screen.getByRole("button", { name: "By harness" })
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Harness" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
   });
 
   it("fires onChange with the clicked view", () => {
     const onChange = jest.fn();
     render(<ViewToggle value="model" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: "By harness" }));
+    fireEvent.click(screen.getByRole("button", { name: "Harness" }));
     expect(onChange).toHaveBeenCalledWith("harness");
   });
 });

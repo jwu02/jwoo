@@ -109,7 +109,7 @@ export default function AiUsagePage() {
           ) : (
             <>
               <div>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <RangeSelector
                     value={range}
                     onChange={setRange}
@@ -123,7 +123,7 @@ export default function AiUsagePage() {
                 />
               </div>
               <div>
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-lg font-semibold tracking-tight">
                     Usage breakdown
                   </h2>

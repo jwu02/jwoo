@@ -51,7 +51,7 @@ function StatCell({
 }) {
   const pct = shareOfTotal(rawValue, total);
   return (
-    <td className="py-2 tabular-nums">
+    <td className="py-2 pr-4 tabular-nums whitespace-nowrap">
       <div className="flex items-center justify-start gap-2">
         <Tooltip>
           <TooltipTrigger
@@ -96,49 +96,55 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
   };
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-          <th className="pb-2 font-medium">{labelHeader}</th>
-          <th className="pb-2 font-medium">Cost</th>
-          <th className="pb-2 font-medium">Total Tokens</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((row, index) => {
-          const color =
-            colorMap.get(row.label) ?? aiUsageColorVar(row.label, index);
-          const label = (
-            <span data-label={row.label} className="font-medium">
-              {row.label}
-            </span>
-          );
-          return (
-            <tr key={row.id} className="border-b border-border/50">
-              <td className="py-2">{label}</td>
-              <StatCell
-                ariaLabel={`${row.label} cost share`}
-                rawValue={row.costYuan}
-                display={
-                  <>
-                    <span className="text-muted-foreground">¥</span>
-                    {formatNumber(row.costYuan, 2)}
-                  </>
-                }
-                total={totals.cost}
-                color={color}
-              />
-              <StatCell
-                ariaLabel={`${row.label} tokens share`}
-                rawValue={row.totalTokens}
-                display={formatCompactNumber(row.totalTokens)}
-                total={totals.tokens}
-                color={color}
-              />
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    // Narrow screens scroll the table sideways rather than wrapping cell
+    // content; `min-w-max` sizes it to its unwrapped content width.
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-max text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="pb-2 pr-4 font-medium whitespace-nowrap">
+              {labelHeader}
+            </th>
+            <th className="pb-2 pr-4 font-medium whitespace-nowrap">Cost</th>
+            <th className="pb-2 font-medium whitespace-nowrap">Total Tokens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row, index) => {
+            const color =
+              colorMap.get(row.label) ?? aiUsageColorVar(row.label, index);
+            const label = (
+              <span data-label={row.label} className="font-medium">
+                {row.label}
+              </span>
+            );
+            return (
+              <tr key={row.id} className="border-b border-border/50">
+                <td className="py-2 pr-4 whitespace-nowrap">{label}</td>
+                <StatCell
+                  ariaLabel={`${row.label} cost share`}
+                  rawValue={row.costYuan}
+                  display={
+                    <>
+                      <span className="text-muted-foreground">¥</span>
+                      {formatNumber(row.costYuan, 2)}
+                    </>
+                  }
+                  total={totals.cost}
+                  color={color}
+                />
+                <StatCell
+                  ariaLabel={`${row.label} tokens share`}
+                  rawValue={row.totalTokens}
+                  display={formatCompactNumber(row.totalTokens)}
+                  total={totals.tokens}
+                  color={color}
+                />
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

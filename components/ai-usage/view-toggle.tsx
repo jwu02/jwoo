@@ -6,9 +6,9 @@ interface ViewToggleProps {
 }
 
 const OPTIONS: { value: BreakdownView; label: string }[] = [
-  { value: "model", label: "By model" },
-  { value: "project", label: "By project" },
-  { value: "harness", label: "By harness" },
+  { value: "model", label: "Model" },
+  { value: "project", label: "Project" },
+  { value: "harness", label: "Harness" },
 ];
 
 export function ViewToggle({ value, onChange }: ViewToggleProps) {
