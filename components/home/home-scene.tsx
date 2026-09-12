@@ -62,7 +62,14 @@ export function HomeScene() {
   if (mode === "scene") {
     return (
       <SceneErrorBoundary onError={() => setMode("fallback")}>
-        <div className="relative -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]">
+        {/* `isolate` keeps the scene its own stacking context. The drei <Html>
+            labels (the greeting and the hover tooltips) write an inline z-index
+            in the millions — drei's default zIndexRange of [16777271, 0] — and
+            nothing else between here and <body> forms a stacking context, so
+            without this they paint over the nav menu: the mobile sheet at z-50,
+            the desktop sidebar at z-10. Scoping their z-index here means the
+            scene as a whole sits at z-index auto, below both. */}
+        <div className="relative isolate -mx-4 -mb-4 h-[calc(100vh-3.5rem)] overflow-hidden md:h-[100vh]">
           <div className="absolute inset-0">
             <HomeCanvas />
           </div>
