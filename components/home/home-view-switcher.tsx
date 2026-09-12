@@ -16,7 +16,7 @@ export type HomeViewSwitcherProps = {
 // wrapper is pointer-transparent so the pill never blocks clicks on the canvas.
 export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherProps) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center">
       <div
         role="group"
         aria-label="Camera views"
