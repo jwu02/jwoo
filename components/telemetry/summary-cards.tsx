@@ -1,5 +1,4 @@
 import { TelemetryTotals } from "@/lib/telemetry/types";
-import { MousePointerClick, MousePointer, Ruler, Keyboard } from "lucide-react";
 
 interface SummaryCardsProps {
   totals: TelemetryTotals;
@@ -17,24 +16,20 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
     {
       label: "Key Presses",
       value: totals.totalKeyPresses,
-      icon: Keyboard,
     },
     {
       label: "Left Clicks",
       value: totals.leftClicks,
-      icon: MousePointerClick,
     },
     {
       label: "Right Clicks",
       value: totals.rightClicks,
-      icon: MousePointer,
     },
     {
       label: "Mouse Movement",
       value: totals.movementMeters,
       unit: "m",
       decimals: 0,
-      icon: Ruler,
     },
   ];
 
@@ -45,12 +40,9 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
           key={item.label}
           className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
         >
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <item.icon className="h-4 w-4" />
-            <span className="text-xs font-medium uppercase tracking-wide">
-              {item.label}
-            </span>
-          </div>
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {item.label}
+          </span>
           <div className="mt-2 text-2xl font-semibold tabular-nums">
             {formatNumber(item.value, item.decimals ?? 0)}
             {item.unit ? (

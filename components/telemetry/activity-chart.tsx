@@ -13,7 +13,11 @@ import {
 } from "recharts";
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
-import { formatTick, formatTooltip } from "@/lib/telemetry/chart-format";
+import {
+  formatCompactNumber,
+  formatTick,
+  formatTooltip,
+} from "@/lib/telemetry/chart-format";
 
 interface ActivityChartTooltipProps extends Partial<TooltipContentProps> {
   range: TelemetryRange;
@@ -99,12 +103,12 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
   };
 
   return (
-    <div className="w-full rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
+    <div className="w-full space-y-2 rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
-            margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+            margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
           >
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis
@@ -114,7 +118,12 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
+            {/* width="auto" measures the tick labels instead of reserving the
+                default 60px, so the plot fills the surface — which matters most
+                on narrow screens, where 60px is a quarter of the width. */}
             <YAxis
+              width="auto"
+              tickFormatter={(value: number) => formatCompactNumber(value)}
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
@@ -135,7 +144,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-6">
+      <div className="flex flex-wrap items-center justify-center gap-0">
         {SERIES.map((series) => {
           const isHidden = hidden.has(series.dataKey);
           return (

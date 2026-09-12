@@ -30,4 +30,9 @@ describe("SummaryCards", () => {
       "Mouse Movement",
     ]);
   });
+
+  it("renders labels without icons", () => {
+    const { container } = render(<SummaryCards totals={totals} />);
+    expect(container.querySelectorAll("svg")).toHaveLength(0);
+  });
 });

@@ -27,7 +27,7 @@ describe("resume section components", () => {
 
   it("TechnicalSkills renders group and comma-joined items", () => {
     render(<TechnicalSkills data={en} />)
-    expect(screen.getByText(/Programming Languages:/)).toBeInTheDocument()
+    expect(screen.getByText(/Languages:/)).toBeInTheDocument()
     expect(screen.getByText(/Python, Java, JavaScript/)).toBeInTheDocument()
   })
 

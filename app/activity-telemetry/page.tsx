@@ -125,7 +125,7 @@ export default function ActivityTelemetryPage() {
           </div>
 
           <div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
               <RangeSelector
                 value={range}
                 onChange={setRange}

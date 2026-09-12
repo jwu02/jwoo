@@ -1,13 +1,26 @@
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
-import { cloneElement } from "react";
+import { cloneElement, createElement } from "react";
 import { ActivityChart } from "@/components/telemetry/activity-chart";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
 import { formatTooltip } from "@/lib/telemetry/chart-format";
 
+// recharts does not render axis tick *labels* under jsdom (the axis measures
+// its own ticks from a ResizeObserver that never fires), so the Y axis tick
+// formatter can't be asserted from the DOM. Capture the props it was handed
+// instead, and read them back through `jest.requireMock`.
 jest.mock("recharts", () => {
   const actual = jest.requireActual("recharts");
+  const capturedYAxisProps: { current: Record<string, unknown> | null } = {
+    current: null,
+  };
+
   return {
     ...actual,
+    __capturedYAxisProps: capturedYAxisProps,
+    YAxis: (props: Record<string, unknown>) => {
+      capturedYAxisProps.current = props;
+      return createElement(actual.YAxis, props);
+    },
     ResponsiveContainer: ({ children }: { children: React.ReactElement }) =>
       cloneElement(
         children as React.ReactElement<{ width?: number; height?: number }>,
@@ -15,6 +28,13 @@ jest.mock("recharts", () => {
       ),
   };
 });
+
+function getYAxisProps() {
+  const { __capturedYAxisProps } = jest.requireMock("recharts");
+  return __capturedYAxisProps.current as {
+    tickFormatter?: (value: number) => string;
+  };
+}
 
 const fakeRect = {
   width: 800,
@@ -60,10 +80,26 @@ function buildData(): TimeSeriesPoint[] {
   }));
 }
 
+// The chart sizes its Y axis from the rendered tick labels (`width="auto"`),
+// measuring each `.recharts-cartesian-axis-tick-value` node. The blunt fakeRect
+// below reports every element as 800px wide, which would size the axis to the
+// whole chart and collapse the plot area, so tick labels report a realistic
+// label width instead.
+const TICK_LABEL_WIDTH = 40;
+
 beforeAll(() => {
   jest
     .spyOn(Element.prototype, "getBoundingClientRect")
-    .mockImplementation(() => fakeRect as DOMRect);
+    .mockImplementation(function (this: Element) {
+      if (this.classList?.contains("recharts-cartesian-axis-tick-value")) {
+        return {
+          ...fakeRect,
+          width: TICK_LABEL_WIDTH,
+          right: TICK_LABEL_WIDTH,
+        } as DOMRect;
+      }
+      return fakeRect as DOMRect;
+    });
 });
 
 afterAll(() => {
@@ -138,6 +174,18 @@ describe("ActivityChart", () => {
 
     expect(xAxisLine).toHaveAttribute("stroke", "var(--foreground)");
     expect(yAxisLine).toHaveAttribute("stroke", "var(--foreground)");
+  });
+
+  it("abbreviates thousands in the Y axis tick labels", () => {
+    render(<ActivityChart data={buildData()} range="24h" />);
+
+    const { tickFormatter } = getYAxisProps();
+    expect(tickFormatter).toBeDefined();
+    expect(tickFormatter!(2_500)).toBe("2.5K");
+    expect(tickFormatter!(1_000)).toBe("1K");
+    expect(tickFormatter!(1_200_000)).toBe("1.2M");
+    // Counts below a thousand stay exact.
+    expect(tickFormatter!(750)).toBe("750");
   });
 
   it("renders legend items in canonical metric order", () => {

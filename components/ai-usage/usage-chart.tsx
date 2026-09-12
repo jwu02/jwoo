@@ -272,7 +272,7 @@ function MiniStackedBarChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+            margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
             barCategoryGap={2}
           >
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -283,7 +283,11 @@ function MiniStackedBarChart({
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
             />
+            {/* width="auto" measures the tick labels instead of reserving the
+                default 60px, so the plot fills the surface — which matters most
+                on narrow screens, where 60px is a quarter of the width. */}
             <YAxis
+              width="auto"
               tickFormatter={(value: number) => yTickFormatter(value)}
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
@@ -363,7 +367,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
 
   return (
     <div className="w-full rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
-      <div className="space-y-6">
+      <div className="space-y-2">
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
             Cost (¥)
@@ -391,7 +395,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
         {costSeries.length > 0 && (
           <div
             data-testid="chart-legend"
-            className="flex flex-wrap items-center justify-center gap-4"
+            className="flex flex-wrap items-center justify-center gap-0"
           >
             {costSeries.map((entry) => {
               const isHidden = hidden.has(entry.name);

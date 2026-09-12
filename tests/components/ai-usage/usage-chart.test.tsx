@@ -147,10 +147,26 @@ function buildMixedActivityData(): AiUsageModelTimeSeries[] {
   ];
 }
 
+// The charts size their Y axis from the rendered tick labels (`width="auto"`),
+// measuring each `.recharts-cartesian-axis-tick-value` node. The blunt fakeRect
+// below reports every element as 800px wide, which would size the axis to the
+// whole chart and collapse the plot area, so tick labels report a realistic
+// label width instead.
+const TICK_LABEL_WIDTH = 40;
+
 beforeAll(() => {
   jest
     .spyOn(Element.prototype, "getBoundingClientRect")
-    .mockImplementation(() => fakeRect as DOMRect);
+    .mockImplementation(function (this: Element) {
+      if (this.classList?.contains("recharts-cartesian-axis-tick-value")) {
+        return {
+          ...fakeRect,
+          width: TICK_LABEL_WIDTH,
+          right: TICK_LABEL_WIDTH,
+        } as DOMRect;
+      }
+      return fakeRect as DOMRect;
+    });
 });
 
 afterAll(() => {
@@ -281,7 +297,12 @@ describe("UsageChart", () => {
         const bottomTop =
           Number(bottom.getAttribute("y")) +
           Number(bottom.getAttribute("height"));
-        expect(Number(top.getAttribute("y"))).toBeCloseTo(bottomTop, 5);
+        // Both edges are read back from SVG attributes, which recharts rounds
+        // to 4 decimals. Summing the bottom segment's two rounded values can
+        // therefore differ from the top segment's rounded y by one rounding
+        // step (1e-4), so compare at that granularity rather than demanding
+        // float-exact agreement.
+        expect(Number(top.getAttribute("y"))).toBeCloseTo(bottomTop, 3);
       }
     }
   });

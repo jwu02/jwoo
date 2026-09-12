@@ -1,5 +1,4 @@
 import { AiUsageTotals } from "@/lib/telemetry/types";
-import { Coins, Cpu } from "lucide-react";
 
 interface SummaryCardsProps {
   totals: AiUsageTotals;
@@ -12,6 +11,13 @@ function formatNumber(value: number, decimals = 0): string {
   }).format(value);
 }
 
+// Raw token counts are too long to read at a glance in a card, so totals are
+// always expressed in millions and the "M" moves into the unit slot, mirroring
+// the cost card's "¥".
+function formatMillions(value: number): string {
+  return Number((value / 1_000_000).toFixed(1)).toString();
+}
+
 export function SummaryCards({ totals }: SummaryCardsProps) {
   const items = [
     {
@@ -19,12 +25,11 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       value: formatNumber(totals.costYuan, 2),
       unit: "¥",
       unitBefore: true,
-      icon: Coins,
     },
     {
       label: "Total Tokens",
-      value: formatNumber(totals.totalTokens),
-      icon: Cpu,
+      value: formatMillions(totals.totalTokens),
+      unit: "M",
     },
   ];
 
@@ -35,12 +40,9 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
           key={item.label}
           className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
         >
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <item.icon className="h-4 w-4" />
-            <span className="text-xs font-medium uppercase tracking-wide">
-              {item.label}
-            </span>
-          </div>
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {item.label}
+          </span>
           <div className="mt-2 text-2xl font-semibold tabular-nums">
             {item.unitBefore ? (
               <span className="mr-1 text-sm font-normal text-muted-foreground">
