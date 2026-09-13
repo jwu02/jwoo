@@ -246,7 +246,6 @@ export const zh: ResumeData = {
         "检索增强生成（RAG）",
         "LangChain",
         "Langfuse",
-        "Claude Code",
       ],
     },
     {
