@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { FederatedPointerEvent } from "pixi.js";
 import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
@@ -71,7 +71,16 @@ function mixColors(c1: number, c2: number, t: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-export function ForceGraph({ nodes, edges }: ForceGraphProps) {
+// Memoized: the only props are the node and edge arrays, which the page hands
+// over straight from the payload and so keep their identity across its own
+// re-renders — the countdown tick among them. Without this, every tick would
+// reconcile one DOM label per node to change a number in a badge. Internal
+// state (hover, the label threshold) re-renders it as usual, and `memo` does
+// not block context updates, so the theme still reaches it.
+export const ForceGraph = memo(function ForceGraph({
+  nodes,
+  edges,
+}: ForceGraphProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -630,4 +639,4 @@ export function ForceGraph({ nodes, edges }: ForceGraphProps) {
       </div>
     </div>
   );
-}
+});

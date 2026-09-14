@@ -6,7 +6,9 @@ import { CacheStatus } from "@/components/knowledge-graph/cache-status";
 import { ErrorBanner } from "@/components/telemetry/error-banner";
 import type { KnowledgeGraphPayload } from "@/lib/knowledge-graph/types";
 
-// The badge reads to the second, so the page re-renders on the same beat.
+// The badge reads to the minute, but the tick stays on the second: it is also
+// what notices the snapshot has expired. It only moves the clock when the
+// displayed minute changes — see the effect below.
 const COUNTDOWN_TICK_MS = 1000;
 
 // The cache's own provenance, held apart from the graph data. `totalSeconds`
@@ -37,6 +39,9 @@ export default function KnowledgeGraphPage() {
   // clock object — a fresh clock arrives only on a successful load, so identity
   // is exactly the "we have not tried this one yet" signal.
   const refreshAttemptedForRef = useRef<CacheClock | null>(null);
+  // The minute the badge is currently showing, so a tick that would not change
+  // the number does not re-render — and with it, every node label.
+  const shownMinutesRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     // A refresh landing while the previous one is still open would race it and
@@ -50,16 +55,25 @@ export default function KnowledgeGraphPage() {
       setData(json);
       // A payload without provenance clears any countdown still running from
       // the previous response instead of leaving it to drift.
-      setClock(
+      if (
         typeof json.cachedAt === "string" &&
-          typeof json.remainingSeconds === "number"
-          ? {
-              cachedAt: json.cachedAt,
-              totalSeconds: json.remainingSeconds,
-              startedAtMs: Date.now(),
-            }
-          : null
-      );
+        typeof json.remainingSeconds === "number"
+      ) {
+        setClock({
+          cachedAt: json.cachedAt,
+          totalSeconds: json.remainingSeconds,
+          startedAtMs: Date.now(),
+        });
+        // Seeded with the minute the badge shows from its first render, so the
+        // next tick has nothing to change and no reason to re-render.
+        shownMinutesRef.current = Math.max(
+          0,
+          Math.ceil(json.remainingSeconds / 60)
+        );
+      } else {
+        setClock(null);
+        shownMinutesRef.current = null;
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -81,9 +95,16 @@ export default function KnowledgeGraphPage() {
     const interval = setInterval(() => {
       const now = Date.now();
       const left = secondsLeft(clock, now);
-      // Past zero there is no countdown left to re-render — the badge reads
-      // "refresh due" from here on — so the tick stops moving the clock.
-      if (left > 0) setNowMs(now);
+      // The clock moves only when the minute the badge shows would change. The
+      // tick is on the second for the expiry check below, not for the display.
+      // Clamping at zero is what lets a snapshot that has run out arrive at its
+      // final "0 min" — and the clamp is why the clock then stops for good:
+      // every later tick computes the same zero and renders nothing.
+      const minutes = Math.max(0, Math.ceil(left / 60));
+      if (minutes !== shownMinutesRef.current) {
+        shownMinutesRef.current = minutes;
+        setNowMs(now);
+      }
       // The tick is where time is observed to have moved, so it is also where
       // the snapshot is noticed to have run out. The guard keeps a *failed*
       // refresh from being retried on every subsequent tick: one attempt per

@@ -7,14 +7,21 @@ import KnowledgeGraphPage from "@/app/knowledge-graph/page";
 // animation frames apiece, and running a real graph through them is both slow
 // and enough load to disturb the timing-sensitive force-graph tests running in
 // a parallel worker.
+// Counts renders so the countdown tests can assert that a tick which does not
+// change the displayed minute leaves the graph alone.
+const mockGraphRenders = { count: 0 };
+
 jest.mock("@/components/knowledge-graph/force-graph", () => ({
-  ForceGraph: ({ nodes, edges }: { nodes: unknown[]; edges: unknown[] }) => (
-    <div
-      data-testid="kg-graph"
-      data-nodes={nodes.length}
-      data-edges={edges.length}
-    />
-  ),
+  ForceGraph: ({ nodes, edges }: { nodes: unknown[]; edges: unknown[] }) => {
+    mockGraphRenders.count += 1;
+    return (
+      <div
+        data-testid="kg-graph"
+        data-nodes={nodes.length}
+        data-edges={edges.length}
+      />
+    );
+  },
 }));
 
 const mockData = {
@@ -134,18 +141,41 @@ describe("KnowledgeGraphPage cache countdown", () => {
     await flush();
 
     expect(screen.getByTestId("kg-cache-status")).toBeInTheDocument();
-    expect(screen.getByText(/refreshes in 30m 0s/)).toBeInTheDocument();
-    expect(screen.getByText(/Cached /)).toBeInTheDocument();
+    expect(screen.getByText("Server-side Cache")).toBeInTheDocument();
+    expect(screen.getByText("Expires in 30 min")).toBeInTheDocument();
+    expect(screen.getByText(/Last updated /)).toBeInTheDocument();
   });
 
-  it("ticks the countdown down a second at a time", async () => {
+  it("holds the displayed minute until it has been spent", async () => {
     global.fetch = fetchMock(payloadWithCache);
 
     render(<KnowledgeGraphPage />);
     await flush();
-    await flush(1000);
 
-    expect(screen.getByText(/refreshes in 29m 59s/)).toBeInTheDocument();
+    // A second in, the badge still reads the minute it started on.
+    await flush(1000);
+    expect(screen.getByText("Expires in 30 min")).toBeInTheDocument();
+
+    await flush(59 * 1000);
+    expect(screen.getByText("Expires in 29 min")).toBeInTheDocument();
+  });
+
+  // The tick is on the second so expiry is noticed promptly, but the badge
+  // reads to the minute: re-rendering on every tick would reconcile every node
+  // label in the graph sixty times per visible change.
+  it("leaves the graph alone while the displayed minute holds", async () => {
+    global.fetch = fetchMock(payloadWithCache);
+
+    render(<KnowledgeGraphPage />);
+    await flush();
+    const renders = mockGraphRenders.count;
+
+    await flush(30 * 1000);
+    expect(mockGraphRenders.count).toBe(renders);
+
+    // ...and catches up in one render once that minute is spent.
+    await flush(30 * 1000);
+    expect(mockGraphRenders.count).toBe(renders + 1);
   });
 
   it("refetches once the countdown runs out", async () => {
@@ -196,6 +226,28 @@ describe("KnowledgeGraphPage cache countdown", () => {
     await flush(5000);
 
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  // A failed refresh leaves the snapshot in place, so the countdown has to be
+  // able to arrive at its own zero — otherwise the badge sits on "<1 min"
+  // indefinitely, reading as a countdown that never lands.
+  it("counts down to zero even when the refresh fails", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 45 }),
+      })
+      .mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
+
+    render(<KnowledgeGraphPage />);
+    await flush();
+    expect(screen.getByText("Expires in <1 min")).toBeInTheDocument();
+
+    await flush(45 * 1000);
+
+    expect(screen.getByText("Expires in 0 min")).toBeInTheDocument();
   });
 
   it("keeps the graph on screen when the refresh fails", async () => {
