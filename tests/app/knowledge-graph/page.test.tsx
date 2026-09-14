@@ -1,5 +1,17 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import KnowledgeGraphPage from "@/app/knowledge-graph/page";
+import { Toaster } from "@/components/ui/toast";
+
+// The page's cache notice is a toast, so it needs the viewport the root layout
+// provides. The `Toaster` lands in the first commit and the notice only once
+// the fetch resolves, which is the order the app mounts them in.
+function renderPage() {
+  return render(
+    <Toaster>
+      <KnowledgeGraphPage />
+    </Toaster>
+  );
+}
 
 // This page owns the fetch, the countdown and the layout; the Pixi graph
 // underneath has its own tests. Stubbing it keeps these tests off the canvas
@@ -52,7 +64,7 @@ afterEach(() => {
 
 describe("KnowledgeGraphPage", () => {
   it("fetches and renders the graph", async () => {
-    render(<KnowledgeGraphPage />);
+    renderPage();
 
     // The loaded branch mounts the graph (loading/error/empty branches do not,
     // so this distinguishes loaded from everything else).
@@ -65,14 +77,14 @@ describe("KnowledgeGraphPage", () => {
   });
 
   it("shows a loading state initially", () => {
-    render(<KnowledgeGraphPage />);
+    renderPage();
     expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
   });
 
   it("renders an empty state when there are no notes", async () => {
     global.fetch = fetchMock({ nodes: [], edges: [] });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("No notes synced yet.")).toBeInTheDocument();
@@ -84,7 +96,7 @@ describe("KnowledgeGraphPage", () => {
       Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
     ) as jest.Mock;
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("Failed to load knowledge graph")).toBeInTheDocument();
@@ -98,7 +110,7 @@ describe("KnowledgeGraphPage", () => {
       edges: [],
     });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
@@ -137,11 +149,12 @@ describe("KnowledgeGraphPage cache countdown", () => {
   it("reports when the snapshot was cached and how long it has left", async () => {
     global.fetch = fetchMock(payloadWithCache);
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
 
-    expect(screen.getByTestId("kg-cache-status")).toBeInTheDocument();
-    expect(screen.getByText("Server-side Cache")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Server-side Cache" })
+    ).toBeInTheDocument();
     expect(screen.getByText("Expires in 30 min")).toBeInTheDocument();
     expect(screen.getByText(/Last updated /)).toBeInTheDocument();
   });
@@ -149,10 +162,10 @@ describe("KnowledgeGraphPage cache countdown", () => {
   it("holds the displayed minute until it has been spent", async () => {
     global.fetch = fetchMock(payloadWithCache);
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
 
-    // A second in, the badge still reads the minute it started on.
+    // A second in, the notice still reads the minute it started on.
     await flush(1000);
     expect(screen.getByText("Expires in 30 min")).toBeInTheDocument();
 
@@ -160,13 +173,13 @@ describe("KnowledgeGraphPage cache countdown", () => {
     expect(screen.getByText("Expires in 29 min")).toBeInTheDocument();
   });
 
-  // The tick is on the second so expiry is noticed promptly, but the badge
+  // The tick is on the second so expiry is noticed promptly, but the notice
   // reads to the minute: re-rendering on every tick would reconcile every node
   // label in the graph sixty times per visible change.
   it("leaves the graph alone while the displayed minute holds", async () => {
     global.fetch = fetchMock(payloadWithCache);
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     const renders = mockGraphRenders.count;
 
@@ -181,7 +194,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   it("refetches once the countdown runs out", async () => {
     global.fetch = fetchMock({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 2 });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
@@ -195,7 +208,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   it("refetches when a skipped interval leaves the countdown overdue", async () => {
     global.fetch = fetchMock(payloadWithCache);
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
@@ -218,7 +231,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
       })
       .mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     await flush(2000);
     expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -229,7 +242,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   });
 
   // A failed refresh leaves the snapshot in place, so the countdown has to be
-  // able to arrive at its own zero — otherwise the badge sits on "<1 min"
+  // able to arrive at its own zero — otherwise the notice sits on "<1 min"
   // indefinitely, reading as a countdown that never lands.
   it("counts down to zero even when the refresh fails", async () => {
     global.fetch = jest
@@ -241,7 +254,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
       })
       .mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     expect(screen.getByText("Expires in <1 min")).toBeInTheDocument();
 
@@ -259,7 +272,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
       })
       .mockResolvedValueOnce({ ok: false, json: () => Promise.resolve({}) });
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
     await flush(2000);
 
@@ -272,16 +285,16 @@ describe("KnowledgeGraphPage cache countdown", () => {
   });
 
   // An older server, or a cached response from before the fields existed,
-  // leaves nothing to count down — the graph should render without the badge
+  // leaves nothing to count down — the graph should render without the notice
   // rather than counting from NaN.
-  it("renders no badge when the payload carries no cache info", async () => {
+  it("renders no notice when the payload carries no cache info", async () => {
     global.fetch = fetchMock(mockData);
 
-    render(<KnowledgeGraphPage />);
+    renderPage();
     await flush();
 
     expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
-    expect(screen.queryByTestId("kg-cache-status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Server-side Cache")).not.toBeInTheDocument();
     expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
   });
 });

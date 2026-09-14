@@ -11,6 +11,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/toast"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -55,6 +56,9 @@ export default function RootLayout({
               </SidebarInset>
             </SidebarProvider>
           </TooltipProvider>
+          {/* Toast notices portal out to the body, so the viewport sits above
+              the whole shell rather than inside the sidebar inset. */}
+          <Toaster />
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
-import { CacheStatus } from "@/components/knowledge-graph/cache-status";
+import { CacheToast } from "@/components/knowledge-graph/cache-toast";
 import { ErrorBanner } from "@/components/telemetry/error-banner";
 import type { KnowledgeGraphPayload } from "@/lib/knowledge-graph/types";
 
@@ -157,7 +157,7 @@ export default function KnowledgeGraphPage() {
       <div className="relative flex-1 overflow-hidden">
         <ForceGraph nodes={data.nodes} edges={data.edges} />
         {clock !== null && remainingSeconds !== null && (
-          <CacheStatus
+          <CacheToast
             cachedAt={clock.cachedAt}
             remainingSeconds={remainingSeconds}
           />
