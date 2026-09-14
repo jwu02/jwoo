@@ -349,53 +349,7 @@ describe("ForceGraph", () => {
     expect(() => unmount()).not.toThrow();
   });
 
-  it("moves the dragged node and its incident links immediately during a drag", async () => {
-    const nodes = [
-      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
-      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
-      { id: "C.md", createdAt: "2024-01-03T00:00:00.000Z" },
-    ];
-    const edges = [
-      { source: "A.md", target: "B.md" },
-      { source: "B.md", target: "C.md" },
-    ];
-
-    const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
-    );
-
-    await waitFor(() => {
-      const { nodesContainer } = getContainers(container);
-      expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
-    });
-
-    const nodeB = nodeSpriteById(container, "B.md")!;
-    const linkAB = linkSpriteBySource(container, "A.md")!;
-    const linkBC = linkSpriteBySource(container, "B.md")!;
-
-    const startX = 100;
-    const startY = 100;
-    const dx = 150;
-    const dy = 40;
-
-    act(() => {
-      nodeB.emit!("pointerdown", {
-        client: { x: startX, y: startY },
-        stopPropagation: () => {},
-        preventDefault: () => {},
-      });
-    });
-
-    const moveEvent = new MouseEvent("pointermove", {
-      bubbles: true,
-      clientX: startX + dx,
-      clientY: startY + dy,
-    });
-    document.dispatchEvent(moveEvent);
-
-    expect(nodeB.x).toBe(startX + dx);
-    expect(nodeB.y).toBe(startY + dy);
-    expect(linkAB.width).toBeGreaterThan(0);
-    expect(linkBC.width).toBeGreaterThan(0);
-  });
+  // The drag test lives in force-graph-drag.test.tsx: it needs the zoom
+  // transform held at the identity, which means driving the simulation by hand
+  // rather than letting the real one fit the view mid-assertion.
 });
