@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getNotesCollection } from "@/lib/knowledge-graph/db";
 import { buildGraph } from "@/lib/knowledge-graph/graph-data";
 import { readCache, writeCache } from "@/lib/knowledge-graph/cache";
+import { buildPayload } from "@/lib/knowledge-graph/payload";
 import type { KnowledgeGraphResponse } from "@/lib/knowledge-graph/types";
+
+const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 export async function GET() {
   try {
@@ -11,9 +14,10 @@ export async function GET() {
     // build entirely.
     const cached = await readCache();
     if (cached) {
-      return NextResponse.json(cached, {
-        headers: { "Cache-Control": "no-store, max-age=0" },
-      });
+      return NextResponse.json(
+        buildPayload(cached.graph, cached.cachedAt, new Date()),
+        { headers: NO_STORE }
+      );
     }
 
     const collection = await getNotesCollection();
@@ -21,14 +25,16 @@ export async function GET() {
 
     const { nodes, edges } = buildGraph(docs);
     const response: KnowledgeGraphResponse = { nodes, edges };
+    const now = new Date();
 
     // Best-effort write: a failed cache write must not fail the request — the
     // missing snapshot just means the next request rebuilds it.
-    await writeCache(response).catch(() => {});
+    await writeCache(response, now.toISOString()).catch(() => {});
 
-    return NextResponse.json(response, {
-      headers: { "Cache-Control": "no-store, max-age=0" },
-    });
+    return NextResponse.json(
+      buildPayload(response, now.toISOString(), now),
+      { headers: NO_STORE }
+    );
   } catch (error) {
     console.error("Knowledge graph API error:", error);
     return NextResponse.json(

@@ -36,6 +36,7 @@ describe("runtime-cache-backed graph cache", () => {
     nodes: [{ id: "A.md", createdAt: "2026-08-16T00:00:00.000Z" }],
     edges: [],
   };
+  const sampleCachedAt = "2026-09-14T06:32:00.000Z";
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -49,11 +50,14 @@ describe("runtime-cache-backed graph cache", () => {
     mockGetCache.mockReturnValue(fakeCache);
   });
 
-  it("returns cached data when present", async () => {
+  it("returns the cached entry, timestamp included, when present", async () => {
     const { readCache } = await loadCacheModule();
-    store.set("knowledge-graph", sampleData);
+    store.set("knowledge-graph", { graph: sampleData, cachedAt: sampleCachedAt });
 
-    expect(await readCache()).toEqual(sampleData);
+    expect(await readCache()).toEqual({
+      graph: sampleData,
+      cachedAt: sampleCachedAt,
+    });
     expect(fakeCache.get).toHaveBeenCalledWith("knowledge-graph");
   });
 
@@ -64,18 +68,38 @@ describe("runtime-cache-backed graph cache", () => {
 
   it("returns null for a structurally invalid cached value", async () => {
     const { readCache } = await loadCacheModule();
-    store.set("knowledge-graph", { nodes: "oops", edges: [] });
+    store.set("knowledge-graph", {
+      graph: { nodes: "oops", edges: [] },
+      cachedAt: sampleCachedAt,
+    });
     expect(await readCache()).toBeNull();
   });
 
-  it("writes data with a three-hour TTL", async () => {
+  it("returns null when the entry carries no timestamp", async () => {
+    const { readCache } = await loadCacheModule();
+    store.set("knowledge-graph", { graph: sampleData });
+    expect(await readCache()).toBeNull();
+  });
+
+  // Entries written before the timestamp existed have the bare graph shape.
+  // Rejecting them costs one rebuild on the first request after a deploy and
+  // spares every reader a branch for a shape nothing writes any more.
+  it("returns null for a pre-timestamp entry holding the bare graph", async () => {
+    const { readCache } = await loadCacheModule();
+    store.set("knowledge-graph", sampleData);
+    expect(await readCache()).toBeNull();
+  });
+
+  it("writes the graph with its timestamp under a three-hour TTL", async () => {
     const { writeCache } = await loadCacheModule();
 
-    await writeCache(sampleData);
+    await writeCache(sampleData, sampleCachedAt);
 
-    expect(fakeCache.set).toHaveBeenCalledWith("knowledge-graph", sampleData, {
-      ttl: 10800,
-    });
+    expect(fakeCache.set).toHaveBeenCalledWith(
+      "knowledge-graph",
+      { graph: sampleData, cachedAt: sampleCachedAt },
+      { ttl: 10800 }
+    );
   });
 
   it("degrades gracefully when getCache is unavailable", async () => {
@@ -85,6 +109,6 @@ describe("runtime-cache-backed graph cache", () => {
     const { readCache, writeCache } = await loadCacheModule();
 
     expect(await readCache()).toBeNull();
-    await expect(writeCache(sampleData)).resolves.toBeUndefined();
+    await expect(writeCache(sampleData, sampleCachedAt)).resolves.toBeUndefined();
   });
 });
