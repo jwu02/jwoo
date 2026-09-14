@@ -4,6 +4,7 @@ import {
   formatTick,
   formatTooltip,
   formatCompactNumber,
+  estimateTickLabelWidth,
 } from "@/lib/telemetry/chart-format";
 
 describe("formatTick", () => {
@@ -35,6 +36,25 @@ describe("formatTooltip", () => {
 
   it("formats 1y tooltip as month and year", () => {
     expect(formatTooltip(bucket, "1y")).toBe("Aug, 2025");
+  });
+});
+
+describe("estimateTickLabelWidth", () => {
+  const bucket = "2025-08-09T03:00:00.000Z"; // 11:00 CST
+
+  // The expected widths are the ones the browser reports for these labels on a
+  // rendered axis (fontSize 12): "11:00" and "Aug 9" render 36px, "Aug 2025"
+  // renders 57.6px.
+  it("matches the rendered width of a 24h label", () => {
+    expect(estimateTickLabelWidth(bucket, "24h")).toBe(36);
+  });
+
+  it("matches the rendered width of a 30d label", () => {
+    expect(estimateTickLabelWidth(bucket, "30d")).toBe(36);
+  });
+
+  it("matches the rendered width of a 1y label", () => {
+    expect(estimateTickLabelWidth("2025-08-20T16:00:00.000Z", "1y")).toBe(57.6);
   });
 });
 

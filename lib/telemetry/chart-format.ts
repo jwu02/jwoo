@@ -39,6 +39,16 @@ export function formatTick(bucket: string, range: Range): string {
   }
 }
 
+// Ticks render at fontSize 12, where a character averages 7.2px — the widths the
+// browser reports for these labels ("11:00" and "Aug 9" 36px, "Aug 2025"
+// 57.6px) all fall out of that. Charts use it to reserve room for a tick label,
+// since Recharts drops a tick whose label it cannot fit inside the axis.
+const TICK_LABEL_CHAR_WIDTH = 7.2;
+
+export function estimateTickLabelWidth(bucket: string, range: Range): number {
+  return formatTick(bucket, range).length * TICK_LABEL_CHAR_WIDTH;
+}
+
 export function formatTooltip(bucket: string, range: Range): string {
   const date = new Date(bucket);
 

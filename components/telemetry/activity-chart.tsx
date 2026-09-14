@@ -14,6 +14,7 @@ import {
 import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
 import {
+  estimateTickLabelWidth,
   formatCompactNumber,
   formatTick,
   formatTooltip,
@@ -90,6 +91,22 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
     [data, range]
   );
 
+  // Recharts only shows a tick whose label fits inside the axis, and the last
+  // tick's label is centred on the axis's right edge — so without this the axis
+  // puts half the label past the SVG, drops a tick to make room, and leaves an
+  // uneven gap. Reserving half a label width at the end lets it keep every tick.
+  const endPadding = useMemo(
+    () =>
+      Math.ceil(
+        ticks.reduce(
+          (widest, bucket) =>
+            Math.max(widest, estimateTickLabelWidth(bucket, range)),
+          0
+        ) / 2
+      ) + 4,
+    [ticks, range]
+  );
+
   const toggleSeries = (dataKey: string) => {
     setHidden((prev) => {
       const next = new Set(prev);
@@ -114,6 +131,14 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
             <XAxis
               dataKey="bucket"
               ticks={ticks}
+              // `preserveEnd` keeps the last tick in view by sliding it back
+              // inside the axis, which manufactures a collision with its
+              // neighbour that Recharts resolves by dropping that neighbour —
+              // a hole in the middle of the axis (Aug 2026 went missing on 1y).
+              // The equidistant mode instead widens the tick spacing until
+              // every label fits, so the axis keeps an even interval.
+              interval="equidistantPreserveEnd"
+              padding={{ right: endPadding }}
               tickFormatter={(value: string) => formatTick(value, range)}
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"
