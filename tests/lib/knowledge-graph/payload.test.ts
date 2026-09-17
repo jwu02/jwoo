@@ -3,9 +3,9 @@
  */
 import { buildPayload } from "@/lib/knowledge-graph/payload";
 import { KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS } from "@/lib/knowledge-graph/cache";
-import type { KnowledgeGraphResponse } from "@/lib/knowledge-graph/types";
+import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 
-const graph: KnowledgeGraphResponse = {
+const graph: KnowledgeGraphData = {
   nodes: [{ id: "A.md", createdAt: "2026-08-16T00:00:00.000Z" }],
   edges: [],
 };

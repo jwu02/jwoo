@@ -3,7 +3,7 @@ import { getNotesCollection } from "@/lib/knowledge-graph/db";
 import { buildGraph } from "@/lib/knowledge-graph/graph-data";
 import { readCache, writeCache } from "@/lib/knowledge-graph/cache";
 import { buildPayload } from "@/lib/knowledge-graph/payload";
-import type { KnowledgeGraphResponse } from "@/lib/knowledge-graph/types";
+import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
@@ -24,15 +24,15 @@ export async function GET() {
     const docs = await collection.find({}).toArray();
 
     const { nodes, edges } = buildGraph(docs);
-    const response: KnowledgeGraphResponse = { nodes, edges };
+    const graph: KnowledgeGraphData = { nodes, edges };
     const now = new Date();
 
     // Best-effort write: a failed cache write must not fail the request — the
     // missing snapshot just means the next request rebuilds it.
-    await writeCache(response, now.toISOString()).catch(() => {});
+    await writeCache(graph, now.toISOString()).catch(() => {});
 
     return NextResponse.json(
-      buildPayload(response, now.toISOString(), now),
+      buildPayload(graph, now.toISOString(), now),
       { headers: NO_STORE }
     );
   } catch (error) {

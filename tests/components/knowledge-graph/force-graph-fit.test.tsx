@@ -60,8 +60,12 @@ const NODES = [
 ];
 const EDGES = [{ source: "A.md", target: "B.md" }];
 
+// One graph object, the way the page hands it over: its identity is what the
+// component's memo compares, so the tests pass it the same way the page does.
+const GRAPH = { nodes: NODES, edges: EDGES };
+
 function renderGraph() {
-  const rendered = render(<ForceGraph nodes={NODES} edges={EDGES} />);
+  const rendered = render(<ForceGraph graph={GRAPH} />);
   return {
     wrapper: rendered.container.querySelector(
       "[data-testid='kg-graph-wrapper']"

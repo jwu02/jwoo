@@ -3,7 +3,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { FederatedPointerEvent } from "pixi.js";
-import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
+import type {
+  KnowledgeGraphData,
+  KnowledgeGraphEdge,
+  KnowledgeGraphNode,
+} from "@/lib/knowledge-graph/types";
 import {
   computeDegrees,
   computeFitTransform,
@@ -19,8 +23,7 @@ import {
 import { usePixiApp } from "./use-pixi-app";
 
 interface ForceGraphProps {
-  nodes: KnowledgeGraphNode[];
-  edges: KnowledgeGraphEdge[];
+  graph: KnowledgeGraphData;
 }
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
@@ -71,16 +74,15 @@ function mixColors(c1: number, c2: number, t: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
-// Memoized: the only props are the node and edge arrays, which the page hands
-// over straight from the payload and so keep their identity across its own
-// re-renders — the countdown tick among them. Without this, every tick would
-// reconcile one DOM label per node to change a number in a badge. Internal
-// state (hover, the label threshold) re-renders it as usual, and `memo` does
-// not block context updates, so the theme still reaches it.
-export const ForceGraph = memo(function ForceGraph({
-  nodes,
-  edges,
-}: ForceGraphProps) {
+// The prop is one graph object per snapshot, and its identity is the contract:
+// the page hands over a payload it never rebuilds, so comparing that one object
+// is comparing snapshots. Without the memo, every re-render of the page — the
+// countdown tick among them — would reconcile one DOM label per node to change
+// a number in a badge. Internal state (hover, the label threshold) re-renders
+// it as usual, and `memo` does not block context updates, so the theme still
+// reaches it.
+export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
+  const { nodes, edges } = graph;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);

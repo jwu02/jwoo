@@ -1,4 +1,4 @@
-import type { KnowledgeGraphResponse } from "./types";
+import type { KnowledgeGraphData } from "./types";
 
 export const KNOWLEDGE_GRAPH_CACHE_KEY = "knowledge-graph";
 
@@ -12,13 +12,13 @@ export const KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS = 3 * 60 * 60;
 // old it is and how long the cache has left. The TTL itself is the cache's
 // business; only the write time is ours to remember.
 export interface CachedGraph {
-  graph: KnowledgeGraphResponse;
+  graph: KnowledgeGraphData;
   cachedAt: string;
 }
 
-function isValidGraph(data: unknown): data is KnowledgeGraphResponse {
+function isValidGraph(data: unknown): data is KnowledgeGraphData {
   if (!data || typeof data !== "object") return false;
-  const graph = data as Partial<KnowledgeGraphResponse>;
+  const graph = data as Partial<KnowledgeGraphData>;
   return Array.isArray(graph.nodes) && Array.isArray(graph.edges);
 }
 
@@ -61,7 +61,7 @@ export async function readCache(): Promise<CachedGraph | null> {
 }
 
 export async function writeCache(
-  graph: KnowledgeGraphResponse,
+  graph: KnowledgeGraphData,
   cachedAt: string
 ): Promise<void> {
   const cache = await getRuntimeCache();

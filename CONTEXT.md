@@ -59,3 +59,29 @@ _Avoid_: greeting (that is one mode)
 **Fly-to**:
 The damped camera tween from the current pose to a hotspot's framing, cancelled by user take-over.
 _Avoid_: tween, camera animation
+
+### Knowledge graph
+
+**Fit**:
+The transform that frames the whole graph inside its viewport. The rough fit snaps on the simulation's first tick; the precise fit animates once the simulation settles. Both are suppressed once the user has interacted with the view.
+_Avoid_: reframe, zoom-to-fit
+
+**Label threshold**:
+The zoom level above which every node's label shows; below it, only the hovered node's.
+_Avoid_: label zoom, reveal zoom
+
+**Leaf**:
+A node with exactly one unique neighbor. A reciprocal pair (A→B and B→A) does not make either a leaf — degree alone would double-count the pair and hide a true leaf's tint.
+_Avoid_: degree-1 node, end node
+
+**Hub**:
+Any node that is not a leaf — isolated nodes included. Hubs share the base node tint; only leaves are drawn distinct. The word does not imply many connections.
+_Avoid_: high-degree node
+
+**Emphasis**:
+The visual state hover gives a node: hovered, neighbor, or dimmed — idle when nothing is hovered. It layers over the node's base role (leaf or hub).
+_Avoid_: highlight, dim rule
+
+**Graph**:
+The nodes and edges of the knowledge graph as one immutable set — what the builder produces, the cache stores, and the renderer draws. A snapshot pairs a graph with its cache provenance.
+_Avoid_: response, payload

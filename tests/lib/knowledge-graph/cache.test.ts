@@ -11,7 +11,7 @@ jest.mock("@vercel/functions", () => ({
   getCache: mockGetCache,
 }));
 
-import type { KnowledgeGraphResponse } from "@/lib/knowledge-graph/types";
+import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 
 async function loadCacheModule() {
   jest.resetModules();
@@ -32,7 +32,7 @@ describe("runtime-cache-backed graph cache", () => {
     set: jest.Mock;
   };
 
-  const sampleData: KnowledgeGraphResponse = {
+  const sampleData: KnowledgeGraphData = {
     nodes: [{ id: "A.md", createdAt: "2026-08-16T00:00:00.000Z" }],
     edges: [],
   };

@@ -24,13 +24,17 @@ function renderPage() {
 const mockGraphRenders = { count: 0 };
 
 jest.mock("@/components/knowledge-graph/force-graph", () => ({
-  ForceGraph: ({ nodes, edges }: { nodes: unknown[]; edges: unknown[] }) => {
+  ForceGraph: ({
+    graph,
+  }: {
+    graph: { nodes: unknown[]; edges: unknown[] };
+  }) => {
     mockGraphRenders.count += 1;
     return (
       <div
         data-testid="kg-graph"
-        data-nodes={nodes.length}
-        data-edges={edges.length}
+        data-nodes={graph.nodes.length}
+        data-edges={graph.edges.length}
       />
     );
   },

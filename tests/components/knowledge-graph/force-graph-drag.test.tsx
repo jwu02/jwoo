@@ -97,6 +97,10 @@ const EDGES = [
   { source: "B.md", target: "C.md" },
 ];
 
+// One graph object, the way the page hands it over: its identity is what the
+// component's memo compares, so the tests pass it the same way the page does.
+const GRAPH = { nodes: NODES, edges: EDGES };
+
 // No tick runs, so the incident links are drawn from the positions the nodes
 // carry here rather than from the sprites the tick loop would have placed.
 function setPositions(positions: Array<{ x: number; y: number }>) {
@@ -112,7 +116,7 @@ function setPositions(positions: Array<{ x: number; y: number }>) {
 
 describe("ForceGraph drag", () => {
   it("moves the dragged node and its incident links immediately during a drag", async () => {
-    const { container } = render(<ForceGraph nodes={NODES} edges={EDGES} />);
+    const { container } = render(<ForceGraph graph={GRAPH} />);
 
     await waitFor(() => {
       const { nodesContainer } = getContainers(container);

@@ -155,7 +155,7 @@ export default function KnowledgeGraphPage() {
         </div>
       )}
       <div className="relative flex-1 overflow-hidden">
-        <ForceGraph nodes={data.nodes} edges={data.edges} />
+        <ForceGraph graph={data} />
         {clock !== null && remainingSeconds !== null && (
           <CacheToast
             cachedAt={clock.cachedAt}

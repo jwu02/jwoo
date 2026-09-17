@@ -1,11 +1,11 @@
 import { KNOWLEDGE_GRAPH_CACHE_TTL_SECONDS } from "./cache";
-import type { KnowledgeGraphPayload, KnowledgeGraphResponse } from "./types";
+import type { KnowledgeGraphPayload, KnowledgeGraphData } from "./types";
 
 // Turns a graph and its write time into the shape the page renders. Pure, with
 // the clock injected, so the countdown can be pinned in tests rather than
 // raced.
 export function buildPayload(
-  graph: KnowledgeGraphResponse,
+  graph: KnowledgeGraphData,
   cachedAt: string,
   now: Date
 ): KnowledgeGraphPayload {

@@ -61,7 +61,7 @@ describe("ForceGraph", () => {
     const edges = [{ source: "A.md", target: "B.md" }];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
+      <ForceGraph graph={{ nodes, edges }} />
     );
 
     await waitFor(() => {
@@ -90,7 +90,7 @@ describe("ForceGraph", () => {
       { source: "A.md", target: "E.md" },
     ];
 
-    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+    const { container } = render(<ForceGraph graph={{ nodes, edges }} />);
 
     await waitFor(() => {
       const { nodesContainer } = getContainers(container);
@@ -114,7 +114,7 @@ describe("ForceGraph", () => {
       { source: "B.md", target: "C.md" },
     ];
 
-    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+    const { container } = render(<ForceGraph graph={{ nodes, edges }} />);
 
     await waitFor(() => {
       const { nodesContainer, linksContainer } = getContainers(container);
@@ -135,7 +135,7 @@ describe("ForceGraph", () => {
     ];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
+      <ForceGraph graph={{ nodes, edges }} />
     );
 
     await waitFor(() => {
@@ -176,7 +176,7 @@ describe("ForceGraph", () => {
     ];
     const edges = [{ source: "A.md", target: "B.md" }];
 
-    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+    const { container } = render(<ForceGraph graph={{ nodes, edges }} />);
 
     await waitFor(() => {
       const { nodesContainer } = getContainers(container);
@@ -212,7 +212,7 @@ describe("ForceGraph", () => {
     ];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
+      <ForceGraph graph={{ nodes, edges }} />
     );
 
     await waitFor(() => {
@@ -246,7 +246,7 @@ describe("ForceGraph", () => {
       { source: "B.md", target: "C.md" },
     ];
 
-    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+    const { container } = render(<ForceGraph graph={{ nodes, edges }} />);
 
     await waitFor(() => {
       const { nodesContainer } = getContainers(container);
@@ -272,7 +272,7 @@ describe("ForceGraph", () => {
       { source: "B.md", target: "C.md" },
     ];
 
-    const { container } = render(<ForceGraph nodes={nodes} edges={edges} />);
+    const { container } = render(<ForceGraph graph={{ nodes, edges }} />);
 
     await waitFor(() => {
       const { nodesContainer } = getContainers(container);
@@ -298,7 +298,7 @@ describe("ForceGraph", () => {
     const edges = [{ source: "A.md", target: "B.md" }];
 
     const { container } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
+      <ForceGraph graph={{ nodes, edges }} />
     );
 
     await waitFor(() => {
@@ -335,7 +335,7 @@ describe("ForceGraph", () => {
     const edges = [{ source: "A.md", target: "B.md" }];
 
     const { container, unmount } = render(
-      <ForceGraph nodes={nodes} edges={edges} />
+      <ForceGraph graph={{ nodes, edges }} />
     );
 
     await waitFor(() => {

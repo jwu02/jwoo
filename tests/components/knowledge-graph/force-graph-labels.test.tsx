@@ -60,6 +60,10 @@ const EDGES = [
   { source: BETA, target: GAMMA },
 ];
 
+// One graph object, the way the page hands it over: its identity is what the
+// component's memo compares, so the tests pass it the same way the page does.
+const GRAPH = { nodes: NODES, edges: EDGES };
+
 beforeEach(() => {
   document.documentElement.style.setProperty("--primary", "#ff0000");
   document.documentElement.style.setProperty("--claude-orange", "#ff8800");
@@ -89,7 +93,7 @@ function mockViewport(wrapper: HTMLElement) {
 }
 
 async function renderGraph() {
-  const rendered = render(<ForceGraph nodes={NODES} edges={EDGES} />);
+  const rendered = render(<ForceGraph graph={GRAPH} />);
   const wrapper = rendered.container.querySelector(
     "[data-testid='kg-graph-wrapper']"
   ) as HTMLElement;
