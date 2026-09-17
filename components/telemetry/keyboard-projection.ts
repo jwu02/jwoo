@@ -1,6 +1,6 @@
 import * as THREE from "three"
 
-import type { TooltipAnchor } from "@/lib/telemetry/tooltip-position"
+import type { TooltipAnchor } from "@/lib/ui/tooltip-position"
 
 /**
  * Project a keycap node into an on-screen anchor for the tooltip.

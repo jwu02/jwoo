@@ -1,10 +1,10 @@
 "use client"
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef } from "react"
 
+import { SceneA11yLayer, SceneTooltip, useSceneHover } from "@/components/three/scene-hover"
 import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout"
 import { KeyCounts } from "@/lib/telemetry/types"
-import { computeTooltipPosition } from "@/lib/telemetry/tooltip-position"
 
 import { KeyboardScene } from "./keyboard-scene"
 import type { KeyboardCanvasApi } from "./keyboard-model"
@@ -26,14 +26,13 @@ function formatNumber(value: number): string {
 // tooltip/a11y layer positions against the scene container, so the toggle never
 // shifts the tooltip.
 export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
-  // Single source of truth for hover — the 3D press, tooltip, and a11y buttons
-  // all converge here, so the pointer and focus paths stay in lock-step.
-  const [hovered, setHovered] = useState<string | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const tooltipRef = useRef<HTMLDivElement>(null)
-  // The canvas lives behind the dynamic import, so the wrapper reaches its
+  // The canvas lives behind the dynamic import, so the hover layer reaches its
   // node/camera via this api ref rather than owning the projection directly.
   const canvasApiRef = useRef<KeyboardCanvasApi | null>(null)
+  // Single source of truth for hover — the 3D press, tooltip, and a11y buttons
+  // all converge here, so the pointer and focus paths stay in lock-step.
+  const { hovered, setHovered, containerRef, tooltipRef } =
+    useSceneHover(canvasApiRef)
 
   // Aggregate raw label counts into physical-key counts.
   const keyCountMap = useMemo(() => buildKeyCountMap(keys), [keys])
@@ -64,51 +63,18 @@ export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
       .sort((a, b) => b.count - a.count)
   }, [hoveredKey, keys])
 
-  // Position the tooltip against the live canvas projection of the hovered key.
-  // Runs before paint so it never flashes at an unclamped location. A key with
-  // no node falls back to a deterministic centre/top anchor → the tooltip
-  // simply appears at the top-centre both themes, which is testable.
-  useLayoutEffect(() => {
-    const tooltip = tooltipRef.current
-    const container = containerRef.current
-    if (!tooltip || !container || !hovered) return
-
-    const anchor = canvasApiRef.current?.getAnchor(hovered) ?? {
-      centerX: container.clientWidth / 2,
-      keyTop: 0,
-      keyHeight: 0,
-    }
-    const pos = computeTooltipPosition(
-      anchor,
-      tooltip.offsetWidth,
-      tooltip.offsetHeight,
-      { clientWidth: container.clientWidth, scrollLeft: 0 },
-    )
-    tooltip.style.left = `${pos.left}px`
-    tooltip.style.top = `${pos.top}px`
-  }, [hovered])
-
-  // The a11y layer is a real button per physical key (including those with no
-  // GLB node), rendered outside the dynamic canvas so it survives the fallback.
-  // Memoised on counts so hover churn never re-diffs 79 buttons.
-  const a11yButtons = useMemo(
+  // A real button per physical key (including those with no GLB node), rendered
+  // outside the dynamic canvas so it survives the fallback. Memoised on counts
+  // so hover churn never re-diffs 79 buttons.
+  const a11yItems = useMemo(
     () =>
-      PHYSICAL_KEYS.map((key) => {
-        const count = keyCountMap.get(key.id) ?? 0
-        const label =
+      PHYSICAL_KEYS.map((key) => ({
+        id: key.id,
+        label:
           key.id === "Touch ID"
             ? "Touch ID"
-            : `${key.id}: ${formatNumber(count)} presses`
-        return (
-          <button
-            key={key.id}
-            type="button"
-            aria-label={label}
-            onFocus={() => setHovered(key.id)}
-            onBlur={() => setHovered(null)}
-          />
-        )
-      }),
+            : `${key.id}: ${formatNumber(keyCountMap.get(key.id) ?? 0)} presses`,
+      })),
     [keyCountMap],
   )
 
@@ -125,10 +91,7 @@ export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
         />
 
         {hoveredKey && (
-          <div
-            ref={tooltipRef}
-            className="pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
-          >
+          <SceneTooltip innerRef={tooltipRef}>
             {hoveredKey.id === "Touch ID" ? (
               <div className="font-medium">Touch ID untracked</div>
             ) : (
@@ -150,12 +113,10 @@ export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
                 )}
               </>
             )}
-          </div>
+          </SceneTooltip>
         )}
 
-        {/* Visually hidden but focusable — Tab reaches each key and drives the 3D
-            press + tooltip via the same hover pipeline. */}
-        <div className="sr-only">{a11yButtons}</div>
+        <SceneA11yLayer items={a11yItems} onHover={setHovered} />
       </div>
     </div>
   )

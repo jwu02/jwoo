@@ -1,7 +1,7 @@
 import {
   computeTooltipPosition,
   TooltipAnchor,
-} from "@/lib/telemetry/tooltip-position";
+} from "@/lib/ui/tooltip-position";
 
 const GAP = 8;
 const MARGIN = 4;

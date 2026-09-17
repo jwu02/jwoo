@@ -1,14 +1,12 @@
 "use client"
 
-// Side-effect setup: filters the upstream R3F THREE.Clock deprecation warning.
-// Imported first so it runs before this module's <Canvas> mounts.
-import "./three-console"
-
 import { useProgress } from "@react-three/drei"
-import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import { useFrame, useThree } from "@react-three/fiber"
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
 import type { OrbitControls as OrbitControlsImpl } from "three/addons/controls/OrbitControls.js"
+
+import { SceneCanvas } from "@/components/three/scene-canvas"
 
 import { setHeroMode } from "./home-hero-store"
 import { HomeOrbitControls } from "./home-orbit-controls"
@@ -208,27 +206,21 @@ export function HomeCanvas() {
   }, [])
 
   return (
-    <div className="relative h-full w-full">
-      {/* Cap device pixel ratio at 1.5: the fullscreen hero canvas on a
-          Retina display would otherwise render at 2x (4x the pixel fill),
-          which — combined with the heavy scene and rect area lights — is what
-          made panning to the car lag. 1.5 keeps it sharp on 2x/3x displays
-          while roughly halving the fill cost. Tunable in dev. */}
-      <Canvas
+    <div className="absolute inset-0">
+      {/* The room light ships inside homepage.glb via KHR_lights_punctual —
+          RoomFill_Light (wide 140° spot from the ceiling, ~6.5 cd), authored
+          in the Blender scene and loaded with the model. SceneCanvas supplies
+          the hemisphere that keeps a soft ambient floor so shadowed areas don't
+          go fully black (replaces the old "gray world @ strength 3.0" ambient);
+          this scene takes no key light, since its model is lit in the GLB. Light
+          intensity is tuned in Blender (energy → candela is linear, ~54 cd/W)
+          and re-exported to the GLB. */}
+      <SceneCanvas
         camera={{ position: DESK_FOCUS.cameraPos, fov: 45 }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true }}
+        directional={false}
       >
-        {/* The room light ships inside homepage.glb via KHR_lights_punctual —
-            RoomFill_Light (wide 140° spot from the ceiling, ~6.5 cd), authored
-            in the Blender scene and loaded with the model. The hemisphere keeps
-            a soft ambient floor so shadowed areas don't go fully black
-            (replaces the old "gray world @ strength 3.0" ambient). Light
-            intensity is tuned in Blender (energy → candela is linear, ~54 cd/W)
-            and re-exported to the GLB. */}
-        <hemisphereLight args={[0xffffff, 0x2e2e2e, 0.55]} />
         <SceneController flyToRef={flyToRef} />
-      </Canvas>
+      </SceneCanvas>
       <LoadingBar />
       <HomeViewSwitcher activeView={activeView} onSelectView={handleSelectView} />
     </div>

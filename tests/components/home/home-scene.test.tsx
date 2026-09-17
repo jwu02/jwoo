@@ -2,24 +2,17 @@ import { render, screen } from "@testing-library/react"
 
 import { HomeScene } from "@/components/home/home-scene"
 
-// The canvas is client-only and needs WebGL, which jsdom lacks. Stub the heavy
-// modules so importing home-scene is safe. Each test then decides the path by
-// mocking HTMLCanvasElement#getContext.
-// Stands in for the client-only HomeCanvas. A marker is enough to locate the
-// scene container in the DOM.
+// The gate's own behaviour — capability check, fallback, error boundary — is
+// tested once in tests/components/three/scene-gate.test.tsx. What's left here is
+// what home decides for itself: its fallback content and its scene container.
+//
+// next/dynamic is stubbed so the WebGL canvas never loads; a marker is enough to
+// locate the scene in the DOM. Each test then picks the path by mocking
+// HTMLCanvasElement#getContext.
 jest.mock("next/dynamic", () => () => {
   const MockHomeCanvas = () => <div data-testid="home-canvas" />
   return MockHomeCanvas
 })
-
-jest.mock("@react-three/fiber", () => ({
-  Canvas: () => null,
-}))
-
-jest.mock("@react-three/drei", () => ({
-  OrbitControls: () => null,
-  useProgress: () => ({ active: false, progress: 0 }),
-}))
 
 describe("HomeScene", () => {
   afterEach(() => jest.restoreAllMocks())
@@ -56,6 +49,12 @@ describe("HomeScene", () => {
 
     render(<HomeScene />)
 
-    expect(screen.getByTestId("home-canvas").closest(".isolate")).not.toBeNull()
+    // The boundary renders no DOM of its own, so the container is the parent.
+    const container = screen.getByTestId("home-canvas").parentElement!
+    expect(container.className).toContain("isolate")
+    // The scene is a clipped full-viewport box; the fallback above is
+    // deliberately not, so its card grid can scroll.
+    expect(container.className).toContain("h-[calc(100vh-3.5rem)]")
+    expect(container.className).toContain("overflow-hidden")
   })
 })

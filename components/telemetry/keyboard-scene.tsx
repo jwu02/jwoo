@@ -1,50 +1,13 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import { Component, type ReactNode, useEffect, useState } from "react"
+import { SceneGate } from "@/components/three/scene-gate"
 
 import type { KeyboardCanvasApi } from "./keyboard-model"
 
-// Client-only: three/drei never loads during SSR (a Server Component cannot use
-// ssr:false, so the dynamic import lives in this client component).
-const KeyboardCanvas = dynamic(
-  () => import("./keyboard-canvas").then((m) => m.KeyboardCanvas),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-)
-
-export function isWebGLAvailable(): boolean {
-  if (typeof document === "undefined") return false
-  try {
-    const canvas = document.createElement("canvas")
-    return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"))
-  } catch {
-    return false
-  }
-}
-
-class SceneErrorBoundary extends Component<
-  { onError: () => void; children: ReactNode },
-  { hasError: boolean }
-> {
-  state = { hasError: false }
-
-  static getDerivedStateFromError() {
-    return { hasError: true }
-  }
-
-  componentDidCatch() {
-    this.props.onError()
-  }
-
-  render() {
-    return this.state.hasError ? null : this.props.children
-  }
-}
-
-type SceneMode = "loading" | "scene" | "fallback"
+// Module-scope so the gate resolves the canvas once, rather than rebuilding the
+// loaded component on every render.
+const loadKeyboardCanvas = () =>
+  import("./keyboard-canvas").then((m) => ({ default: m.KeyboardCanvas }))
 
 interface KeyboardSceneProps {
   counts: Map<string, number>
@@ -61,41 +24,22 @@ interface KeyboardSceneProps {
 // fills the card left–right instead of shrinking to fit the height. The mouse is
 // left on its own (shorter) box; both models centre vertically, so they still read
 // as a joined row.
+//
+// No three imports here on purpose: this module is in the route's eager graph,
+// and only the lazily loaded canvas may pull three in (ADR 0001).
 export function KeyboardScene(props: KeyboardSceneProps) {
-  const [mode, setMode] = useState<SceneMode>("loading")
-
-  useEffect(() => {
-    // Client-only capability check, resolved once after mount. Rendering
-    // "loading" first (rather than deriving the initial state) keeps SSR output
-    // and hydration consistent. One-shot setState is intentional — there is no
-    // external store to subscribe to, so the rule is a false positive here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMode(isWebGLAvailable() ? "scene" : "fallback")
-  }, [])
-
-  if (mode === "scene") {
-    return (
-      <SceneErrorBoundary onError={() => setMode("fallback")}>
-        <div className="relative h-96 w-full">
-          <div className="absolute inset-0">
-            <KeyboardCanvas {...props} />
-          </div>
+  return (
+    <SceneGate
+      load={loadKeyboardCanvas}
+      contentProps={props}
+      containerClassName="relative h-96 w-full"
+      fallback={
+        <div className="flex h-96 w-full items-center justify-center">
+          <p className="text-sm text-muted-foreground">
+            Keyboard heatmap requires WebGL.
+          </p>
         </div>
-      </SceneErrorBoundary>
-    )
-  }
-
-  if (mode === "fallback") {
-    return (
-      <div className="flex h-96 w-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          Keyboard heatmap requires WebGL.
-        </p>
-      </div>
-    )
-  }
-
-  // "loading" — matches SSR output so hydration stays consistent. Mirrors the
-  // scene container so there is no layout shift when the canvas mounts.
-  return <div className="h-96 w-full" />
+      }
+    />
+  )
 }

@@ -13,7 +13,7 @@ import {
   runtimeMouseNodeName,
   type MouseRegion,
 } from "@/lib/telemetry/mouse-node-map"
-import type { TooltipAnchor } from "@/lib/telemetry/tooltip-position"
+import type { TooltipAnchor } from "@/lib/ui/tooltip-position"
 
 import { fitTopDown, type Bounds3 } from "./keyboard-camera"
 import { projectKeyAnchor } from "./keyboard-projection"
