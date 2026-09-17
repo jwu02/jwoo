@@ -7,6 +7,7 @@ import {
   FIT_ANIMATION_MS,
   getVisibleEdges,
   getVisibleNodes,
+  graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   nodeRadius,
   NODE_MAX_ZOOM,
@@ -215,6 +216,48 @@ describe("computeRoughInitialTransform", () => {
       x: 300,
       y: 200,
     });
+  });
+});
+
+describe("graphPointFromClient", () => {
+  // The wrapper's own offset on the page, which the pointer has to be measured
+  // against before the transform is considered.
+  const rect = { left: 100, top: 50 };
+
+  it("returns the client offset at the identity transform", () => {
+    expect(graphPointFromClient(300, 250, rect, { x: 0, y: 0, k: 1 })).toEqual({
+      x: 200,
+      y: 200,
+    });
+  });
+
+  it("divides out the zoom scale", () => {
+    // At k = 2 a screen pixel is half a graph unit, so the same pointer is
+    // twice as deep into the graph.
+    expect(graphPointFromClient(300, 250, rect, { x: 0, y: 0, k: 2 })).toEqual({
+      x: 100,
+      y: 100,
+    });
+  });
+
+  it("takes the pan off before the scale, not after", () => {
+    // The pan is a screen-space distance and the scale is a ratio, so the order
+    // is not interchangeable: dividing first would give (160/2 - 40) = 40 here
+    // instead of 80.
+    expect(graphPointFromClient(300, 250, rect, { x: 40, y: -10, k: 2 })).toEqual({
+      x: 80,
+      y: 105,
+    });
+  });
+
+  it("round-trips a graph point back to the client point it came from", () => {
+    // The property a drag depends on: whatever this returns must be the point
+    // that, drawn through the same transform, sits under the pointer.
+    const transform = { x: -400, y: -300, k: 2 };
+    const graph = graphPointFromClient(300, 250, rect, transform);
+
+    expect(graph.x * transform.k + transform.x + rect.left).toBeCloseTo(300, 5);
+    expect(graph.y * transform.k + transform.y + rect.top).toBeCloseTo(250, 5);
   });
 });
 

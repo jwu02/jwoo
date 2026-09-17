@@ -144,6 +144,25 @@ export function computeRoughInitialTransform(
   };
 }
 
+// Where a pointer sits in graph coordinates, given the viewport rect it moved
+// in and the zoom transform currently applied to the world.
+//
+// The transform is the whole reason this is a function: the world is scaled and
+// panned, so a screen offset is neither a graph offset nor a fixed multiple of
+// one. The pan comes off first and is then divided out, because a pan is a
+// screen-space distance while a zoom is a ratio.
+export function graphPointFromClient(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number },
+  transform: { x: number; y: number; k: number }
+): { x: number; y: number } {
+  return {
+    x: (clientX - rect.left - transform.x) / transform.k,
+    y: (clientY - rect.top - transform.y) / transform.k,
+  };
+}
+
 // How long the settled fit takes to animate. The rough fit is a snap by
 // comparison — see planFit — so this is the only duration the graph has.
 export const FIT_ANIMATION_MS = 500;

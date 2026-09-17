@@ -12,6 +12,7 @@ import { computeNodeEmphasis } from "@/lib/knowledge-graph/emphasis";
 import {
   computeDegrees,
   computeNodeTextureRadius,
+  graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
   NODE_HOVER_SCALE,
@@ -246,27 +247,33 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
       if (simulation) simulation.alphaTarget(0.3).restart();
 
       dragNodeRef.current = node;
-      const t = zoomTransformRef.current;
-      const toGraphX = (clientX: number) => (clientX - rect.left - t.x) / t.k;
-      const toGraphY = (clientY: number) => (clientY - rect.top - t.y) / t.k;
-      node.fx = toGraphX(event.client.x);
-      node.fy = toGraphY(event.client.y);
+      // The transform is read once, at pointerdown, and reused for the whole
+      // gesture: the node has to track the pointer through the view the drag
+      // started in, even if a zoom lands mid-drag.
+      const transform = zoomTransformRef.current;
+      const grabbed = graphPointFromClient(
+        event.client.x,
+        event.client.y,
+        rect,
+        transform
+      );
+      node.fx = grabbed.x;
+      node.fy = grabbed.y;
 
       const handleMove = (e: PointerEvent) => {
         const dragged = dragNodeRef.current;
         const sim = simulationRef.current;
         if (!dragged) return;
-        const gx = toGraphX(e.clientX);
-        const gy = toGraphY(e.clientY);
-        dragged.fx = gx;
-        dragged.fy = gy;
-        dragged.x = gx;
-        dragged.y = gy;
+        const { x, y } = graphPointFromClient(e.clientX, e.clientY, rect, transform);
+        dragged.fx = x;
+        dragged.fy = y;
+        dragged.x = x;
+        dragged.y = y;
 
         const sprite = nodeSpritesRef.current.get(dragged.id);
         if (sprite) {
-          sprite.x = gx;
-          sprite.y = gy;
+          sprite.x = x;
+          sprite.y = y;
         }
         const incident = incidentLinksRef.current.get(dragged.id);
         if (incident) {
