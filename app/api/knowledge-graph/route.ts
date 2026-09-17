@@ -1,40 +1,14 @@
 import { NextResponse } from "next/server";
-import { getNotesCollection } from "@/lib/knowledge-graph/db";
-import { buildGraph } from "@/lib/knowledge-graph/graph-data";
-import { readCache, writeCache } from "@/lib/knowledge-graph/cache";
-import { buildPayload } from "@/lib/knowledge-graph/payload";
-import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
+import { loadSnapshot } from "@/lib/knowledge-graph/snapshot";
 
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
 export async function GET() {
   try {
-    // Serve the graph snapshot from the Vercel Runtime Cache while its 3-hour
-    // TTL lasts. On a hit, repeat page loads skip the MongoDB query and graph
-    // build entirely.
-    const cached = await readCache();
-    if (cached) {
-      return NextResponse.json(
-        buildPayload(cached.graph, cached.cachedAt, new Date()),
-        { headers: NO_STORE }
-      );
-    }
-
-    const collection = await getNotesCollection();
-    const docs = await collection.find({}).toArray();
-
-    const { nodes, edges } = buildGraph(docs);
-    const graph: KnowledgeGraphData = { nodes, edges };
-    const now = new Date();
-
-    // Best-effort write: a failed cache write must not fail the request — the
-    // missing snapshot just means the next request rebuilds it.
-    await writeCache(graph, now.toISOString()).catch(() => {});
-
-    return NextResponse.json(
-      buildPayload(graph, now.toISOString(), now),
-      { headers: NO_STORE }
-    );
+    // The graph's cache, its source query and its expiry are all the snapshot
+    // module's business; the route only decides what a failure looks like.
+    const snapshot = await loadSnapshot();
+    return NextResponse.json(snapshot, { headers: NO_STORE });
   } catch (error) {
     console.error("Knowledge graph API error:", error);
     return NextResponse.json(

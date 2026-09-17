@@ -27,21 +27,6 @@ export function buildGraph(docs: NoteDoc[]) {
   return { nodes, edges };
 }
 
-export function getVisibleNodes(
-  nodes: KnowledgeGraphNode[],
-  currentTime: number
-): KnowledgeGraphNode[] {
-  return nodes.filter((node) => new Date(node.createdAt).getTime() <= currentTime);
-}
-
-export function getVisibleEdges(
-  edges: KnowledgeGraphEdge[],
-  visibleNodes: KnowledgeGraphNode[]
-): KnowledgeGraphEdge[] {
-  const ids = new Set(visibleNodes.map((node) => node.id));
-  return edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
-}
-
 export function computeDegrees(
   nodes: KnowledgeGraphNode[],
   edges: KnowledgeGraphEdge[]

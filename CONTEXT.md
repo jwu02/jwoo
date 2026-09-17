@@ -85,3 +85,15 @@ _Avoid_: highlight, dim rule
 **Graph**:
 The nodes and edges of the knowledge graph as one immutable set — what the builder produces, the cache stores, and the renderer draws. A snapshot pairs a graph with its cache provenance.
 _Avoid_: response, payload
+
+**Snapshot**:
+A graph plus its cache provenance: when it was written and how long it has left. What the API serves, and what the page's clock counts down — the first request after a snapshot expires rebuilds it.
+_Avoid_: payload, response, cached graph
+
+**Cache clock**:
+The page's view of a snapshot's remaining life: how much window the server reported was left, re-anchored to the local moment that answer arrived, and recomputed from wall-clock elapsed time on every tick rather than decremented. A throttled tab therefore comes back correct instead of minutes behind.
+_Avoid_: timer, countdown (that is the string it renders)
+
+**Expiry**:
+The moment a snapshot's window runs out. The page notices it on the cache clock and asks for a fresh snapshot once per snapshot — a failed ask is not retried on every tick.
+_Avoid_: timeout, cache invalidation

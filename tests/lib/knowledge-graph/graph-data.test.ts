@@ -5,8 +5,6 @@ import {
   computeNodeTextureRadius,
   computeRoughInitialTransform,
   FIT_ANIMATION_MS,
-  getVisibleEdges,
-  getVisibleNodes,
   graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   nodeRadius,
@@ -33,33 +31,6 @@ describe("buildGraph", () => {
     expect(edges).toEqual([
       { source: "A.md", target: "B.md" },
       { source: "B.md", target: "A.md" },
-    ]);
-  });
-});
-
-describe("visibility", () => {
-  const nodes = [
-    { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
-    { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
-    { id: "C.md", createdAt: "2024-01-03T00:00:00.000Z" },
-  ];
-  const edges = [
-    { source: "A.md", target: "B.md" },
-    { source: "B.md", target: "C.md" },
-  ];
-
-  it("returns nodes created at or before current time", () => {
-    const time = new Date("2024-01-02").getTime();
-    expect(getVisibleNodes(nodes, time)).toEqual([
-      { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
-      { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
-    ]);
-  });
-
-  it("returns only edges whose source and target are both visible", () => {
-    const time = new Date("2024-01-02").getTime();
-    expect(getVisibleEdges(edges, getVisibleNodes(nodes, time))).toEqual([
-      { source: "A.md", target: "B.md" },
     ]);
   });
 });
