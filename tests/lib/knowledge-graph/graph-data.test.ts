@@ -4,12 +4,15 @@ import {
   computeFitTransform,
   computeNodeTextureRadius,
   computeRoughInitialTransform,
+  FIT_ANIMATION_MS,
   getVisibleEdges,
   getVisibleNodes,
   LABEL_ZOOM_THRESHOLD,
   nodeRadius,
   NODE_MAX_ZOOM,
   NODE_MIN_ZOOM,
+  planFit,
+  type FitTrigger,
 } from "@/lib/knowledge-graph/graph-data";
 import type { NoteDoc } from "@/lib/knowledge-graph/types";
 
@@ -211,6 +214,78 @@ describe("computeRoughInitialTransform", () => {
       k: 1,
       x: 300,
       y: 200,
+    });
+  });
+});
+
+describe("planFit", () => {
+  const width = 800;
+  const height = 600;
+  const nodes = [
+    { x: -300, y: -300 },
+    { x: 300, y: 300 },
+  ];
+
+  const context = (userInteracted = false) => ({
+    userInteracted,
+    nodes,
+    viewportWidth: width,
+    viewportHeight: height,
+  });
+
+  it("snaps to the rough framing on the first tick", () => {
+    // The forces are about to move the nodes, so the first frame is the seeded
+    // centroid rather than an extent that does not exist yet.
+    expect(planFit("first-tick", context())).toEqual({
+      mode: "snap",
+      transform: computeRoughInitialTransform(nodes, width, height),
+    });
+  });
+
+  it("animates the precise fit once the layout settles", () => {
+    expect(planFit("settled", context())).toEqual({
+      mode: "animate",
+      transform: computeFitTransform(nodes, width, height),
+      durationMs: FIT_ANIMATION_MS,
+    });
+  });
+
+  it("plans nothing once the viewer has taken over the view", () => {
+    // Neither fit may move a graph the viewer has zoomed or panned themselves.
+    expect(planFit("first-tick", context(true))).toBeNull();
+    expect(planFit("settled", context(true))).toBeNull();
+  });
+
+  it("gives the settled fit a duration a transition can actually run", () => {
+    // A zero-length transition is not a snap: d3 defers it by a frame, so a
+    // duration of 0 would visibly stall the fit rather than skip it.
+    const plan = planFit("settled", context());
+    expect(plan?.mode).toBe("animate");
+    expect(plan?.mode === "animate" ? plan.durationMs : 0).toBeGreaterThan(0);
+  });
+
+  it("answers each trigger from its own framing, not from the other's", () => {
+    // The triggers differ in what they frame, not only in how it moves: the
+    // seeded circle and the resting layout are different sizes.
+    const first = planFit("first-tick", context());
+    const settled = planFit("settled", context());
+
+    expect(first?.transform).not.toEqual(settled?.transform);
+    expect(settled?.transform).toEqual(
+      computeFitTransform(nodes, width, height)
+    );
+  });
+
+  it("returns no transform for a graph with nothing positioned yet", () => {
+    // The transforms themselves already answer an empty graph at natural scale,
+    // and the plan must pass that through rather than inventing a fit.
+    const trigger: FitTrigger = "settled";
+    const empty = { ...context(), nodes: [] };
+
+    expect(planFit(trigger, empty)).toEqual({
+      mode: "animate",
+      transform: { k: 1, x: 0, y: 0 },
+      durationMs: FIT_ANIMATION_MS,
     });
   });
 });

@@ -144,6 +144,66 @@ export function computeRoughInitialTransform(
   };
 }
 
+// How long the settled fit takes to animate. The rough fit is a snap by
+// comparison — see planFit — so this is the only duration the graph has.
+export const FIT_ANIMATION_MS = 500;
+
+// What asked for a fit. The simulation nudges the nodes on every tick, so the
+// first one has nothing settled to frame yet, and "end" is the first moment
+// there is a resting layout worth fitting.
+export type FitTrigger = "first-tick" | "settled";
+
+// A fit to run: snap applies the transform immediately, animate eases into it.
+// The mode is a choice rather than a duration, because a zero-length transition
+// is not a snap — d3 defers it by a frame, and deferring the first one is
+// exactly the unframed flash the rough fit exists to prevent.
+export type FitPlan =
+  | { mode: "snap"; transform: { k: number; x: number; y: number } }
+  | { mode: "animate"; transform: { k: number; x: number; y: number }; durationMs: number };
+
+// The fit to run for a trigger, or null when there should be none at all.
+//
+// Every part of the decision is here: whether to fit, which framing, and
+// whether it animates. The caller applies what it is given and holds no policy
+// of its own — which is what makes the rules below assertable without a Pixi
+// scene or a running simulation.
+export function planFit(
+  trigger: FitTrigger,
+  context: {
+    // Once the viewer has zoomed or panned, the graph is where they put it:
+    // neither fit may move it out from under them.
+    userInteracted: boolean;
+    nodes: Array<{ x?: number; y?: number }>;
+    viewportWidth: number;
+    viewportHeight: number;
+  }
+): FitPlan | null {
+  if (context.userInteracted) return null;
+
+  const { nodes, viewportWidth, viewportHeight } = context;
+
+  if (trigger === "first-tick") {
+    // d3 seeded every node with a phyllotaxis position when the simulation was
+    // constructed, so there is already a centroid to frame — but the forces are
+    // about to move everything, so only a rough frame is worth drawing. Snapped,
+    // not animated: this is the frame the graph is first seen in.
+    return {
+      mode: "snap",
+      transform: computeRoughInitialTransform(nodes, viewportWidth, viewportHeight),
+    };
+  }
+
+  // The layout has settled, so its real extent is known and unlike the seeded
+  // circle it can be framed exactly. Animated, because the graph visibly moved
+  // to get here and the viewer should see where it went. Padding is
+  // computeFitTransform's own default, so the two cannot drift apart.
+  return {
+    mode: "animate",
+    transform: computeFitTransform(nodes, viewportWidth, viewportHeight),
+    durationMs: FIT_ANIMATION_MS,
+  };
+}
+
 // Above this zoom, every node shows its name instead of only the hovered one.
 // Below it the graph is too dense for the labels to read, so they would be
 // noise; the value is inside the zoom scaleExtent [0.1, 4] so it is reachable.

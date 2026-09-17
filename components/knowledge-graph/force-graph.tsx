@@ -11,15 +11,16 @@ import type {
 import { computeNodeEmphasis } from "@/lib/knowledge-graph/emphasis";
 import {
   computeDegrees,
-  computeFitTransform,
   computeNodeTextureRadius,
-  computeRoughInitialTransform,
   LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
   NODE_HOVER_SCALE,
   NODE_MAX_ZOOM,
   NODE_MIN_ZOOM,
   nodeRadius,
+  type FitPlan,
+  type FitTrigger,
+  planFit,
 } from "@/lib/knowledge-graph/graph-data";
 import { usePixiApp } from "./use-pixi-app";
 
@@ -481,12 +482,31 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
       simulationRef.current = simulation;
 
       let initialFitDone = false;
-      const fitView = () => {
-        const fit = computeFitTransform(simNodes, clientWidth, clientHeight, 60);
-        const t = d3.zoomIdentity.translate(fit.x, fit.y).scale(fit.k);
-        if (!userInteractedRef.current && zoomSelectionRef.current && zoomBehaviorRef.current) {
-          zoomSelectionRef.current.transition().duration(500).call(zoomBehaviorRef.current.transform, t);
+
+      // Runs one fit plan. Nothing here decides whether a fit should happen or
+      // what it should be — planFit owns that, in lib — so this only applies
+      // what it is handed.
+      const applyFit = (plan: FitPlan) => {
+        const selection = zoomSelectionRef.current;
+        const zoom = zoomBehaviorRef.current;
+        if (!selection || !zoom) return;
+        const { k, x, y } = plan.transform;
+        const transform = d3.zoomIdentity.translate(x, y).scale(k);
+        if (plan.mode === "snap") {
+          selection.call(zoom.transform, transform);
+        } else {
+          selection.transition().duration(plan.durationMs).call(zoom.transform, transform);
         }
+      };
+
+      const fitViewport = (trigger: FitTrigger) => {
+        const plan = planFit(trigger, {
+          userInteracted: userInteractedRef.current,
+          nodes: simNodes,
+          viewportWidth: clientWidth,
+          viewportHeight: clientHeight,
+        });
+        if (plan) applyFit(plan);
       };
 
       simulation.on("tick", () => {
@@ -504,26 +524,17 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
         positionLabel();
         positionAllLabels();
 
-        // Snap to a rough initial frame on the first tick. d3 seeded every node
-        // with a phyllotaxis position when the simulation was constructed, so
-        // center on the seeded centroid right away. It is intentionally loose —
-        // the layout is about to change, so a rough frame is enough; the precise
-        // fit runs once the simulation settles.
+        // The graph is first seen here, so this tick is what asks for the rough
+        // frame. What that frame is, and whether it moves, is planFit's business.
         if (!initialFitDone) {
           initialFitDone = true;
-          const rough = computeRoughInitialTransform(simNodes, clientWidth, clientHeight);
-          const t = d3.zoomIdentity.translate(rough.x, rough.y).scale(rough.k);
-          if (!userInteractedRef.current && zoomSelectionRef.current && zoomBehaviorRef.current) {
-            zoomSelectionRef.current.call(zoomBehaviorRef.current.transform, t);
-          }
+          fitViewport("first-tick");
         }
       });
 
-      // Re-fit once the layout has fully settled. The first fit framed the
-      // initial circle, which the forces then spread beyond; "end" fires when
-      // alpha drops below alphaMin (positions are final), so this corrective
-      // fit guarantees the resting layout is fully in view.
-      simulation.on("end", fitView);
+      // "end" fires when alpha drops below alphaMin, so positions are final and
+      // the settling fit frames the layout the viewer is left with.
+      simulation.on("end", () => fitViewport("settled"));
     };
 
     build();
