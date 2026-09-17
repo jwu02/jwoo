@@ -63,7 +63,7 @@ _Avoid_: tween, camera animation
 ### Knowledge graph
 
 **Fit**:
-The transform that frames the whole graph inside its viewport. The rough fit snaps on the simulation's first tick; the precise fit animates once the simulation settles. Both are suppressed once the user has interacted with the view.
+The transform that frames the whole graph inside its viewport. A rough fit frames the graph on first paint, before the layout has settled; a precise fit reframes it once it has. Both yield to the viewer as soon as they zoom or pan.
 _Avoid_: reframe, zoom-to-fit
 
 **Label threshold**:
