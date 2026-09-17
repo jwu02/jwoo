@@ -8,6 +8,7 @@ import type {
   KnowledgeGraphEdge,
   KnowledgeGraphNode,
 } from "@/lib/knowledge-graph/types";
+import { computeNodeEmphasis } from "@/lib/knowledge-graph/emphasis";
 import {
   computeDegrees,
   computeFitTransform,
@@ -35,6 +36,10 @@ type NodePointerEvent = Pick<
   FederatedPointerEvent,
   "client" | "stopPropagation" | "preventDefault"
 >;
+
+// Opacity a backgrounded node's sprite and its DOM label both fade to. One
+// value, so a dot and its name cannot disagree about how dim "dimmed" is.
+const DIMMED_ALPHA = 0.15;
 
 function cssVarToPixiColor(varName: string, PIXI: typeof import("pixi.js")): number {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -106,18 +111,13 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
   const graphEdges = useMemo(() => edges.map((edge) => ({ ...edge })), [edges]);
   const degrees = useMemo(() => computeDegrees(graphNodes, graphEdges), [graphNodes, graphEdges]);
 
-  // Adjacency in render-friendly form, so the labels can be styled from hoveredId
-  // declaratively. applyHover keeps its own copy for the sprites, which it drives
-  // imperatively — this one exists purely to compute label emphasis during render.
-  const neighborsById = useMemo(() => {
-    const neighbors = new Map<string, Set<string>>();
-    for (const node of graphNodes) neighbors.set(node.id, new Set());
-    for (const edge of graphEdges) {
-      neighbors.get(edge.source)?.add(edge.target);
-      neighbors.get(edge.target)?.add(edge.source);
-    }
-    return neighbors;
-  }, [graphNodes, graphEdges]);
+  // The emphasis rule, for the label layer. applyHover computes the same map
+  // from the pointer handlers, which run before React has committed the state
+  // change — one rule, called from the two places that need it.
+  const emphasis = useMemo(
+    () => computeNodeEmphasis(graphNodes, graphEdges, hoveredId),
+    [graphNodes, graphEdges, hoveredId]
+  );
 
   const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
   const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
@@ -125,7 +125,6 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
   // Radius the shared node circle texture was rasterized at; applyHover needs it
   // to compute sprite scale, and it is only known once the scene is built.
   const textureRadiusRef = useRef<number>(NODE_BASE_RADIUS);
-  const adjacencyRef = useRef<Map<string, Set<string>>>(new Map());
   const incidentLinksRef = useRef<Map<string, GraphLink[]>>(new Map());
   const nodeSpritesRef = useRef<Map<string, import("pixi.js").Sprite>>(new Map());
   const linkSpritesRef = useRef<Map<GraphLink, import("pixi.js").Sprite>>(new Map());
@@ -195,36 +194,43 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
     []
   );
 
-  const applyHover = useCallback(() => {
-    const hovered = hoveredIdRef.current;
-    const nodeSprites = nodeSpritesRef.current;
-    const linkSprites = linkSpritesRef.current;
-    const adjacency = adjacencyRef.current;
-    const colors = colorsRef.current;
-    const radii = nodeRadiusRef.current;
-    // Every node is seeded a Set in the index, so the lookups below never miss.
-    const neighborIds = hovered !== null ? adjacency.get(hovered) : undefined;
+  // Paints every sprite for one hover state. The pointer handlers call this with
+  // the id they are moving to rather than reading the render-time map: they run
+  // outside React's render cycle, and the sprites have to update within the same
+  // gesture, before the state change commits. So it computes the emphasis itself
+  // — the same function, and so the same rule, the labels are styled from.
+  const applyHover = useCallback(
+    (hovered: string | null) => {
+      const states = computeNodeEmphasis(graphNodes, graphEdges, hovered);
+      const colors = colorsRef.current;
+      const radii = nodeRadiusRef.current;
 
-    for (const [id, sprite] of nodeSprites) {
-      const isHovered = id === hovered;
-      const isDimmed = hovered !== null && !isHovered && !neighborIds?.has(id);
-      const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / textureRadiusRef.current;
-      sprite.tint = isHovered
-        ? colors.hover
-        : adjacency.get(id)?.size === 1
-          ? colors.leaf
-          : colors.node;
-      sprite.alpha = isDimmed ? 0.15 : 1;
-      sprite.scale.set(baseScale * (isHovered ? NODE_HOVER_SCALE : 1));
-    }
+      for (const [id, sprite] of nodeSpritesRef.current) {
+        // Sprites are built from these same nodes, so the map never misses.
+        const state = states.get(id);
+        if (!state) continue;
+        const baseScale = (radii.get(id) ?? NODE_BASE_RADIUS) / textureRadiusRef.current;
+        sprite.tint =
+          state.hover === "hovered"
+            ? colors.hover
+            : state.role === "leaf"
+              ? colors.leaf
+              : colors.node;
+        sprite.alpha = state.hover === "dimmed" ? DIMMED_ALPHA : 1;
+        sprite.scale.set(baseScale * (state.hover === "hovered" ? NODE_HOVER_SCALE : 1));
+      }
 
-    for (const [link, sprite] of linkSprites) {
-      const isIncident =
-        hovered !== null && (link.source.id === hovered || link.target.id === hovered);
-      sprite.tint = isIncident ? colors.hover : colors.link;
-      sprite.alpha = hovered === null ? 0.15 : isIncident ? 1 : 0.08;
-    }
-  }, []);
+      // Links have no emphasis of their own — incident ones light up, the rest
+      // fade back — and only these sprites read it, so the rule stays here.
+      for (const [link, sprite] of linkSpritesRef.current) {
+        const isIncident =
+          hovered !== null && (link.source.id === hovered || link.target.id === hovered);
+        sprite.tint = isIncident ? colors.hover : colors.link;
+        sprite.alpha = hovered === null ? 0.15 : isIncident ? 1 : 0.08;
+      }
+    },
+    [graphNodes, graphEdges]
+  );
 
   const startDrag = useCallback(
     (event: NodePointerEvent, node: GraphNode) => {
@@ -382,12 +388,10 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
           }) as GraphLink
       );
 
-      const adjacency = new Map<string, Set<string>>();
+      // Drag needs the links incident to one node — the hover rule builds its
+      // own adjacency, so this loop only indexes links.
       const incident = new Map<string, GraphLink[]>();
-      for (const node of simNodes) adjacency.set(node.id, new Set());
       for (const link of simLinks) {
-        adjacency.get(link.source.id)!.add(link.target.id);
-        adjacency.get(link.target.id)!.add(link.source.id);
         const fromSource = incident.get(link.source.id) ?? [];
         fromSource.push(link);
         incident.set(link.source.id, fromSource);
@@ -395,8 +399,11 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
         fromTarget.push(link);
         incident.set(link.target.id, fromTarget);
       }
-      adjacencyRef.current = adjacency;
       incidentLinksRef.current = incident;
+
+      // The resting emphasis — nothing hovered yet. Only the leaf/hub role is
+      // read here, to tint the sprites as they are built.
+      const restStates = computeNodeEmphasis(simNodes, graphEdges, null);
 
       const nodeSprites = new Map<string, import("pixi.js").Sprite>();
       const nodeSpriteArr: import("pixi.js").Sprite[] = [];
@@ -411,11 +418,8 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
         sprite.eventMode = "static";
         sprite.cursor = "pointer";
         sprite.scale.set(radius / textureRadius);
-        // A leaf is a node with a single unique neighbor, not degree 1 —
-        // reciprocal links (A->B and B->A) would otherwise double a true
-        // leaf's degree to 2 and hide its tint.
         sprite.tint =
-          adjacency.get(node.id)!.size === 1
+          restStates.get(node.id)!.role === "leaf"
             ? colorsRef.current.leaf
             : colorsRef.current.node;
         sprite.alpha = 1;
@@ -428,7 +432,7 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
           if (dragNodeRef.current?.id === node.id) return;
           hoveredIdRef.current = node.id;
           setHoveredId(node.id);
-          applyHover();
+          applyHover(node.id);
           positionLabel();
         });
         sprite.on("pointerout", (e: FederatedPointerEvent) => {
@@ -436,7 +440,7 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
           if (dragNodeRef.current?.id === node.id) return;
           hoveredIdRef.current = null;
           setHoveredId(null);
-          applyHover();
+          applyHover(null);
         });
         sprite.on("pointerdown", (e: FederatedPointerEvent) => {
           startDrag(e, node);
@@ -592,12 +596,8 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
         }`}
       >
         {nodes.map((node) => {
-          const isHovered = hoveredId === node.id;
-          // Mirrors applyHover's rule for the sprites: anything that is neither
-          // the hovered node nor one of its neighbours is backgrounded, and its
-          // label has to fade with its dot or the highlight reads as a mismatch.
-          const isDimmed =
-            hoveredId !== null && !isHovered && !neighborsById.get(hoveredId)?.has(node.id);
+          const state = emphasis.get(node.id)!;
+          const isHovered = state.hover === "hovered";
           return (
             <div
               key={node.id}
@@ -609,7 +609,7 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
               // Only the opacity is React's; style.transform is written directly
               // by the positioning loop, and React leaves keys it was never
               // given alone when it reconciles this style object.
-              style={{ opacity: isDimmed ? 0.15 : 1 }}
+              style={{ opacity: state.hover === "dimmed" ? DIMMED_ALPHA : 1 }}
               // Titles run up to ~70 characters, which as a single line would
               // stretch several hundred pixels across the graph; the max width
               // wraps them under their node instead. The cap is in DOM pixels
