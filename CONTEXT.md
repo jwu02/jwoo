@@ -108,6 +108,18 @@ _Avoid_: telemetry (unqualified), activity dashboard
 The feature answering "where did AI spend go": cost, tokens and session counts over a range, broken down by model, project and harness. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
 _Avoid_: AI dashboard, usage (on its own)
 
+**Range**:
+How far back a dashboard looks — what the range selector picks. The type and the lookback start are shared; the bucket interval and the option list are each dashboard's own, so a dashboard can re-bucket or add a range without touching its sibling.
+_Avoid_: period, timeframe; interval (that is the bucket size, not the range)
+
+**Harness**:
+The tool that drove an AI-usage session — the agent runtime the session ran under. One of the three breakdowns; sessions recorded before the collector captured it show as `unknown`.
+_Avoid_: client, agent, tool
+
+**Project**:
+The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.
+_Avoid_: repo, workspace
+
 ### Polled pages
 
 **Polled page**:

@@ -4,7 +4,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { formatCompactNumber } from "@/lib/ui/chart-format";
+import { formatCompactNumber, formatNumber } from "@/lib/ui/chart-format";
 import {
   aiUsageColorMap,
   aiUsageColorVar,
@@ -21,13 +21,6 @@ export interface UsageBreakdownRow {
 interface UsageBreakdownProps {
   rows: UsageBreakdownRow[];
   labelHeader: string;
-}
-
-function formatNumber(value: number, decimals = 0): string {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
 }
 
 // Share of the column total, rounded to a whole percent. Returns 0 when the

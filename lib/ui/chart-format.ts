@@ -1,5 +1,14 @@
 import { Range } from "@/lib/ranges";
 
+// Fixed-precision grouped digits, for values read at a fixed scale (cost in
+// yuan, token counts) rather than a compacted one.
+export function formatNumber(value: number, decimals = 0): string {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
 // Compact large counts to K/M: 1,200,000 → "1.2M", 550,000 → "550K".
 export function formatCompactNumber(value: number): string {
   const abs = Math.abs(value);

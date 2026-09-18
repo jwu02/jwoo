@@ -1,14 +1,8 @@
 import { Totals } from "@/lib/ai-usage/types";
+import { formatNumber } from "@/lib/ui/chart-format";
 
 interface SummaryCardsProps {
   totals: Totals;
-}
-
-function formatNumber(value: number, decimals = 0): string {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
 }
 
 // Raw token counts are too long to read at a glance in a card, so totals are
