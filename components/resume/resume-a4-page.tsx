@@ -10,21 +10,39 @@ import { WorkExperience } from "./work-experience"
 
 const COLUMN_COMMON = "flex flex-col gap-2 m-3 p-3"
 
+// The composer is the one place that holds the whole document: its job is to
+// decide which slice each section gets, so it is also the only component that
+// needs to see all of them.
 export function ResumeA4Page({ data }: { data: ResumeData }) {
   return (
     <div className="resume-page w-[210mm] h-[297mm] bg-white shadow-2xl mx-auto my-10 flex flex-col print:m-0 print:shadow-none">
-      <ResumeHeader data={data} />
+      <ResumeHeader header={data.header} contacts={data.contacts} />
       <div className="flex flex-grow">
         <div className={`${COLUMN_COMMON} w-[28%] bg-accent`}>
-          <Education data={data} />
-          <Languages data={data} />
-          <TechnicalSkills data={data} />
-          <Interests data={data} />
+          <Education title={data.titles.education} items={data.education} />
+          <Languages
+            title={data.titles.foreignLanguages}
+            items={data.languages}
+          />
+          <TechnicalSkills
+            title={data.titles.technicalSkills}
+            items={data.technicalSkills}
+          />
+          <Interests title={data.titles.interests} items={data.interests} />
         </div>
         <div className={`${COLUMN_COMMON} w-[72%] ml-0 pl-1`}>
-          <WorkExperience data={data} />
-          <PersonalProjects data={data} />
-          <SelfEvaluation data={data} />
+          <WorkExperience
+            title={data.titles.workExperiences}
+            items={data.workExperiences}
+          />
+          <PersonalProjects
+            title={data.titles.personalProjects}
+            items={data.personalProjects}
+          />
+          <SelfEvaluation
+            title={data.titles.selfEvaluation}
+            items={data.selfEvaluation}
+          />
         </div>
       </div>
     </div>

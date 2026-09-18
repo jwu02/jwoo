@@ -1,3 +1,4 @@
+import { getContacts } from "./contacts"
 import type { LanguageItem, Locale, ResumeData } from "./types"
 
 const LANGUAGE_ITEMS: { key: string; value: number }[] = [
@@ -68,6 +69,7 @@ export const en: ResumeData = {
     personalProjects: "Personal Projects",
     selfEvaluation: "Personal Evaluation",
   },
+  contacts: getContacts(),
   education: [
     {
       school: "The University of Sheffield",
@@ -204,6 +206,7 @@ export const zh: ResumeData = {
     personalProjects: "个人项目",
     selfEvaluation: "自我评价",
   },
+  contacts: getContacts(),
   education: [
     {
       school: "谢菲尔德大学",

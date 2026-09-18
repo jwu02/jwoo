@@ -1,12 +1,18 @@
-import type { ResumeData } from "@/lib/resume/types"
+import type { WorkExperienceItem } from "@/lib/resume/types"
 import { SectionTitle } from "./section-title"
 
-export function WorkExperience({ data }: { data: ResumeData }) {
+export function WorkExperience({
+  title,
+  items,
+}: {
+  title: string
+  items: WorkExperienceItem[]
+}) {
   return (
     <div>
-      <SectionTitle title={data.titles.workExperiences} />
+      <SectionTitle title={title} />
       <div className="flex flex-col gap-1">
-        {data.workExperiences.map((experience, index) => (
+        {items.map((experience, index) => (
           <div key={index}>
             <div className="flex justify-between">
               <h3 className="font-semibold">{experience.position}</h3>

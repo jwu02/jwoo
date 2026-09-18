@@ -5,6 +5,13 @@ export interface ResumeHeader {
   profession: string
 }
 
+export type ContactKey = "email" | "phone" | "github" | "wechat"
+
+export interface ContactItem {
+  key: ContactKey
+  value: string
+}
+
 export interface EducationItem {
   school: string
   place: string
@@ -51,6 +58,7 @@ export interface ResumeTitles {
 export interface ResumeData {
   header: ResumeHeader
   titles: ResumeTitles
+  contacts: ContactItem[]
   education: EducationItem[]
   languages: LanguageItem[]
   technicalSkills: TechnicalSkillItem[]

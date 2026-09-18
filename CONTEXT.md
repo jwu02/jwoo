@@ -155,3 +155,17 @@ _Avoid_: initial load, manual refresh
 **Last updated**:
 The moment the data currently on screen was received. Every successful response updates it; a failed one leaves it alone.
 _Avoid_: refresh time, sync time
+
+### Resume
+
+**Section**:
+One titled block of the resume — education, languages, technical skills, interests, work experience, personal projects, self evaluation. Each is about one part of the document and nothing else; only the page sees the whole of it.
+_Avoid_: panel, block
+
+**Contact**:
+A way to reach the person — email, phone, GitHub, WeChat — supplied by the deployment rather than written into the resume. A contact that is not configured simply does not appear. Its value is deployment configuration and never localized; how it is labelled is copy, and localizes with the rest.
+_Avoid_: social link, contact detail
+
+**Locale parity**:
+The invariant that the two locales are one document: the same sections, the same entries, and the same number of bullets within each. Only the words themselves differ.
+_Avoid_: translation sync, i18n completeness

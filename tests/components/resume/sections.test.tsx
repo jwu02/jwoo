@@ -10,14 +10,16 @@ import { en } from "@/lib/resume/locale-data"
 
 describe("resume section components", () => {
   it("Education renders school, dates, and qualification", () => {
-    render(<Education data={en} />)
+    render(<Education title={en.titles.education} items={en.education} />)
     expect(screen.getByText("The University of Sheffield")).toBeInTheDocument()
     expect(screen.getByText("Sheffield, Sep 2020 - Jul 2023")).toBeInTheDocument()
     expect(screen.getByText("BSc Computer Science (2:1)")).toBeInTheDocument()
   })
 
   it("Languages renders labels, proficiency badges, and progress bars", () => {
-    const { container } = render(<Languages data={en} />)
+    const { container } = render(
+      <Languages title={en.titles.foreignLanguages} items={en.languages} />
+    )
     expect(screen.getByText("English")).toBeInTheDocument()
     expect(screen.getByText("Native")).toBeInTheDocument()
     expect(container.querySelectorAll('[data-slot="progress"]')).toHaveLength(
@@ -26,20 +28,30 @@ describe("resume section components", () => {
   })
 
   it("TechnicalSkills renders group and comma-joined items", () => {
-    render(<TechnicalSkills data={en} />)
+    render(
+      <TechnicalSkills
+        title={en.titles.technicalSkills}
+        items={en.technicalSkills}
+      />
+    )
     expect(screen.getByText(/Languages:/)).toBeInTheDocument()
     expect(screen.getByText(/Python, Java, JavaScript/)).toBeInTheDocument()
   })
 
   it("Interests renders outline badges", () => {
-    render(<Interests data={en} />)
+    render(<Interests title={en.titles.interests} items={en.interests} />)
     for (const interest of en.interests) {
       expect(screen.getByText(interest)).toBeInTheDocument()
     }
   })
 
   it("WorkExperience renders position, company, dates, and bullets", () => {
-    render(<WorkExperience data={en} />)
+    render(
+      <WorkExperience
+        title={en.titles.workExperiences}
+        items={en.workExperiences}
+      />
+    )
     expect(screen.getByText("Python Software Engineer")).toBeInTheDocument()
     expect(screen.getByText("Kam Kiu Aluminium Group")).toBeInTheDocument()
     expect(screen.getByText("May 2025 - Present")).toBeInTheDocument()
@@ -47,15 +59,33 @@ describe("resume section components", () => {
   })
 
   it("PersonalProjects renders titles and details", () => {
-    render(<PersonalProjects data={en} />)
+    render(
+      <PersonalProjects
+        title={en.titles.personalProjects}
+        items={en.personalProjects}
+      />
+    )
     expect(screen.getByText("Resume LLM Assistant")).toBeInTheDocument()
     expect(screen.getByText(en.personalProjects[0].details[0])).toBeInTheDocument()
   })
 
   it("SelfEvaluation renders all items", () => {
-    render(<SelfEvaluation data={en} />)
+    render(
+      <SelfEvaluation
+        title={en.titles.selfEvaluation}
+        items={en.selfEvaluation}
+      />
+    )
     for (const item of en.selfEvaluation) {
       expect(screen.getByText(item)).toBeInTheDocument()
     }
+  })
+
+  // The section takes its title as a prop rather than reaching into the
+  // document, so it renders whatever it is handed.
+  it("renders the title and items it is given", () => {
+    render(<Interests title="Whatever" items={["Curling"]} />)
+    expect(screen.getByText("Whatever")).toBeInTheDocument()
+    expect(screen.getByText("Curling")).toBeInTheDocument()
   })
 })

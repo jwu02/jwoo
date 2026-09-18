@@ -1,12 +1,18 @@
-import type { ResumeData } from "@/lib/resume/types"
+import type { EducationItem } from "@/lib/resume/types"
 import { SectionTitle } from "./section-title"
 
-export function Education({ data }: { data: ResumeData }) {
+export function Education({
+  title,
+  items,
+}: {
+  title: string
+  items: EducationItem[]
+}) {
   return (
     <div>
-      <SectionTitle title={data.titles.education} />
+      <SectionTitle title={title} />
       <div className="flex flex-col gap-1">
-        {data.education.map((item, index) => (
+        {items.map((item, index) => (
           <div key={index}>
             <div className="font-bold">{item.school}</div>
             <div className="text-muted-foreground">

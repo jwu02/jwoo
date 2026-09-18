@@ -1,12 +1,17 @@
-import type { ResumeData } from "@/lib/resume/types"
 import { SectionTitle } from "./section-title"
 
-export function SelfEvaluation({ data }: { data: ResumeData }) {
+export function SelfEvaluation({
+  title,
+  items,
+}: {
+  title: string
+  items: string[]
+}) {
   return (
     <div>
-      <SectionTitle title={data.titles.selfEvaluation} />
+      <SectionTitle title={title} />
       <ul className="flex flex-col list-[square] pl-5">
-        {data.selfEvaluation.map((evaluation, index) => (
+        {items.map((evaluation, index) => (
           <li key={index}>{evaluation}</li>
         ))}
       </ul>

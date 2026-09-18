@@ -1,14 +1,20 @@
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import type { ResumeData } from "@/lib/resume/types"
+import type { LanguageItem } from "@/lib/resume/types"
 import { SectionTitle } from "./section-title"
 
-export function Languages({ data }: { data: ResumeData }) {
+export function Languages({
+  title,
+  items,
+}: {
+  title: string
+  items: LanguageItem[]
+}) {
   return (
     <div>
-      <SectionTitle title={data.titles.foreignLanguages} />
+      <SectionTitle title={title} />
       <div className="flex flex-col gap-1">
-        {data.languages.map((language) => (
+        {items.map((language) => (
           <div key={language.key} className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <span>{language.label}</span>
