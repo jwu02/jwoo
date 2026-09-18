@@ -1,7 +1,7 @@
 import {
   aiUsageColorVar,
   aiUsageColorMap,
-} from "@/lib/telemetry/ai-usage-colors";
+} from "@/lib/ai-usage/colors";
 
 describe("aiUsageColorVar", () => {
   describe("semantic colors for known AI entities (full strength)", () => {

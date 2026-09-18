@@ -1,7 +1,7 @@
-import { AiUsageTotals } from "@/lib/telemetry/types";
+import { Totals } from "@/lib/ai-usage/types";
 
 interface SummaryCardsProps {
-  totals: AiUsageTotals;
+  totals: Totals;
 }
 
 function formatNumber(value: number, decimals = 0): string {

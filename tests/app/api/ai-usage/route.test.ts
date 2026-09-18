@@ -7,24 +7,24 @@ jest.mock("@/lib/db", () => ({
   getAiUsageCollection: jest.fn(),
 }));
 
-jest.mock("@/lib/telemetry/aggregation", () => ({
-  fetchAiUsageTotals: jest.fn(),
-  fetchAiUsageByModel: jest.fn(),
-  fetchAiUsageByProject: jest.fn(),
-  fetchAiUsageByHarness: jest.fn(),
-  fetchAiUsageTimeSeries: jest.fn(),
-  fetchAiUsageTimeSeriesByModel: jest.fn(),
+jest.mock("@/lib/ai-usage/aggregation", () => ({
+  fetchTotals: jest.fn(),
+  fetchByModel: jest.fn(),
+  fetchByProject: jest.fn(),
+  fetchByHarness: jest.fn(),
+  fetchTimeSeries: jest.fn(),
+  fetchTimeSeriesByModel: jest.fn(),
 }));
 
 import { getAiUsageCollection } from "@/lib/db";
 import {
-  fetchAiUsageTotals,
-  fetchAiUsageByModel,
-  fetchAiUsageByProject,
-  fetchAiUsageByHarness,
-  fetchAiUsageTimeSeries,
-  fetchAiUsageTimeSeriesByModel,
-} from "@/lib/telemetry/aggregation";
+  fetchTotals,
+  fetchByModel,
+  fetchByProject,
+  fetchByHarness,
+  fetchTimeSeries,
+  fetchTimeSeriesByModel,
+} from "@/lib/ai-usage/aggregation";
 
 const mockAiUsageCollection = {} as never;
 
@@ -35,7 +35,7 @@ beforeEach(() => {
 
 describe("GET /api/ai-usage", () => {
   it("returns ai usage data for a valid range", async () => {
-    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+    (fetchTotals as jest.Mock).mockResolvedValue({
       costYuan: 0.5,
       totalTokens: 100,
       promptTokens: 90,
@@ -43,24 +43,24 @@ describe("GET /api/ai-usage", () => {
       cacheHitTokens: 60,
       cacheMissTokens: 40,
     });
-    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([
+    (fetchByModel as jest.Mock).mockResolvedValue([
       { model: "deepseek-v4-flash", costYuan: 0.5, totalTokens: 100 },
     ]);
-    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([
+    (fetchByProject as jest.Mock).mockResolvedValue([
       {
         project: "work",
         costYuan: 0.5,
         totalTokens: 100,
       },
     ]);
-    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([
+    (fetchByHarness as jest.Mock).mockResolvedValue([
       {
         harness: "claude-code",
         costYuan: 0.5,
         totalTokens: 100,
       },
     ]);
-    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([
       {
         bucket: "2026-08-18T10:00:00.000Z",
         costYuan: 0.25,
@@ -69,7 +69,7 @@ describe("GET /api/ai-usage", () => {
         totalTokens: 1200,
       },
     ]);
-    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([
+    (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([
       {
         model: "deepseek-v4-flash",
         points: [
@@ -88,17 +88,17 @@ describe("GET /api/ai-usage", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
-    expect(fetchAiUsageTotals).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchAiUsageByModel).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchAiUsageByProject).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchAiUsageByHarness).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+    expect(fetchTotals).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h",
       undefined,
       "UTC"
     );
-    expect(fetchAiUsageTimeSeriesByModel).toHaveBeenCalledWith(
+    expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h",
       undefined,
@@ -155,7 +155,7 @@ describe("GET /api/ai-usage", () => {
   });
 
   it("accepts the 30d range", async () => {
-    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+    (fetchTotals as jest.Mock).mockResolvedValue({
       costYuan: 0,
       totalTokens: 0,
       promptTokens: 0,
@@ -163,17 +163,17 @@ describe("GET /api/ai-usage", () => {
       cacheHitTokens: 0,
       cacheMissTokens: 0,
     });
-    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByProject as jest.Mock).mockResolvedValue([]);
+    (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request("http://localhost:3000/api/ai-usage?range=30d");
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",
       undefined,
@@ -182,7 +182,7 @@ describe("GET /api/ai-usage", () => {
   });
 
   it("passes the viewer timezone to the time series fetchers", async () => {
-    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+    (fetchTotals as jest.Mock).mockResolvedValue({
       costYuan: 0,
       totalTokens: 0,
       promptTokens: 0,
@@ -190,11 +190,11 @@ describe("GET /api/ai-usage", () => {
       cacheHitTokens: 0,
       cacheMissTokens: 0,
     });
-    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByProject as jest.Mock).mockResolvedValue([]);
+    (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request(
       "http://localhost:3000/api/ai-usage?range=30d&tz=Asia%2FShanghai"
@@ -202,13 +202,13 @@ describe("GET /api/ai-usage", () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",
       undefined,
       "Asia/Shanghai"
     );
-    expect(fetchAiUsageTimeSeriesByModel).toHaveBeenCalledWith(
+    expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",
       undefined,
@@ -217,7 +217,7 @@ describe("GET /api/ai-usage", () => {
   });
 
   it("falls back to UTC for an invalid timezone", async () => {
-    (fetchAiUsageTotals as jest.Mock).mockResolvedValue({
+    (fetchTotals as jest.Mock).mockResolvedValue({
       costYuan: 0,
       totalTokens: 0,
       promptTokens: 0,
@@ -225,11 +225,11 @@ describe("GET /api/ai-usage", () => {
       cacheHitTokens: 0,
       cacheMissTokens: 0,
     });
-    (fetchAiUsageByModel as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByProject as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageByHarness as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeries as jest.Mock).mockResolvedValue([]);
-    (fetchAiUsageTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByModel as jest.Mock).mockResolvedValue([]);
+    (fetchByProject as jest.Mock).mockResolvedValue([]);
+    (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+    (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request(
       "http://localhost:3000/api/ai-usage?range=30d&tz=Not%2FAZone"
@@ -237,7 +237,7 @@ describe("GET /api/ai-usage", () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(fetchAiUsageTimeSeries).toHaveBeenCalledWith(
+    expect(fetchTimeSeries).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",
       undefined,
@@ -258,7 +258,7 @@ describe("GET /api/ai-usage", () => {
   });
 
   it("returns 500 when aggregation throws", async () => {
-    (fetchAiUsageTotals as jest.Mock).mockRejectedValue(new Error("DB error"));
+    (fetchTotals as jest.Mock).mockRejectedValue(new Error("DB error"));
     const request = new Request("http://localhost:3000/api/ai-usage?range=24h");
     const response = await GET(request);
     expect(response.status).toBe(500);

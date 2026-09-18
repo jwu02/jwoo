@@ -11,21 +11,19 @@ import {
   ResponsiveContainer,
   TooltipContentProps,
 } from "recharts";
-import { AiUsageRange, AiUsageModelTimeSeries } from "@/lib/telemetry/types";
-import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
+import { Range } from "@/lib/ranges";
+import { ModelTimeSeries } from "@/lib/ai-usage/types";
+import { getTicksForRange } from "@/lib/ui/chart-ticks";
 import {
   formatTick,
   formatTooltip,
   formatCompactNumber,
-} from "@/lib/telemetry/chart-format";
-import {
-  aiUsageColorMap,
-  aiUsageColorVar,
-} from "@/lib/telemetry/ai-usage-colors";
+} from "@/lib/ui/chart-format";
+import { aiUsageColorMap, aiUsageColorVar } from "@/lib/ai-usage/colors";
 
 interface UsageChartProps {
-  data: AiUsageModelTimeSeries[];
-  range: AiUsageRange;
+  data: ModelTimeSeries[];
+  range: Range;
   /** Model names in table order; bar colors follow this order. */
   modelOrder?: string[];
 }
@@ -77,7 +75,7 @@ export function formatMillionsAxisLabel(value: number): string {
 // rows; otherwise the input (API) order is kept, which is cost descending
 // within the selected range.
 export function buildModelChartData(
-  timeSeriesByModel: AiUsageModelTimeSeries[],
+  timeSeriesByModel: ModelTimeSeries[],
   modelOrder: string[] = []
 ): { rows: ChartRow[]; series: ModelSeriesConfig[] } {
   const ordered =
@@ -141,7 +139,7 @@ function UsageChartTooltip({
   label,
   range,
   series,
-}: Partial<TooltipContentProps> & { range: AiUsageRange; series: Series[] }) {
+}: Partial<TooltipContentProps> & { range: Range; series: Series[] }) {
   if (!active || !payload || payload.length === 0) return null;
 
   const entries = payload
@@ -256,7 +254,7 @@ function MiniStackedBarChart({
 }: {
   data: ChartRow[];
   series: Series[];
-  range: AiUsageRange;
+  range: Range;
   /** Model names hidden via the legend; applies to both charts. */
   hidden: Set<string>;
   yTickFormatter?: (value: number) => string;

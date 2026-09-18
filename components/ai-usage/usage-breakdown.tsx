@@ -4,11 +4,11 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { formatCompactNumber } from "@/lib/telemetry/chart-format";
+import { formatCompactNumber } from "@/lib/ui/chart-format";
 import {
   aiUsageColorMap,
   aiUsageColorVar,
-} from "@/lib/telemetry/ai-usage-colors";
+} from "@/lib/ai-usage/colors";
 
 export interface UsageBreakdownRow {
   /** Stable unique key for the row. */

@@ -2,7 +2,7 @@ import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { cloneElement, createElement } from "react";
 import { ActivityChart } from "@/components/telemetry/activity-chart";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
-import { formatTooltip } from "@/lib/telemetry/chart-format";
+import { formatTooltip } from "@/lib/ui/chart-format";
 
 // recharts does not render axis tick *labels* under jsdom (the axis measures
 // its own ticks from a ResizeObserver that never fires), so the Y axis tick

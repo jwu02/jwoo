@@ -5,16 +5,18 @@ import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
 import { BreakdownView, ViewToggle } from "@/components/ai-usage/view-toggle"
-import { AI_USAGE_RANGE_OPTIONS, RangeSelector } from "@/components/telemetry/range-selector"
+import { RangeSelector } from "@/components/telemetry/range-selector"
+import { RANGE_OPTIONS } from "@/lib/ai-usage/ranges"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
-import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types"
+import { Range } from "@/lib/ranges"
+import { Response } from "@/lib/ai-usage/types"
 
 export default function AiUsagePage() {
-  const [range, setRange] = useState<AiUsageRange>("24h")
+  const [range, setRange] = useState<Range>("24h")
   const [view, setView] = useState<BreakdownView>("model")
   const { data, loading, error, lastUpdated, refresh } =
-    usePolledJson<AiUsageResponse>(
+    usePolledJson<Response>(
       `/api/ai-usage?range=${range}&tz=${encodeURIComponent(viewerTimeZone())}`
     )
 
@@ -59,7 +61,7 @@ export default function AiUsagePage() {
                   <RangeSelector
                     value={range}
                     onChange={setRange}
-                    options={AI_USAGE_RANGE_OPTIONS}
+                    options={RANGE_OPTIONS}
                   />
                 </div>
                 <UsageChart

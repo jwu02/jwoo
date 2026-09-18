@@ -6,7 +6,7 @@ import {
   formatMillionsAxisLabel,
   buildModelChartData,
 } from "@/components/ai-usage/usage-chart";
-import { AiUsageModelTimeSeries } from "@/lib/telemetry/types";
+import { ModelTimeSeries } from "@/lib/ai-usage/types";
 
 jest.mock("recharts", () => {
   const actual = jest.requireActual("recharts");
@@ -69,7 +69,7 @@ async function settleBarAnimation() {
 }
 
 // Two models, highest total cost first (model-b), matching the API order.
-function buildModelData(): AiUsageModelTimeSeries[] {
+function buildModelData(): ModelTimeSeries[] {
   const buckets = Array.from({ length: 4 }, (_, i) =>
     new Date(Date.UTC(2025, 7, 9, i * 6)).toISOString()
   );
@@ -95,7 +95,7 @@ function buildModelData(): AiUsageModelTimeSeries[] {
 
 // A single model whose per-bucket cost stays under ¥0.05, where the compact
 // M/K axis formatter would round every tick down to "0".
-function buildTinyCostData(): AiUsageModelTimeSeries[] {
+function buildTinyCostData(): ModelTimeSeries[] {
   const buckets = Array.from({ length: 4 }, (_, i) =>
     new Date(Date.UTC(2025, 7, 9, i * 6)).toISOString()
   );
@@ -115,7 +115,7 @@ function buildTinyCostData(): AiUsageModelTimeSeries[] {
 // input order lists model-b first, so an unsorted tooltip would show model-b
 // above model-a. model-c is idle everywhere (all zeros) and must not appear
 // in the tooltip at all.
-function buildMixedActivityData(): AiUsageModelTimeSeries[] {
+function buildMixedActivityData(): ModelTimeSeries[] {
   const buckets = Array.from({ length: 4 }, (_, i) =>
     new Date(Date.UTC(2025, 7, 9, i * 6)).toISOString()
   );

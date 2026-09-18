@@ -1,8 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import {
-  RangeSelector,
-  TELEMETRY_RANGE_OPTIONS,
-} from "@/components/telemetry/range-selector";
+import { RangeSelector } from "@/components/telemetry/range-selector";
+import { RANGE_OPTIONS } from "@/lib/telemetry/ranges";
 
 describe("RangeSelector", () => {
   it("calls onChange when a range is clicked", () => {
@@ -11,7 +9,7 @@ describe("RangeSelector", () => {
       <RangeSelector
         value="24h"
         onChange={onChange}
-        options={TELEMETRY_RANGE_OPTIONS}
+        options={RANGE_OPTIONS}
       />
     );
     fireEvent.click(screen.getByRole("button", { name: "30d" }));
