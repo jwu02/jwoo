@@ -9,16 +9,22 @@ export function formatNumber(value: number, decimals = 0): string {
   }).format(value);
 }
 
-// Compact large counts to K/M: 1,200,000 → "1.2M", 550,000 → "550K".
-export function formatCompactNumber(value: number): string {
+// Compact large counts to K/M: 1,200,000 → "1.2M", 550,000 → "550K". Pass
+// `decimals` to pin the fraction instead of trimming it, so a value that lands
+// on a whole number keeps its ".0" ("2M" → "2.0M") and every value in one
+// surface reads at the same precision.
+export function formatCompactNumber(value: number, decimals?: number): string {
+  const format = (scaled: number) =>
+    decimals === undefined ? trimNumber(scaled) : scaled.toFixed(decimals);
+
   const abs = Math.abs(value);
   if (abs >= 1_000_000) {
-    return `${trimNumber(value / 1_000_000)}M`;
+    return `${format(value / 1_000_000)}M`;
   }
   if (abs >= 1_000) {
-    return `${trimNumber(value / 1_000)}K`;
+    return `${format(value / 1_000)}K`;
   }
-  return trimNumber(value);
+  return format(value);
 }
 
 function trimNumber(value: number): string {

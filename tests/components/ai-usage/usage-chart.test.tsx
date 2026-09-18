@@ -338,6 +338,27 @@ describe("UsageChart", () => {
     ).toBe(true);
   });
 
+  it("shows cost tooltip values at two decimals", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    const items = await readTooltipItems(0);
+    expect(items.length).toBeGreaterThan(0);
+
+    // The same fixed precision as the model cost table and the summary card,
+    // so one yuan value never reads at two different precisions on the page.
+    for (const item of items) {
+      expect(item).toMatch(/¥\d[\d,]*\.\d{2}$/);
+    }
+
+    const tooltip = Array.from(
+      document.querySelectorAll(".recharts-tooltip-wrapper")
+    ).find((t) => t.querySelector('[data-testid="tooltip-total"]'));
+    expect(tooltip).toBeTruthy();
+    expect(
+      tooltip!.querySelector('[data-testid="tooltip-total"]')!.textContent
+    ).toMatch(/¥\d[\d,]*\.\d{2}$/);
+  });
+
   it("right-aligns model names and values into two columns", async () => {
     render(<UsageChart data={buildModelData()} range="24h" />);
 
@@ -470,6 +491,19 @@ describe("UsageChart", () => {
     expect(items.some((item) => item?.match(/model-b\d+(\.\d+)?[MK]/))).toBe(
       true
     );
+  });
+
+  it("shows token tooltip values at one decimal, whole counts included", async () => {
+    render(<UsageChart data={buildModelData()} range="24h" />);
+
+    const items = await readTooltipItems(1);
+    expect(items.length).toBeGreaterThan(0);
+
+    // A fixed one decimal, so a whole count reads "1.0M" rather than "1M" and
+    // every row of the tooltip reads at the same precision.
+    for (const item of items) {
+      expect(item).toMatch(/^model-[ab]\d+\.\d[KM]$/);
+    }
   });
 
   it("orders tooltip entries from highest to lowest value", async () => {

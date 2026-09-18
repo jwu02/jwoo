@@ -4,7 +4,8 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { formatCompactNumber, formatNumber } from "@/lib/ui/chart-format";
+import { formatNumber } from "@/lib/ui/chart-format";
+import { formatTokens } from "@/lib/ai-usage/format";
 import {
   aiUsageColorMap,
   aiUsageColorVar,
@@ -23,10 +24,10 @@ interface UsageBreakdownProps {
   labelHeader: string;
 }
 
-// Share of the column total, rounded to a whole percent. Returns 0 when the
-// total is 0 so a division-by-zero never yields NaN.
+// Share of the column total, to one decimal. Returns 0 when the total is 0 so a
+// division-by-zero never yields NaN.
 function shareOfTotal(value: number, total: number): number {
-  return total > 0 ? Math.round((value / total) * 100) : 0;
+  return total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 }
 
 function StatCell({
@@ -64,7 +65,9 @@ function StatCell({
               </div>
             }
           />
-          <TooltipContent>{pct}%</TooltipContent>
+          {/* One decimal even on a whole share, matching the summary card's
+              cache hit rate — the page's percentages read at one precision. */}
+          <TooltipContent>{formatNumber(pct, 1)}%</TooltipContent>
         </Tooltip>
         <span>{display}</span>
       </div>
@@ -129,7 +132,7 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
                 <StatCell
                   ariaLabel={`${row.label} tokens share`}
                   rawValue={row.totalTokens}
-                  display={formatCompactNumber(row.totalTokens)}
+                  display={formatTokens(row.totalTokens)}
                   total={totals.tokens}
                   color={color}
                 />

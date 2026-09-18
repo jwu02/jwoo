@@ -73,4 +73,12 @@ describe("formatCompactNumber", () => {
     expect(formatCompactNumber(1.25)).toBe("1.3");
     expect(formatCompactNumber(0)).toBe("0");
   });
+
+  it("pins the fraction when a decimal count is given", () => {
+    expect(formatCompactNumber(1_200_000, 1)).toBe("1.2M");
+    expect(formatCompactNumber(2_500, 1)).toBe("2.5K");
+    // Whole values keep the trailing zero instead of trimming to "2M"/"550K".
+    expect(formatCompactNumber(2_000_000, 1)).toBe("2.0M");
+    expect(formatCompactNumber(550_000, 1)).toBe("550.0K");
+  });
 });

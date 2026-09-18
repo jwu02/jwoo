@@ -25,7 +25,9 @@ describe("UsageBreakdown", () => {
     expect(screen.getByText("gpt-4o")).toBeInTheDocument();
     expect(screen.getByText("claude-opus-5")).toBeInTheDocument();
     expect(screen.getByText("0.80")).toBeInTheDocument();
-    expect(screen.getByText("2K")).toBeInTheDocument();
+    // Token counts keep a fixed one decimal, so the whole 2,000 keeps its ".0"
+    // rather than trimming to "2K" beside a fractional neighbour.
+    expect(screen.getByText("2.0K")).toBeInTheDocument();
   });
 
   it("sorts rows by cost descending", () => {
@@ -108,7 +110,26 @@ describe("UsageBreakdown", () => {
       name: /claude-opus-5 cost share/i,
     });
     fireEvent.mouseEnter(bar);
-    expect(await screen.findByText("48%")).toBeInTheDocument();
+    // A whole share keeps its ".0", like the summary card's cache hit rate.
+    expect(await screen.findByText("48.0%")).toBeInTheDocument();
+  });
+
+  it("shows a share that is not whole to one decimal", async () => {
+    render(
+      <TooltipProvider>
+        <UsageBreakdown
+          rows={[
+            { id: "a", label: "a", costYuan: 1, totalTokens: 0 },
+            { id: "b", label: "b", costYuan: 2, totalTokens: 0 },
+          ]}
+          labelHeader="Model"
+        />
+      </TooltipProvider>
+    );
+    const bar = screen.getByRole("progressbar", { name: /a cost share/i });
+    fireEvent.mouseEnter(bar);
+    // 1 of 3 → 33.333…%, read at one decimal rather than rounded to 33%.
+    expect(await screen.findByText("33.3%")).toBeInTheDocument();
   });
 
   it("renders no percentage labels", () => {

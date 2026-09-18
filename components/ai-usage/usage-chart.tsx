@@ -18,7 +18,9 @@ import {
   formatTick,
   formatTooltip,
   formatCompactNumber,
+  formatNumber,
 } from "@/lib/ui/chart-format";
+import { formatTokens } from "@/lib/ai-usage/format";
 import { aiUsageColorMap, aiUsageColorVar } from "@/lib/ai-usage/colors";
 
 interface UsageChartProps {
@@ -48,8 +50,11 @@ interface ChartRow {
   [key: string]: string | number;
 }
 
-function formatValue(value: number): string {
-  return value.toLocaleString("en-US", { maximumFractionDigits: 4 });
+// Cost tooltip values read at the same fixed precision as the model cost table
+// and the summary card, so one number never shows two different precisions on
+// the same page.
+function formatCostValue(value: number): string {
+  return formatNumber(value, 2);
 }
 
 // Cost y-axis labels: yuan values are small, so keep decimals and skip the M/K
@@ -161,7 +166,7 @@ function UsageChartTooltip({
   // Every series in one chart shares a formatter and prefix (cost vs tokens),
   // so the first one also formats the summed total row.
   const totalSeries = series[0];
-  const formatTotal = totalSeries?.formatValue ?? formatValue;
+  const formatTotal = totalSeries?.formatValue ?? formatCostValue;
   const total = showTotal
     ? entries.reduce((sum, { value }) => sum + value, 0)
     : 0;
@@ -193,7 +198,7 @@ function UsageChartTooltip({
             );
             const formatted = matchingSeries?.formatValue
               ? matchingSeries.formatValue(value)
-              : formatValue(value);
+              : formatCostValue(value);
             return (
               // Name in the left column, value pushed to the right edge so every
               // value lines up in one right-aligned column.
@@ -362,7 +367,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
     dataKey: entry.tokensKey,
     name: entry.model,
     color: chartColorForModel(entry.model, modelOrder, index, colorMap),
-    formatValue: formatCompactNumber,
+    formatValue: formatTokens,
   }));
 
   const costSeries: Series[] = series.map((entry, index) => ({
@@ -370,7 +375,7 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
     name: entry.model,
     color: chartColorForModel(entry.model, modelOrder, index, colorMap),
     prefix: "¥",
-    formatValue,
+    formatValue: formatCostValue,
   }));
 
   return (
