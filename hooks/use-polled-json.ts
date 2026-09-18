@@ -82,15 +82,21 @@ export function usePolledJson<T>(
       abortRef.current = controller;
       try {
         const result = await fetchJson<T>(url, controller.signal);
+        if (abortRef.current !== controller) return;
         setData(result);
         setLastUpdated(new Date());
       } catch (err) {
+        // A request that has been superseded owns nothing on screen any more:
+        // let it settle state and it would land over the load that replaced
+        // it — stale data, a stale error, or a loading flag cleared out from
+        // under its replacement.
+        if (abortRef.current !== controller) return;
         // An abort is this hook cancelling its own request, not a failure to
         // report — the request that replaced it owns the outcome now.
         if (err instanceof Error && err.name === "AbortError") return;
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        if (!isPoll) setLoading(false);
+        if (!isPoll && abortRef.current === controller) setLoading(false);
       }
     },
     [url]

@@ -352,6 +352,64 @@ describe("usePolledJson", () => {
     expect(result.current.data).toEqual({ value: 3 });
   });
 
+  // A load that a newer one has overtaken owns nothing on screen any more.
+  // Letting its cleanup run drops the page into no-skeleton, no-data,
+  // no-error — a blank content area while a request is genuinely in flight.
+  it("does not let a superseded load clear the loading flag its replacement set", async () => {
+    const first = slowResponse();
+    const second = deferred();
+    fetchMock.mockImplementationOnce(first.wrapper);
+    fetchMock.mockImplementationOnce(() => second.promise);
+
+    const { result } = renderHook(() => usePolledJson<Payload>(URL_A));
+    await tick(0);
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      result.current.refresh();
+      // The aborted request's cleanup drains as a microtask, the order a
+      // browser runs it in — before the replacement has landed.
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    second.resolve(ok({ value: 9 }));
+    await flush();
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toEqual({ value: 9 });
+  });
+
+  // The same ownership rule, for a superseded load that failed rather than
+  // being aborted: its error must not overwrite its replacement's outcome.
+  it("does not let a superseded load report a failure over its replacement", async () => {
+    const stale = deferred();
+    const second = deferred();
+    fetchMock.mockImplementationOnce(() => stale.promise);
+    fetchMock.mockImplementationOnce(() => second.promise);
+
+    const { result } = renderHook(() => usePolledJson<Payload>(URL_A));
+    await tick(0);
+
+    await act(async () => {
+      result.current.refresh();
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+
+    stale.resolve(fail(500, { error: "stale failure" }));
+    await flush();
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+
+    second.resolve(ok({ value: 9 }));
+    await flush();
+
+    expect(result.current.data).toEqual({ value: 9 });
+    expect(result.current.error).toBeNull();
+  });
+
   it("aborts the in-flight request when the page unmounts", async () => {
     fetchMock.mockImplementation(() => neverSettles());
     const { unmount } = renderHook(() => usePolledJson<Payload>(URL_A));
