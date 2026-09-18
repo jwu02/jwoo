@@ -5,13 +5,14 @@ import {
   fetchKeyCounts,
   fetchTimeSeries,
 } from "@/lib/telemetry/aggregation";
-import { isValidTimeZone } from "@/lib/telemetry/timezone";
-import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types";
+import { isValidTimeZone } from "@/lib/timezone";
+import { Range } from "@/lib/ranges";
+import { TelemetryResponse } from "@/lib/telemetry/types";
 
-const VALID_RANGES: TelemetryRange[] = ["24h", "30d", "1y"];
+const VALID_RANGES: Range[] = ["24h", "30d", "1y"];
 
-function isValidRange(value: string | null): value is TelemetryRange {
-  return VALID_RANGES.includes(value as TelemetryRange);
+function isValidRange(value: string | null): value is Range {
+  return VALID_RANGES.includes(value as Range);
 }
 
 export async function GET(request: Request): Promise<NextResponse> {

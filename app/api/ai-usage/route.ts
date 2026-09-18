@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { getAiUsageCollection } from "@/lib/db";
 import {
-  fetchAiUsageTotals,
-  fetchAiUsageByModel,
-  fetchAiUsageByProject,
-  fetchAiUsageByHarness,
-  fetchAiUsageTimeSeries,
-  fetchAiUsageTimeSeriesByModel,
-} from "@/lib/telemetry/aggregation";
-import { isValidTimeZone } from "@/lib/telemetry/timezone";
-import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types";
+  fetchTotals,
+  fetchByModel,
+  fetchByProject,
+  fetchByHarness,
+  fetchTimeSeries,
+  fetchTimeSeriesByModel,
+} from "@/lib/ai-usage/aggregation";
+import { isValidTimeZone } from "@/lib/timezone";
+import { Range } from "@/lib/ranges";
+import { Response } from "@/lib/ai-usage/types";
 
-const VALID_RANGES: AiUsageRange[] = ["24h", "30d", "1y"];
+const VALID_RANGES: Range[] = ["24h", "30d", "1y"];
 
-function isValidRange(value: string | null): value is AiUsageRange {
-  return VALID_RANGES.includes(value as AiUsageRange);
+function isValidRange(value: string | null): value is Range {
+  return VALID_RANGES.includes(value as Range);
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -42,20 +43,15 @@ export async function GET(request: Request): Promise<NextResponse> {
       timeSeries,
       timeSeriesByModel,
     ] = await Promise.all([
-      fetchAiUsageTotals(aiUsageCollection),
-      fetchAiUsageByModel(aiUsageCollection),
-      fetchAiUsageByProject(aiUsageCollection),
-      fetchAiUsageByHarness(aiUsageCollection),
-      fetchAiUsageTimeSeries(aiUsageCollection, rangeParam, undefined, timeZone),
-      fetchAiUsageTimeSeriesByModel(
-        aiUsageCollection,
-        rangeParam,
-        undefined,
-        timeZone
-      ),
+      fetchTotals(aiUsageCollection),
+      fetchByModel(aiUsageCollection),
+      fetchByProject(aiUsageCollection),
+      fetchByHarness(aiUsageCollection),
+      fetchTimeSeries(aiUsageCollection, rangeParam, undefined, timeZone),
+      fetchTimeSeriesByModel(aiUsageCollection, rangeParam, undefined, timeZone),
     ]);
 
-    const response: AiUsageResponse = {
+    const response: Response = {
       totals,
       byModel,
       byProject,

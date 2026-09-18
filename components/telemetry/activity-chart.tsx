@@ -11,17 +11,18 @@ import {
   ResponsiveContainer,
   TooltipContentProps,
 } from "recharts";
-import { TimeSeriesPoint, TelemetryRange } from "@/lib/telemetry/types";
-import { getTicksForRange } from "@/lib/telemetry/chart-ticks";
+import { Range } from "@/lib/ranges";
+import { TimeSeriesPoint } from "@/lib/telemetry/types";
+import { getTicksForRange } from "@/lib/ui/chart-ticks";
 import {
   estimateTickLabelWidth,
   formatCompactNumber,
   formatTick,
   formatTooltip,
-} from "@/lib/telemetry/chart-format";
+} from "@/lib/ui/chart-format";
 
 interface ActivityChartTooltipProps extends Partial<TooltipContentProps> {
-  range: TelemetryRange;
+  range: Range;
 }
 
 function ActivityChartTooltip({
@@ -73,7 +74,7 @@ function ActivityChartTooltip({
 
 interface ActivityChartProps {
   data: TimeSeriesPoint[];
-  range: TelemetryRange;
+  range: Range;
 }
 
 const SERIES = [

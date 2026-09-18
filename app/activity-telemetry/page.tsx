@@ -5,14 +5,16 @@ import { SummaryCards } from "@/components/telemetry/summary-cards"
 import { MouseVisual } from "@/components/telemetry/mouse-visual"
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap"
 import { HeatmapToggle } from "@/components/telemetry/heatmap-toggle"
-import { RangeSelector, TELEMETRY_RANGE_OPTIONS } from "@/components/telemetry/range-selector"
+import { RangeSelector } from "@/components/telemetry/range-selector"
+import { RANGE_OPTIONS } from "@/lib/telemetry/ranges"
 import { ActivityChart } from "@/components/telemetry/activity-chart"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
-import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types"
+import { Range } from "@/lib/ranges"
+import { TelemetryResponse } from "@/lib/telemetry/types"
 
 export default function ActivityTelemetryPage() {
-  const [range, setRange] = useState<TelemetryRange>("24h")
+  const [range, setRange] = useState<Range>("24h")
   // The heatmap overlay toggle lives above the keyboard/mouse row (owned here so
   // it doesn't add height to the keyboard card, keeping the two cards aligned).
   const [showOverlay, setShowOverlay] = useState(true)
@@ -73,7 +75,7 @@ export default function ActivityTelemetryPage() {
               <RangeSelector
                 value={range}
                 onChange={setRange}
-                options={TELEMETRY_RANGE_OPTIONS}
+                options={RANGE_OPTIONS}
               />
             </div>
             <ActivityChart data={data.timeSeries} range={range} />

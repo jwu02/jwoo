@@ -2,7 +2,7 @@ import {
   getTimezoneOffsetMs,
   isValidTimeZone,
   alignToInterval,
-} from "@/lib/telemetry/timezone";
+} from "@/lib/timezone";
 
 describe("getTimezoneOffsetMs", () => {
   it("returns 0 for UTC", () => {
