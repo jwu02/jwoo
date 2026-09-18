@@ -188,7 +188,7 @@ export const en: ResumeData = {
     },
   ],
   selfEvaluation: [
-    "AI-native engineering mindset, experienced in leveraging AI Agent tools to accelerate development, automate workflows, and improve productivity while critically evaluating their outputs",
+    "Experienced in leveraging AI Agent tools to accelerate development, automate workflows, and improve productivity while critically evaluating their outputs",
     "Keen explorer of emerging technologies, actively experimenting with a wide range of new tools, frameworks, models, and development approaches to understand their practical capabilities and limitations",
     "Strong technical judgment with an emphasis on understanding technology trade-offs, evaluating different approaches, and selecting the right tools and architectures based on specific requirements, constraints, and use cases",
     "Innovative and solution-oriented, with a proven ability to identify opportunities for process improvement, develop creative solutions that drive efficiency and business value",
@@ -320,7 +320,7 @@ export const zh: ResumeData = {
     },
   ],
   selfEvaluation: [
-    "AI 原生工程思维，具备运用 AI Agent 工具加速开发、自动化工作流程并提升生产力的经验，同时能够批判性地评估其输出结果",
+    "具备运用 AI Agent 工具加速开发、自动化工作流程并提升生产力的经验，同时能够批判性地评估其输出结果",
     "热衷于探索新兴技术，积极尝试各种新工具、框架、模型和开发方式，以深入了解其实际能力与局限性",
     "具备较强的技术判断力，注重理解不同技术方案之间的权衡，根据具体需求、约束条件和应用场景评估不同方案，并选择合适的工具与架构",
     "创新且以解决问题为导向，能够识别流程改进机会，并通过创新方案提升效率与业务价值",
