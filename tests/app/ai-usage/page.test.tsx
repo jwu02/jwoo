@@ -12,7 +12,7 @@ const response = {
     promptTokens: 5000,
     completionTokens: 1000,
     cacheHitTokens: 4000,
-    cacheMissTokens: 2000,
+    cacheMissTokens: 1000,
   },
   byModel: [
     { model: "claude-opus-5", costYuan: 1.2, totalTokens: 3000 },

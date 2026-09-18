@@ -116,6 +116,10 @@ _Avoid_: AI dashboard, usage (on its own)
 How far back a dashboard looks — what the range selector picks. The type and the lookback start are shared; the bucket interval and the option list are each dashboard's own, so a dashboard can re-bucket or add a range without touching its sibling.
 _Avoid_: period, timeframe; interval (that is the bucket size, not the range)
 
+**Cache hit rate**:
+The share of an AI-usage range's prompt tokens that the prompt cache served. Hit and miss partition the prompt tokens, so the rate is the hit share of that pair; completion tokens are never counted against the cache.
+_Avoid_: cache ratio, cache effectiveness
+
 **Harness**:
 The tool that drove an AI-usage session — the agent runtime the session ran under. One of the three breakdowns; sessions recorded before the collector captured it show as `unknown`.
 _Avoid_: client, agent, tool
