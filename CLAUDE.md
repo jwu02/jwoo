@@ -42,9 +42,10 @@ MongoDB ──► lib/telemetry/db.ts ──► lib/telemetry/aggregation.ts ─
   - `scene-canvas.tsx` — the Canvas itself: `dpr`, `gl`, camera, hemisphere light, optional directional key light, Suspense. Mounted only from inside a scene's lazily loaded implementation.
   - `scene-hover.tsx` — the shared hover layer: anchor→screen-position plumbing, the positioned tooltip, and the focusable a11y layer that drives the same hover state as the 3D pointer.
   - `three-console.ts` — side-effect import that filters the upstream R3F `THREE.Clock` deprecation warning; imported by `scene-canvas`.
-- **`components/telemetry/`** — presentational React components (`SummaryCards`, `KeyboardHeatmap`, `MouseVisual`, `RangeSelector`, `ActivityChart`, `ErrorBanner`). `app/page.tsx` owns all state and polling (refetches every 60s, aborts stale requests via `AbortController`).
+- **`components/telemetry/`** — presentational React components (`SummaryCards`, `KeyboardHeatmap`, `MouseVisual`, `RangeSelector`, `ActivityChart`, `ErrorBanner`). The polled pages own only their local UI state; the fetch/abort/poll cycle they share lives in `hooks/`.
 - **`components/ui/`** — shadcn/ui components (`components.json` config: base-nova style, lucide icons, RSC enabled).
 - **`lib/ui/`** — small framework-free UI helpers (`tooltip-position.ts` — clamps/flips a tooltip within its scroll container; shared by the telemetry charts and the 3D scenes).
+- **`hooks/`** — cross-feature React hooks. `use-polled-json.ts` owns the polled pages' whole cycle (refetches every 60s, aborts the request it replaces, and shapes errors); `use-mobile.ts` is the shadcn breakpoint hook.
 
 ## Conventions
 

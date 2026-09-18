@@ -97,3 +97,21 @@ _Avoid_: timer, countdown (that is the string it renders)
 **Expiry**:
 The moment a snapshot's window runs out. The page notices it on the cache clock and asks for a fresh snapshot once per snapshot — a failed ask is not retried on every tick.
 _Avoid_: timeout, cache invalidation
+
+### Polled pages
+
+**Polled page**:
+A page whose data the browser refetches on an interval while it is open. Activity telemetry and AI usage are the polled pages.
+_Avoid_: live page, auto-refresh
+
+**Poll**:
+The interval-driven background refresh of a polled page's data. A poll replaces the data on screen in place and never shows loading; a failed poll reports its error alongside the data it failed to replace. The knowledge graph is not polled — its refresh is expiry-driven.
+_Avoid_: background refresh, sync, heartbeat
+
+**Foreground load**:
+A load the viewer caused — first arrival, a range change, or a retry — as opposed to a poll. It may show the loading skeleton, but only where there is no data on screen yet.
+_Avoid_: initial load, manual refresh
+
+**Last updated**:
+The moment the data currently on screen was received. Every successful response updates it; a failed one leaves it alone.
+_Avoid_: refresh time, sync time

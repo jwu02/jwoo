@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useState } from "react"
 import { SummaryCards } from "@/components/telemetry/summary-cards"
 import { MouseVisual } from "@/components/telemetry/mouse-visual"
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap"
@@ -8,74 +8,18 @@ import { HeatmapToggle } from "@/components/telemetry/heatmap-toggle"
 import { RangeSelector, TELEMETRY_RANGE_OPTIONS } from "@/components/telemetry/range-selector"
 import { ActivityChart } from "@/components/telemetry/activity-chart"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
+import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
 import { TelemetryRange, TelemetryResponse } from "@/lib/telemetry/types"
-
-const POLL_INTERVAL_MS = 60_000
-
-// Bucket time series by the viewer's timezone so local days (e.g. "today")
-// appear in the charts; the API falls back to UTC when this is absent.
-const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
-
-async function fetchTelemetry(
-  range: TelemetryRange,
-  signal?: AbortSignal
-): Promise<TelemetryResponse> {
-  const response = await fetch(
-    `/api/telemetry?range=${range}&tz=${encodeURIComponent(TIME_ZONE)}`,
-    { signal }
-  )
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ error: "Unknown error" }))
-    throw new Error(error.error || `HTTP ${response.status}`)
-  }
-  return response.json()
-}
 
 export default function ActivityTelemetryPage() {
   const [range, setRange] = useState<TelemetryRange>("24h")
   // The heatmap overlay toggle lives above the keyboard/mouse row (owned here so
   // it doesn't add height to the keyboard card, keeping the two cards aligned).
   const [showOverlay, setShowOverlay] = useState(true)
-  const [data, setData] = useState<TelemetryResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  const load = useCallback(
-    async (isBackground = false) => {
-      if (!isBackground) setLoading(true)
-      setError(null)
-      abortControllerRef.current?.abort()
-      const controller = new AbortController()
-      abortControllerRef.current = controller
-      try {
-        const result = await fetchTelemetry(range, controller.signal)
-        setData(result)
-        setLastUpdated(new Date())
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return
-        setError(
-          err instanceof Error ? err.message : "Failed to load telemetry"
-        )
-      } finally {
-        if (!isBackground) setLoading(false)
-      }
-    },
-    [range]
-  )
-
-  useEffect(() => {
-    const timeout = setTimeout(() => load(), 0)
-    const interval = setInterval(() => load(true), POLL_INTERVAL_MS)
-    return () => {
-      clearTimeout(timeout)
-      clearInterval(interval)
-      abortControllerRef.current?.abort()
-    }
-  }, [load])
+  const { data, loading, error, lastUpdated, refresh } =
+    usePolledJson<TelemetryResponse>(
+      `/api/telemetry?range=${range}&tz=${encodeURIComponent(viewerTimeZone())}`
+    )
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
@@ -92,7 +36,7 @@ export default function ActivityTelemetryPage() {
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onRetry={() => load()} />}
+      {error && <ErrorBanner message={error} onRetry={refresh} />}
 
       {loading && !data ? (
         <div className="space-y-6">

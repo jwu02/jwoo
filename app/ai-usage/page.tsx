@@ -1,76 +1,22 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useState } from "react"
 import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
 import { BreakdownView, ViewToggle } from "@/components/ai-usage/view-toggle"
 import { AI_USAGE_RANGE_OPTIONS, RangeSelector } from "@/components/telemetry/range-selector"
 import { ErrorBanner } from "@/components/telemetry/error-banner"
+import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
 import { AiUsageRange, AiUsageResponse } from "@/lib/telemetry/types"
-
-const POLL_INTERVAL_MS = 60_000
-
-// Bucket time series by the viewer's timezone so local days (e.g. "today")
-// appear in the charts; the API falls back to UTC when this is absent.
-const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
-
-async function fetchAiUsage(
-  range: AiUsageRange,
-  signal?: AbortSignal
-): Promise<AiUsageResponse> {
-  const response = await fetch(
-    `/api/ai-usage?range=${range}&tz=${encodeURIComponent(TIME_ZONE)}`,
-    { signal }
-  )
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ error: "Unknown error" }))
-    throw new Error(error.error || `HTTP ${response.status}`)
-  }
-  return response.json()
-}
 
 export default function AiUsagePage() {
   const [range, setRange] = useState<AiUsageRange>("24h")
   const [view, setView] = useState<BreakdownView>("model")
-  const [data, setData] = useState<AiUsageResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  const load = useCallback(
-    async (isBackground = false) => {
-      if (!isBackground) setLoading(true)
-      setError(null)
-      abortControllerRef.current?.abort()
-      const controller = new AbortController()
-      abortControllerRef.current = controller
-      try {
-        const result = await fetchAiUsage(range, controller.signal)
-        setData(result)
-        setLastUpdated(new Date())
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return
-        setError(err instanceof Error ? err.message : "Failed to load AI usage")
-      } finally {
-        if (!isBackground) setLoading(false)
-      }
-    },
-    [range]
-  )
-
-  useEffect(() => {
-    const timeout = setTimeout(() => load(), 0)
-    const interval = setInterval(() => load(true), POLL_INTERVAL_MS)
-    return () => {
-      clearTimeout(timeout)
-      clearInterval(interval)
-      abortControllerRef.current?.abort()
-    }
-  }, [load])
+  const { data, loading, error, lastUpdated, refresh } =
+    usePolledJson<AiUsageResponse>(
+      `/api/ai-usage?range=${range}&tz=${encodeURIComponent(viewerTimeZone())}`
+    )
 
   const isEmpty = data !== null && data.totals.totalTokens === 0
 
@@ -87,7 +33,7 @@ export default function AiUsagePage() {
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onRetry={() => load()} />}
+      {error && <ErrorBanner message={error} onRetry={refresh} />}
 
       {loading && !data ? (
         <div className="space-y-6">
