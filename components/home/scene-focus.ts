@@ -7,9 +7,10 @@ export type FocusInfo = {
   radius: number
 }
 
-export type FocusPreset =
-  | { type: "fit" }
-  | { type: "framing"; target: Vec3; cameraPos: Vec3; hero: HeroMode }
+/** A hand-tuned fixed view: camera at `cameraPos` looking at `target`. */
+export type FramingPreset = { type: "framing"; target: Vec3; cameraPos: Vec3 }
+
+export type FocusPreset = { type: "fit" } | FramingPreset
 
 export type FocusRequest = {
   point: Vec3
@@ -27,8 +28,6 @@ export type CameraPose = {
   position: Vec3
   forward: Vec3
 }
-
-export type HeroMode = "intro" | "macbook"
 
 /**
  * Distance the camera needs to be from a bounding sphere of `radius` for the
@@ -84,10 +83,10 @@ export function gazeTarget(camera: CameraPose, point: Vec3): Vec3 {
 }
 
 /**
- * Translate a model's click preset into the camera request fed to the canvas
- * fly-to tween, plus the hero state to switch to (or null to leave it alone).
- * `info` is the model's bounding-sphere framing; "framing" ignores it and uses
- * the preset's fixed camera + target instead (no bbox needed for a fixed view).
+ * Translate a hotspot's focus preset into the camera request fed to the canvas
+ * fly-to tween. `info` is the model's bounding-sphere framing; "framing" ignores
+ * it and uses the preset's fixed camera + target instead (no bbox needed for a
+ * fixed view).
  *
  * When `camera` is provided (a GLB-authored camera, e.g. CameraXiaomi), it wins
  * over the preset's hand-tuned cameraPos: the camera flies to the authored
@@ -102,24 +101,18 @@ export function resolveFocus(
   preset: FocusPreset,
   info: FocusInfo,
   camera?: CameraPose,
-): { request: FocusRequest; hero: HeroMode | null } {
+): FocusRequest {
   switch (preset.type) {
     case "fit":
-      return { request: { point: info.point, radius: info.radius }, hero: null }
+      return { point: info.point, radius: info.radius }
     case "framing":
       if (camera) {
         return {
-          request: {
-            point: gazeTarget(camera, info.point),
-            radius: 0,
-            cameraPos: camera.position,
-          },
-          hero: preset.hero,
+          point: gazeTarget(camera, info.point),
+          radius: 0,
+          cameraPos: camera.position,
         }
       }
-      return {
-        request: { point: preset.target, radius: 0, cameraPos: preset.cameraPos },
-        hero: preset.hero,
-      }
+      return { point: preset.target, radius: 0, cameraPos: preset.cameraPos }
   }
 }

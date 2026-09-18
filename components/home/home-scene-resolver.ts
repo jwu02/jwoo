@@ -1,27 +1,25 @@
 import * as THREE from "three"
 
-import { runtimeNodeName, type HomeSceneHotspot } from "./scene-config"
+import { runtimeNodeName } from "./scene-node-name"
+import type { HomeSceneHotspot } from "./scene-config"
 import {
   readWorldPosition,
   resolveFocus,
   type CameraPose,
   type FocusInfo,
   type FocusRequest,
-  type HeroMode,
 } from "./scene-focus"
 
-export type ResolvedFocus = { request: FocusRequest; hero: HeroMode | null }
-
 /**
- * Turns a hotspot into the camera request + hero state, shared by object clicks
- * (model-object) and the view switcher buttons (home-view-switcher) so the two
- * paths always produce identical framing.
+ * Turns a hotspot into the camera request the controller flies to, shared by
+ * object clicks (model-object) and the view switcher buttons (home-view-
+ * switcher) so the two paths always produce identical framing.
  *
  * The combined scene loads via drei's useGLTF inside the canvas, where it may
- * suspend under the SceneModels Suspense boundary. ModelObject registers the
- * loaded scene here, letting the DOM-overlay switcher resolve hotspots on click
- * without suspending outside that boundary (R3F's useLoader throws a promise
- * until the asset is cached — there is no safe non-suspending read).
+ * suspend under SceneController's own Suspense boundary. ModelObject registers
+ * the loaded scene here, letting the DOM-overlay switcher resolve hotspots on
+ * click without suspending outside that boundary (R3F's useLoader throws a
+ * promise until the asset is cached — there is no safe non-suspending read).
  */
 export function registerHomeScene(scene: THREE.Group | null): void {
   loadedScene = scene
@@ -35,8 +33,9 @@ let loadedScene: THREE.Group | null = null
 // resolve (keeps the mount of the 27MB combined scene cheap).
 const focusCache = new Map<string, FocusInfo>()
 
-export function resolveHomeHotspot(hotspot: HomeSceneHotspot): ResolvedFocus | null {
-  if (!loadedScene) return null
+/** Null before the scene resolves, and for a hotspot that declares no focus. */
+export function resolveHomeHotspot(hotspot: HomeSceneHotspot): FocusRequest | null {
+  if (!loadedScene || !hotspot.focus) return null
   const camera = hotspot.camera ? getCameraPose(loadedScene, hotspot.camera) : undefined
   return resolveFocus(hotspot.focus, getFocusInfo(loadedScene, hotspot.node), camera)
 }

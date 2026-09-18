@@ -32,29 +32,18 @@ describe("fitDistance", () => {
 describe("resolveFocus", () => {
   const info: FocusInfo = { point: [1, 2, 3], radius: 0.5 }
 
-  it("maps a fit preset to a plain focus request and no hero change", () => {
-    const { request, hero } = resolveFocus({ type: "fit" }, info)
+  it("maps a fit preset to a plain focus request", () => {
+    const request = resolveFocus({ type: "fit" }, info)
     expect(request).toEqual({ point: [1, 2, 3], radius: 0.5 })
     expect(request.cameraPos).toBeUndefined()
-    expect(hero).toBeNull()
   })
 
-  it("maps a framing preset to a fixed target + camera position and its hero", () => {
-    const { request, hero } = resolveFocus(
-      { type: "framing", target: [0, 0.78, 0], cameraPos: [0, 0.8, 2], hero: "macbook" },
+  it("maps a framing preset to a fixed target + camera position", () => {
+    const request = resolveFocus(
+      { type: "framing", target: [0, 0.78, 0], cameraPos: [0, 0.8, 2] },
       info,
     )
     expect(request).toEqual({ point: [0, 0.78, 0], radius: 0, cameraPos: [0, 0.8, 2] })
-    expect(hero).toBe("macbook")
-  })
-
-  it("carries the preset's intro hero on a framing preset", () => {
-    const { request, hero } = resolveFocus(
-      { type: "framing", target: [0, 0.35, 0], cameraPos: [1.9, 1.7, 2.2], hero: "intro" },
-      info,
-    )
-    expect(request).toEqual({ point: [0, 0.35, 0], radius: 0, cameraPos: [1.9, 1.7, 2.2] })
-    expect(hero).toBe("intro")
   })
 
   it("overrides the fixed camera with a GLB camera pose and targets its gaze projection", () => {
@@ -65,13 +54,12 @@ describe("resolveFocus", () => {
     // stays near the object. Camera at [5,6,7] looking along -z: the node center
     // [1,2,3] projects 4 units ahead to [5,6,3].
     const camera: CameraPose = { position: [5, 6, 7], forward: [0, 0, -1] }
-    const { request, hero } = resolveFocus(
-      { type: "framing", target: [-2.48, 0.55, -0.92], cameraPos: [-1.44, 0.9, 1.7], hero: "intro" },
+    const request = resolveFocus(
+      { type: "framing", target: [-2.48, 0.55, -0.92], cameraPos: [-1.44, 0.9, 1.7] },
       info,
       camera,
     )
     expect(request).toEqual({ point: [5, 6, 3], radius: 0, cameraPos: [5, 6, 7] })
-    expect(hero).toBe("intro")
   })
 
   it("aims the gaze through the node so a high desk camera frames it from above", () => {
@@ -83,8 +71,8 @@ describe("resolveFocus", () => {
     // position [2.51,1.59,2.37], forward ≈ [0,-0.39,0.92]; desk bbox center ≈ [2.5,0.4,3.5].
     const camera: CameraPose = { position: [2.5, 1.6, 2.4], forward: [0, -0.39, 0.92] }
     const deskInfo: FocusInfo = { point: [2.5, 0.4, 3.5], radius: 1 }
-    const { request } = resolveFocus(
-      { type: "framing", target: [0, 0.7, 0], cameraPos: [0.5, 1.7, 1.6], hero: "intro" },
+    const request = resolveFocus(
+      { type: "framing", target: [0, 0.7, 0], cameraPos: [0.5, 1.7, 1.6] },
       deskInfo,
       camera,
     )
@@ -99,8 +87,8 @@ describe("resolveFocus", () => {
   })
 
   it("keeps the preset's target and cameraPos when no GLB camera is provided", () => {
-    const { request } = resolveFocus(
-      { type: "framing", target: [0, 0.7, 0], cameraPos: [0.5, 1.7, 1.6], hero: "intro" },
+    const request = resolveFocus(
+      { type: "framing", target: [0, 0.7, 0], cameraPos: [0.5, 1.7, 1.6] },
       info,
     )
     expect(request).toEqual({ point: [0, 0.7, 0], radius: 0, cameraPos: [0.5, 1.7, 1.6] })

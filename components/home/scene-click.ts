@@ -1,4 +1,5 @@
-import { runtimeNodeName, type HomeSceneHotspot } from "./scene-config"
+import { runtimeNodeName } from "./scene-node-name"
+import type { HomeSceneHotspot } from "./scene-config"
 import { resolveTopLevelNode, type SceneNode } from "./scene-hit"
 
 /**
@@ -18,9 +19,9 @@ export type ClickAction =
  * `delta` is the pointer's movement since pointerdown; R3F dispatches onClick
  * after a drag that *started* on the object, so a drag release (delta > 2) is
  * ignored — rotating the scene must never navigate or re-focus. A hotspot with
- * a `target` page navigates immediately on a single click; the rest (Flask /
- * Car) keep the camera-focus behavior. A non-interactive hotspot (e.g. the
- * desk, which only supplies a camera view for the switcher) is ignored.
+ * a `target` page navigates immediately on a single click; the rest (bottle /
+ * bonsai / car) keep the camera-focus behavior. A non-interactive hotspot (e.g.
+ * the desk, which only supplies a camera view for the switcher) is ignored.
  */
 export function resolveClickAction(
   object: SceneNode | null,

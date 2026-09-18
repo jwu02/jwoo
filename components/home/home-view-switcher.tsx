@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
-import { HOME_VIEW_SWITCHER } from "./scene-config"
+import { HOME_VIEWS } from "./scene-config"
 
 export type HomeViewSwitcherProps = {
   /** Id of the currently framed view, or null when none of the presets is active. */
@@ -12,8 +12,10 @@ export type HomeViewSwitcherProps = {
 }
 
 // Bottom-center pill letting visitors jump between the GLB-authored camera views
-// (Desk / Xiaomi SU7) without hunting for the object in the scene. The outer
-// wrapper is pointer-transparent so the pill never blocks clicks on the canvas.
+// (Desk / Xiaomi SU7) without hunting for the object in the scene. The buttons
+// are derived from the hotspot spec (HOME_VIEWS), so a new authored camera shows
+// up here on its own. The outer wrapper is pointer-transparent so the pill never
+// blocks clicks on the canvas.
 export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center">
@@ -22,7 +24,7 @@ export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherP
         aria-label="Camera views"
         className="pointer-events-auto flex items-center gap-1 rounded-full border bg-background/80 p-1 shadow-sm backdrop-blur-sm"
       >
-        {HOME_VIEW_SWITCHER.map((view) => {
+        {HOME_VIEWS.map((view) => {
           const isActive = view.id === activeView
           return (
             <Button

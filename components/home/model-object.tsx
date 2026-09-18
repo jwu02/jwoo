@@ -6,13 +6,12 @@ import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import * as THREE from "three"
 
-import { setHeroMode, useHeroMode } from "./home-hero-store"
-import { registerHomeScene, resolveHomeHotspot } from "./home-scene-resolver"
-import { setActiveView } from "./home-view-store"
+import { useSceneState, selectHotspot, viewEngagesGreeting } from "./home-scene-controller"
+import { registerHomeScene } from "./home-scene-resolver"
 import { resolveClickAction } from "./scene-click"
-import { HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL, runtimeNodeName } from "./scene-config"
+import { HOME_GREETING, HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL } from "./scene-config"
 import { projectNodeTopToScreen, projectObjectAboveToScreen } from "./scene-label"
-import type { FocusRequest } from "./scene-focus"
+import { runtimeNodeName } from "./scene-node-name"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
 
@@ -25,12 +24,12 @@ const LABEL_PIXEL_OFFSET = 8
 const LABEL_HEIGHT = 28
 const GREETING_PIXEL_OFFSET = 96
 
-export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => void }) {
+export function ModelObject() {
   const router = useRouter()
   // Second argument is the local Draco decoder path (drei: UseDraco = boolean | string).
   const { scene } = useGLTF(HOME_SCENE_MODEL.url, "/draco/")
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
-  const heroMode = useHeroMode()
+  const { activeView } = useSceneState()
 
   // The view switcher overlay lives outside <Canvas>, where drei's useGLTF may
   // not suspend (R3F's useLoader throws a promise until the asset is cached),
@@ -88,38 +87,30 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
     (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation()
       // Single click resolves into a click action (see scene-click): hotspots
-      // backed by a page navigate to it immediately, the rest fly the camera to
-      // their focus preset, and drag releases are ignored. The drag guard, hit
-      // walk, and navigate-vs-focus split all live in the one testable function.
+      // backed by a page navigate to it immediately, the rest frame the camera
+      // on them, and drag releases are ignored. The drag guard, hit walk, and
+      // navigate-vs-focus split all live in the one testable function; the
+      // controller owns what focusing *means*, so the switcher pill and this
+      // path cannot drift apart.
       const action = resolveClickAction(event.object, event.delta, scene, HOME_SCENE_HOTSPOTS)
       if (action.kind === "navigate") {
         router.push(action.target)
         return
       }
       if (action.kind === "ignore") return
-      // Camera focus: resolve the hotspot's focus preset into a camera request
-      // (fit / deep zoom / desk overview) plus a hero mode to switch to. Goes
-      // through the shared resolver so switcher buttons and object clicks frame
-      // identically; a GLB-authored camera overrides the preset's cameraPos and
-      // aims the view along its authored gaze (see resolveFocus).
-      const resolved = resolveHomeHotspot(action.hotspot)
-      if (!resolved) return
-      onFocus(resolved.request)
-      if (resolved.hero) setHeroMode(resolved.hero)
-      setActiveView(action.hotspot.id)
+      selectHotspot(action.hotspot.id)
     },
-    [scene, onFocus, router],
+    [scene, router],
   )
 
-  // The macbook hotspot's framing engages the typed greeting; show it above the
-  // MacBook while engaged. The corner overlay is gone, so this is the only
-  // intro text.
-  const macbookHotspot = HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.id === "macbook")
-  const macbookIsHero =
-    macbookHotspot?.focus.type === "framing" && macbookHotspot.focus.hero === "macbook"
-  const macbookAnchor = useMemo(
-    () => (macbookIsHero ? nodeAnchor("MacBook") : null),
-    [macbookIsHero, nodeAnchor],
+  // The greeting floats above the MacBook's node while the selected view asks
+  // for it (HOME_GREETING); the desk view is the load view and does ask, so a
+  // fresh scene types the greeting without a click. The corner overlay is gone,
+  // so this is the only intro text.
+  const greetingEngaged = viewEngagesGreeting(activeView)
+  const greetingAnchor = useMemo(
+    () => (greetingEngaged ? nodeAnchor(HOME_GREETING.node) : null),
+    [greetingEngaged, nodeAnchor],
   )
   const labelAnchor = useMemo(
     () => (hoveredHotspot ? nodeAnchor(hoveredHotspot.node) : null),
@@ -133,7 +124,7 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
   const greetingPosition = useCallback(
     (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
       return projectNodeTopToScreen(
-        scene.getObjectByName(runtimeNodeName("MacBook")),
+        scene.getObjectByName(runtimeNodeName(HOME_GREETING.node)),
         camera,
         size,
         GREETING_PIXEL_OFFSET,
@@ -170,16 +161,16 @@ export function ModelObject({ onFocus }: { onFocus: (request: FocusRequest) => v
       onClick={handleClick}
     >
       <primitive object={scene} />
-      {heroMode === "macbook" && macbookAnchor ? (
+      {greetingEngaged && greetingAnchor ? (
         <Html
-          position={[macbookAnchor.x, macbookAnchor.y, macbookAnchor.z]}
+          position={[greetingAnchor.x, greetingAnchor.y, greetingAnchor.z]}
           calculatePosition={greetingPosition}
           // Bottom-center anchors to the projected point, so the text extends
           // upward from GREETING_PIXEL_OFFSET px above the MacBook's top edge.
           style={{ pointerEvents: "none", transform: "translate(-50%, -100%)" }}
         >
           <div className="whitespace-nowrap text-2xl font-semibold tracking-tight text-foreground">
-            <TypeWriter text="Hi, I'm Tony." />
+            <TypeWriter text={HOME_GREETING.text} />
           </div>
         </Html>
       ) : null}

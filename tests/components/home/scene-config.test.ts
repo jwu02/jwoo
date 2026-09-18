@@ -1,11 +1,10 @@
 import {
-  HOME_HERO_ID,
+  HOME_GREETING,
+  HOME_INITIAL_VIEW,
   HOME_SCENE_HOTSPOTS,
   HOME_SCENE_MODEL,
-  HOME_VIEW_SWITCHER,
-  runtimeNodeName,
+  HOME_VIEWS,
 } from "@/components/home/scene-config"
-import { resolveTopLevelNode, type SceneNode } from "@/components/home/scene-hit"
 
 describe("HOME_SCENE_MODEL", () => {
   it("serves the single combined homepage model", () => {
@@ -22,7 +21,15 @@ describe("HOME_SCENE_HOTSPOTS", () => {
 
   it("covers the seven interactive glb nodes", () => {
     const nodes = HOME_SCENE_HOTSPOTS.map((h) => h.node)
-    for (const name of ["MacBook", "Desk", "WaterBottle", "Bonsai", "Resume", "XiaomiSu7Ultra", "AiUsage"]) {
+    for (const name of [
+      "MacBook",
+      "Desk",
+      "WaterBottle",
+      "Bonsai",
+      "Resume",
+      "XiaomiSu7Ultra",
+      "AiUsage",
+    ]) {
       expect(nodes).toContain(name)
     }
   })
@@ -32,6 +39,15 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     expect(macbook?.node).toBe("MacBook")
     expect(macbook?.target).toBe("/activity-telemetry")
     expect(macbook?.label).toBe("Activity Telemetry")
+  })
+
+  it("gives the macbook no focus preset — it navigates rather than being framed", () => {
+    // The MacBook's framing preset was a fossil of when its view was the load
+    // view; clicking navigates to /activity-telemetry, so nothing ever read the
+    // preset's target or cameraPos. A hotspot's `focus` says what the camera
+    // does when the hotspot is selected, and this one is never selected.
+    const macbook = HOME_SCENE_HOTSPOTS.find((h) => h.id === "macbook")
+    expect(macbook?.focus).toBeUndefined()
   })
 
   it("maps the resume hotspot to /resume", () => {
@@ -45,8 +61,6 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     expect(aiUsage?.node).toBe("AiUsage")
     expect(aiUsage?.target).toBe("/ai-usage")
     expect(aiUsage?.label).toBe("AI Usage")
-    expect(aiUsage?.focus).toEqual({ type: "fit" })
-    expect(aiUsage?.camera).toBeUndefined()
   })
 
   it("leaves desk, bottle, bonsai, and car without a nav target", () => {
@@ -66,13 +80,9 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     }
   })
 
-  it("wires each hotspot to its focus preset", () => {
-    const macbook = HOME_SCENE_HOTSPOTS.find((h) => h.id === "macbook")
-    expect(macbook?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "macbook" }))
-
+  it("wires each framed hotspot to its focus preset", () => {
     const desk = HOME_SCENE_HOTSPOTS.find((h) => h.id === "desk")
-    // The desk view keeps the intro greeting engaged above the MacBook.
-    expect(desk?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "macbook" }))
+    expect(desk?.focus).toEqual(expect.objectContaining({ type: "framing" }))
 
     const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")
     expect(bottle?.focus).toEqual({ type: "fit" })
@@ -81,7 +91,7 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     expect(bonsai?.focus).toEqual({ type: "fit" })
 
     const car = HOME_SCENE_HOTSPOTS.find((h) => h.id === "car")
-    expect(car?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "intro" }))
+    expect(car?.focus).toEqual(expect.objectContaining({ type: "framing" }))
   })
 
   it("maps the desk and car hotspots to their GLB-authored cameras", () => {
@@ -100,70 +110,54 @@ describe("HOME_SCENE_HOTSPOTS", () => {
   })
 })
 
-describe("HOME_HERO_ID", () => {
-  it("names the desk hotspot as the initial page-load view", () => {
-    expect(HOME_HERO_ID).toBe("desk")
-    const hero = HOME_SCENE_HOTSPOTS.find((h) => h.id === HOME_HERO_ID)
-    // The desk view keeps the intro greeting engaged on load.
-    expect(hero?.focus).toEqual(expect.objectContaining({ type: "framing", hero: "macbook" }))
-  })
-})
-
-describe("HOME_VIEW_SWITCHER", () => {
-  it("offers exactly the two GLB-authored camera views", () => {
-    expect(HOME_VIEW_SWITCHER.map((v) => v.id)).toEqual(["desk", "car"])
-  })
-
-  it("every switcher id maps to a hotspot with a GLB camera", () => {
-    for (const view of HOME_VIEW_SWITCHER) {
-      const hotspot = HOME_SCENE_HOTSPOTS.find((h) => h.id === view.id)
-      expect(hotspot?.camera).toBeDefined()
-    }
-  })
-
-  it("covers every camera-backed hotspot — adding a camera means adding a button", () => {
-    const cameraIds = HOME_SCENE_HOTSPOTS.filter((h) => h.camera).map((h) => h.id)
-    expect(HOME_VIEW_SWITCHER.map((v) => v.id)).toEqual(cameraIds)
-  })
-
-  it("labels each view for the pill", () => {
-    expect(HOME_VIEW_SWITCHER).toEqual([
+describe("HOME_VIEWS", () => {
+  it("offers the two GLB-authored camera views in hotspot order", () => {
+    expect(HOME_VIEWS).toEqual([
       { id: "desk", label: "Desk" },
       { id: "car", label: "Xiaomi SU7" },
     ])
   })
-})
 
-describe("runtimeNodeName", () => {
-  it("sanitizes special characters in authoring names the way three does on load", () => {
-    // three r185's GLTFLoader runs PropertyBinding.sanitizeNodeName on every
-    // node (spaces → underscores, [].:/ stripped). The GLB is authored with
-    // CamelCase names ("WaterBottle") that pass through unchanged, but the
-    // sanitizer guards against any future space/dot name silently breaking
-    // hotspot matching against the loaded scene.
-    expect(runtimeNodeName("Water Flask")).toBe("Water_Flask")
-    expect(runtimeNodeName("AI Usage")).toBe("AI_Usage")
-    expect(runtimeNodeName("WaterBottle")).toBe("WaterBottle")
-    expect(runtimeNodeName("MacBook")).toBe("MacBook")
+  it("derives a button for every camera-backed hotspot — adding a camera adds a button", () => {
+    const cameraIds = HOME_SCENE_HOTSPOTS.filter((h) => h.camera).map((h) => h.id)
+    expect(HOME_VIEWS.map((v) => v.id)).toEqual(cameraIds)
   })
 
-  it("keys the hotspot map by the runtime names present in the loaded scene", () => {
-    const runtimeNames = new Map(
-      HOME_SCENE_HOTSPOTS.map((hotspot) => [runtimeNodeName(hotspot.node), hotspot.id]),
-    )
-    expect(runtimeNames.get("WaterBottle")).toBe("bottle")
-    expect(runtimeNames.get("Bonsai")).toBe("bonsai")
-    expect(runtimeNames.get("AiUsage")).toBe("ai-usage")
-    expect(runtimeNames.get("MacBook")).toBe("macbook")
-    expect(runtimeNames.get("XiaomiSu7Ultra")).toBe("car")
+  it("gives every view short pill copy rather than its full tooltip name", () => {
+    // The rule the derivation rests on: a hotspot backed by an authored camera
+    // is a view, so it must carry the short label the pill renders. The tooltip
+    // label is deliberately longer ("2025 Xiaomi SU7 Ultra").
+    for (const hotspot of HOME_SCENE_HOTSPOTS.filter((h) => h.camera)) {
+      expect(hotspot.viewLabel).toBeTruthy()
+    }
+    expect(HOME_VIEWS.map((view) => view.label)).not.toContain("2025 Xiaomi SU7 Ultra")
+  })
+})
 
-    // A hover hit on a mesh under the top-level node walks up to its runtime
-    // name, which must map back to the bottle hotspot.
-    const scene: SceneNode = { name: "Scene", parent: null }
-    const bottle = { name: "WaterBottle", parent: scene }
-    const mesh = { name: "polySurface10", parent: bottle }
-    const resolved = resolveTopLevelNode(mesh, scene)
-    expect(resolved).toBe("WaterBottle")
-    expect(resolved && runtimeNames.get(resolved)).toBe("bottle")
+describe("HOME_INITIAL_VIEW", () => {
+  it("is the desk, framed by a preset that can seat the camera before the GLB loads", () => {
+    expect(HOME_INITIAL_VIEW.hotspot.id).toBe("desk")
+    expect(HOME_INITIAL_VIEW.framing.type).toBe("framing")
+    expect(HOME_INITIAL_VIEW.framing.cameraPos).toHaveLength(3)
+    expect(HOME_INITIAL_VIEW.framing.target).toHaveLength(3)
+  })
+
+  it("is the only hotspot marked initial", () => {
+    expect(HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.initial)).toHaveLength(1)
+  })
+})
+
+describe("HOME_GREETING", () => {
+  it("anchors above a node the scene actually has", () => {
+    expect(HOME_SCENE_HOTSPOTS.map((h) => h.node)).toContain(HOME_GREETING.node)
+  })
+
+  it("is engaged by the load view and no other", () => {
+    // The greeting floats above the MacBook, but it is the *view* that asks for
+    // it: the desk is the load view, so a fresh scene greets without a click,
+    // and flying to the car dismisses it. Anchoring it on the MacBook hotspot
+    // instead would tie the greeting to an object that is never framed.
+    const engaging = HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.greeting).map((h) => h.id)
+    expect(engaging).toEqual([HOME_INITIAL_VIEW.hotspot.id])
   })
 })

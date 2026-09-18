@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react"
 import { HomeFallback } from "@/components/home/home-fallback"
 
 describe("HomeFallback", () => {
-  it("renders the hero and links to all four sections", () => {
+  it("renders the greeting and links to all four sections", () => {
     render(<HomeFallback />)
 
     expect(screen.getByText(/Hi, I'm Tony\./)).toBeInTheDocument()

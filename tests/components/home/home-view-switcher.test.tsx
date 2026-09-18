@@ -1,13 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 
 import { HomeViewSwitcher } from "@/components/home/home-view-switcher"
-import { HOME_VIEW_SWITCHER } from "@/components/home/scene-config"
+import { HOME_VIEWS } from "@/components/home/scene-config"
 
 describe("HomeViewSwitcher", () => {
-  it("renders a button for each preset view", () => {
+  it("renders a button for each derived view", () => {
     render(<HomeViewSwitcher activeView={null} onSelectView={jest.fn()} />)
 
-    for (const view of HOME_VIEW_SWITCHER) {
+    for (const view of HOME_VIEWS) {
       expect(screen.getByRole("button", { name: view.label })).toBeInTheDocument()
     }
   })

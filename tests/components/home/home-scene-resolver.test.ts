@@ -36,15 +36,13 @@ describe("resolveHomeHotspot", () => {
     registerHomeScene(makeDeskScene())
     const desk = HOME_SCENE_HOTSPOTS.find((h) => h.id === "desk")!
 
-    const resolved = resolveHomeHotspot(desk)!
+    const request = resolveHomeHotspot(desk)!
 
     // Camera flies to CameraDesk's authored position; the orbit target is where
     // the desk's bbox center projects onto the camera's -z gaze: [5,6,7] minus
     // the 4-unit forward distance to [1,2,3] → [5,6,3].
-    expect(resolved.request.cameraPos).toEqual([5, 6, 7])
-    expect(resolved.request.point).toEqual([5, 6, 3])
-    // The desk view keeps the intro greeting engaged above the MacBook.
-    expect(resolved.hero).toBe("macbook")
+    expect(request.cameraPos).toEqual([5, 6, 7])
+    expect(request.point).toEqual([5, 6, 3])
   })
 
   it("resolves a bbox-fit hotspot from its node's world bounding box", () => {
@@ -54,29 +52,42 @@ describe("resolveHomeHotspot", () => {
     registerHomeScene(new THREE.Group().add(bottleNode))
     const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")!
 
-    const resolved = resolveHomeHotspot(bottle)!
+    const request = resolveHomeHotspot(bottle)!
 
     // Point is the world bbox center; radius is half the box diagonal
     // (2×2×2 box → diagonal √12 ≈ 3.464 → radius ≈ 1.732).
-    expect(resolved.request.point).toEqual([0, 1, 0])
-    expect(resolved.request.radius).toBeCloseTo(Math.sqrt(3), 2)
-    expect(resolved.request.cameraPos).toBeUndefined()
-    expect(resolved.hero).toBeNull()
+    expect(request.point).toEqual([0, 1, 0])
+    expect(request.radius).toBeCloseTo(Math.sqrt(3), 2)
+    expect(request.cameraPos).toBeUndefined()
   })
 
-  it("falls back to the framing preset when a hotspot has no authored camera", () => {
+  it("returns null for a hotspot that declares no focus preset", () => {
     registerHomeScene(makeDeskScene())
     const macbook = HOME_SCENE_HOTSPOTS.find((h) => h.id === "macbook")!
-    const focus = macbook.focus
-    if (focus.type !== "framing") throw new Error("macbook preset must be framing")
 
-    const resolved = resolveHomeHotspot(macbook)!
+    // The MacBook navigates to its page rather than being framed, so it has no
+    // view to resolve — and no amount of loaded scene changes that.
+    expect(resolveHomeHotspot(macbook)).toBeNull()
+  })
 
-    // The MacBook has no authored camera, so the hand-tuned framing preset wins
-    // (no bbox needed for a fixed view — the desk scene doesn't even contain it).
-    expect(resolved.request.cameraPos).toEqual(focus.cameraPos)
-    expect(resolved.request.point).toEqual(focus.target)
-    expect(resolved.hero).toBe("macbook")
+  it("falls back to the framing preset when the authored camera is missing", () => {
+    // The GLB export may predate its cameras; a framing hotspot then uses its
+    // hand-tuned cameraPos/target rather than refusing to frame at all.
+    const scene = new THREE.Group()
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1))
+    desk.name = "Desk"
+    scene.add(desk)
+    registerHomeScene(scene)
+
+    const deskHotspot = HOME_SCENE_HOTSPOTS.find((h) => h.id === "desk")!
+    const focus = deskHotspot.focus
+    if (focus?.type !== "framing") throw new Error("desk preset must be framing")
+
+    const request = resolveHomeHotspot(deskHotspot)!
+
+    // A fixed view needs no bbox, so the hand-tuned preset wins outright.
+    expect(request.cameraPos).toEqual(focus.cameraPos)
+    expect(request.point).toEqual(focus.target)
   })
 
   it("recomputes bboxes for a freshly registered scene", () => {
@@ -85,7 +96,7 @@ describe("resolveHomeHotspot", () => {
     before.position.set(0, 0, 0)
     registerHomeScene(new THREE.Group().add(before))
     const bottle = HOME_SCENE_HOTSPOTS.find((h) => h.id === "bottle")!
-    expect(resolveHomeHotspot(bottle)!.request.point).toEqual([0, 0, 0])
+    expect(resolveHomeHotspot(bottle)!.point).toEqual([0, 0, 0])
 
     // A new scene must not reuse the previous scene's cached bbox (registering
     // clears the cache) — the bottle now sits at y=1.
@@ -93,6 +104,6 @@ describe("resolveHomeHotspot", () => {
     after.name = "WaterBottle"
     after.position.set(0, 1, 0)
     registerHomeScene(new THREE.Group().add(after))
-    expect(resolveHomeHotspot(bottle)!.request.point).toEqual([0, 1, 0])
+    expect(resolveHomeHotspot(bottle)!.point).toEqual([0, 1, 0])
   })
 })

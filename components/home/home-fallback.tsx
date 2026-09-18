@@ -9,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { HomeHero } from "./home-hero"
+import { HomeGreeting } from "./home-greeting"
 
 export function HomeFallback() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
-      <HomeHero />
+      <HomeGreeting />
 
       <section className="mt-12 grid gap-4 md:grid-cols-2">
         <Card>

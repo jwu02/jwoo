@@ -45,16 +45,20 @@ _Avoid_: highlight, active key/region
 ### Home scene interaction
 
 **Hotspot**:
-An authored point of interest in the home scene (macbook, desk, bottle, car, …) with an id, a focus (framing or fit) and optionally a hero.
+An authored point of interest in the home scene (macbook, desk, bottle, car, …) with an id and what selecting it does: the view the camera takes (a framing or a fit), or a page it navigates to instead. A hotspot may be scenery with no click behaviour of its own.
 _Avoid_: point of interest, marker
 
 **View**:
-One switchable authored camera state of the home scene, selected from the view switcher; the desk view is the initial one.
+One switchable authored camera state of the home scene, selected from the view switcher; the desk view is the initial one. A hotspot that authors a camera of its own *is* a view — the switcher's buttons are read off the scene's hotspots rather than listed separately, so a new authored camera is reachable the moment it exists.
 _Avoid_: preset, camera pose
 
-**Hero**:
-The greeting/label layer above the home scene, shown in modes (`intro`, `macbook`, …) and set by hotspot resolution and camera movement.
-_Avoid_: greeting (that is one mode)
+**Greeting**:
+The words the home scene types above its MacBook, and the same words the WebGL-less fallback renders as a heading. Declared once; a *view* decides whether it shows — the load view engages it, so a fresh page greets without a click, and flying to another view dismisses it. The greeting's anchor is a fixed node of the scene, not the hotspot that happens to engage it.
+_Avoid_: hero (the component's former name), intro mode
+
+**Take-over**:
+The visitor moving the camera themselves. It cancels any fly-to in progress, so the tween never fights the drag — and a take-over that moves the camera clears the selection with it, so the switcher stops claiming a view the visitor has left. What must *not* clear the selection is the flight's own motion: a fly-to's per-frame camera updates are discounted while it runs, or the view would be dismissed the instant it was chosen. The selection therefore survives a press that doesn't move the camera, and only that.
+_Avoid_: interaction, cancellation
 
 **Fly-to**:
 The damped camera tween from the current pose to a hotspot's framing, cancelled by user take-over.

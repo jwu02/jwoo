@@ -1,19 +1,4 @@
-import { PropertyBinding } from "three"
-
-import type { FocusPreset } from "./scene-focus"
-
-/**
- * three r185's GLTFLoader sanitizes every node name on load via
- * PropertyBinding.sanitizeNodeName (spaces → underscores, [].:/ stripped), so an
- * authoring name like "Water Flask" would load as "Water_Flask" and never match
- * the config. The GLB is authored with CamelCase names ("WaterBottle") that pass
- * through unchanged, but mapping every node through the same sanitizer keeps
- * hotspots resolving against the live scene graph if a future export uses
- * spaces or dots.
- */
-export function runtimeNodeName(name: string): string {
-  return PropertyBinding.sanitizeNodeName(name)
-}
+import type { FocusPreset, FramingPreset } from "./scene-focus"
 
 /** The single combined scene model, replacing the five individual per-model GLBs. */
 export const HOME_SCENE_MODEL = {
@@ -21,23 +6,20 @@ export const HOME_SCENE_MODEL = {
 } as const
 
 /**
- * The preset camera views surfaced as buttons in the home view switcher pill:
- * exactly the hotspots backed by an authored GLB camera (CameraDesk,
- * CameraXiaomi). The MacBook framing is the load view but not a button.
+ * The greeting typed in-scene above a hotspot's node once a view engages it (see
+ * `greeting` on the hotspot). Declared once here rather than on the hotspot that
+ * happens to be the greeting's anchor: the anchor node and the view that shows
+ * it are different things — the desk view engages the greeting, but the greeting
+ * floats above the MacBook.
+ *
+ * Shared with the WebGL-less fallback, which renders the same words as a static
+ * heading (see home-greeting).
  */
-export const HOME_VIEW_SWITCHER = [
-  { id: "desk", label: "Desk" },
-  { id: "car", label: "Xiaomi SU7" },
-] as const
-
-/**
- * The hotspot whose view is the initial page-load frame: the desk view. Its
- * authored CameraDesk pose only exists once the scene loads, so home-canvas
- * starts on the desk preset's cameraPos/target and snaps to the authored pose
- * on the first frame it resolves. The desk preset's hero ("macbook") also
- * doubles as the initial hero, keeping the intro greeting engaged on load.
- */
-export const HOME_HERO_ID = "desk" as const
+export const HOME_GREETING = {
+  /** Top-level node name inside homepage.glb the greeting floats above. */
+  node: "MacBook",
+  text: "Hi, I'm Tony.",
+} as const
 
 export type HomeSceneHotspot = {
   id: string
@@ -45,6 +27,23 @@ export type HomeSceneHotspot = {
   node: string
   label?: string
   target?: string
+  /**
+   * Short label for the view switcher pill, set on the hotspots that are views
+   * (see HOME_VIEWS). The full `label` is the hover tooltip's copy; the pill
+   * needs something that reads as a button ("Desk", not "Computer Desk").
+   */
+  viewLabel?: string
+  /**
+   * Whether this view engages the greeting (HOME_GREETING) while it is the
+   * selected one. Only the loaded view does, so a scene-loading visitor is
+   * greeted without a click; selecting another view dismisses it.
+   */
+  greeting?: boolean
+  /**
+   * Marks the view a freshly loaded scene starts framed on. Exactly one hotspot
+   * sets it — see HOME_INITIAL_VIEW.
+   */
+  initial?: boolean
   /**
    * Whether the hotspot is interactive (hover tooltip + click action). Defaults
    * to true; set to false for a hotspot that only supplies a camera view for the
@@ -61,7 +60,12 @@ export type HomeSceneHotspot = {
    * (e.g. the export hasn't included cameras yet).
    */
   camera?: string
-  focus: FocusPreset
+  /**
+   * Where the camera goes when this hotspot is clicked or selected. Absent on a
+   * hotspot that has no view of its own — the MacBook navigates to its page
+   * instead of being framed, so there is nothing to fly to.
+   */
+  focus?: FocusPreset
 }
 
 // All five models (plus the Garage and AiUsage props) are combined into one
@@ -75,37 +79,29 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
     node: "MacBook",
     label: "Activity Telemetry",
     target: "/activity-telemetry",
-    // Overhead-forward keyboard view: camera in front (+z), raised so its gaze
-    // drops ~15° below horizontal onto the keyboard, keeping the typed greeting
-    // above in frame. Also sets the scene's initial camera/target/hero on load
-    // (see home-canvas). Tunable in dev.
-    focus: {
-      type: "framing",
-      target: [0, 0.78, 0],
-      cameraPos: [0, 0.95, 0.65],
-      hero: "macbook",
-    },
   },
   {
     id: "desk",
     node: "Desk",
     label: "Computer Desk",
-    // The desk is the hero/scenery surface, not a clickable object, so it is not
-    // interactive: it supplies only the initial frame (HOME_HERO_ID) and the
-    // "Desk" switcher view via its focus below, and is excluded from hover
-    // tooltips and click actions.
+    viewLabel: "Desk",
+    // The loaded view: a fresh scene is framed on the desk and greets without a
+    // click. The greeting is anchored above the MacBook (HOME_GREETING.node),
+    // which is why the desk's own node name isn't the greeting's.
+    initial: true,
+    greeting: true,
+    // The desk is scenery, not a clickable object, so it is not interactive: it
+    // supplies only the initial frame and its switcher view, and is excluded
+    // from hover tooltips and click actions.
     interactive: false,
     // GLB-authored camera view (fallback: the hand-tuned preset below).
     camera: "CameraDesk",
     // Front, angled-overhead view of the desk surface: camera up in front (+z)
-    // looking down at ~30° with a slight side offset. Tunable in dev. Keeps the
-    // MacBook hero engaged so the intro greeting stays visible above the
-    // MacBook from the desk view.
+    // looking down at ~30° with a slight side offset. Tunable in dev.
     focus: {
       type: "framing",
       target: [0, 0.7, 0],
       cameraPos: [0.5, 1.7, 1.6],
-      hero: "macbook",
     },
   },
   {
@@ -143,6 +139,7 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
     id: "car",
     node: "XiaomiSu7Ultra",
     label: "2025 Xiaomi SU7 Ultra",
+    viewLabel: "Xiaomi SU7",
     // GLB-authored camera view (fallback: the hand-tuned preset below).
     camera: "CameraXiaomi",
     // Low, front-right camera aimed at the car's right headlight, so the
@@ -151,7 +148,54 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
       type: "framing",
       target: [-2.48, 0.55, -0.92],
       cameraPos: [-1.44, 0.9, 1.7],
-      hero: "intro",
     },
   },
 ]
+
+/** The hotspot with this id, or undefined. The one by-id lookup the scene shares. */
+export function findHotspot(id: string): HomeSceneHotspot | undefined {
+  return HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.id === id)
+}
+
+export type HomeView = { id: string; label: string }
+
+/**
+ * The preset camera views surfaced as buttons in the home view switcher pill,
+ * derived from the hotspots rather than hand-maintained: a hotspot backed by an
+ * authored GLB camera is a view a visitor can jump to, so adding a camera to a
+ * hotspot adds a button with no second list to keep in step.
+ *
+ * A camera-backed hotspot without a `viewLabel` has no pill copy and is skipped
+ * rather than silently labelled with its full tooltip name; scene-config's test
+ * asserts that never happens.
+ */
+export const HOME_VIEWS: HomeView[] = HOME_SCENE_HOTSPOTS.flatMap((hotspot) =>
+  hotspot.camera && hotspot.viewLabel
+    ? [{ id: hotspot.id, label: hotspot.viewLabel }]
+    : [],
+)
+
+/**
+ * The view a freshly loaded scene starts framed on: the hotspot marked
+ * `initial`. Its cameraPos/target seat the camera and the orbit controls before
+ * the GLB resolves, and the controller marks it selected so the greeting types
+ * without a click.
+ *
+ * It must be a framing hotspot — a bbox fit has no camera position to seat the
+ * camera at until the model has loaded, which is exactly what the preset is for.
+ */
+function requireInitialView(): { hotspot: HomeSceneHotspot; framing: FramingPreset } {
+  const initial = HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.initial)
+  const [hotspot] = initial
+  // Both halves are load-bearing: none leaves the scene with no camera to seat,
+  // and two or more makes "the" initial view ambiguous — `find` would silently
+  // pick the first, so the count is checked rather than the first match.
+  if (initial.length !== 1 || hotspot.focus?.type !== "framing") {
+    throw new Error(
+      "home scene config: exactly one hotspot must set `initial` and carry a framing focus preset",
+    )
+  }
+  return { hotspot, framing: hotspot.focus }
+}
+
+export const HOME_INITIAL_VIEW = requireInitialView()

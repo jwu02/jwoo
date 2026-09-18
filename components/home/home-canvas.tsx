@@ -2,37 +2,63 @@
 
 import { useProgress } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
+import { Suspense, useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
 import type { OrbitControls as OrbitControlsImpl } from "three/addons/controls/OrbitControls.js"
 
 import { SceneCanvas } from "@/components/three/scene-canvas"
 
-import { setHeroMode } from "./home-hero-store"
-import { HomeOrbitControls } from "./home-orbit-controls"
+import {
+  cameraMoved,
+  cameraTakenOver,
+  flyToSettled,
+  getFlyTo,
+  resetToInitial,
+  selectHotspot,
+  setFlyToPosition,
+  useSceneState,
+} from "./home-scene-controller"
 import { resolveHomeHotspot } from "./home-scene-resolver"
+import { HomeOrbitControls } from "./home-orbit-controls"
 import { HomeViewSwitcher } from "./home-view-switcher"
-import { setActiveView, useActiveView } from "./home-view-store"
-import { HOME_HERO_ID, HOME_SCENE_HOTSPOTS, type HomeSceneHotspot } from "./scene-config"
-import { fitDistance, type FocusRequest } from "./scene-focus"
-import { SceneModels } from "./scene-models"
+import { ModelObject } from "./model-object"
+import { HOME_INITIAL_VIEW } from "./scene-config"
+import { fitDistance, type Vec3 } from "./scene-focus"
+import { tweenSettled, tweenStep } from "./scene-tween"
 
 // OrbitControls distance bounds — reused for the fly-to framing clamp. The low
 // min lets the MacBook deep zoom pull in close.
 const MIN_DISTANCE = 0.7
 const MAX_DISTANCE = 8
-// Exponential-smoothing constant: higher = snappier fly-to (~0.5s settle at 6).
-const FOCUS_SPEED = 6
 
-// The desk view is the initial page-load view (see HOME_HERO_ID). Its authored
-// CameraDesk pose only exists once the scene loads, so the desk preset's
-// cameraPos/target double as the starting camera and controls target, and
-// SceneController snaps to the exact authored pose on the first frame the scene
-// resolves. The preset's hero also doubles as the initial hero.
-const DESK_HOTSPOT = HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.id === HOME_HERO_ID)!
-const DESK_FOCUS = DESK_HOTSPOT.focus as Extract<HomeSceneHotspot["focus"], { type: "framing" }>
+function toVec3(vector: THREE.Vector3): Vec3 {
+  return [vector.x, vector.y, vector.z]
+}
 
-type FlyTo = (request: FocusRequest) => void
+/**
+ * Where a bbox fit should put the camera: keep the direction it is already
+ * looking from, but set the distance from the object's size so big models (the
+ * car) fit in view instead of landing the camera inside their geometry. Frozen
+ * once per flight (the controller stores it) so the camera travels a straight
+ * line rather than chasing a direction that moves with it.
+ */
+function freezeFitPosition(
+  camera: THREE.PerspectiveCamera,
+  target: THREE.Vector3,
+  radius: number,
+): Vec3 {
+  const direction = camera.position.clone().sub(target)
+  if (direction.lengthSq() === 0) direction.set(0, 0, 1)
+  const distance = THREE.MathUtils.clamp(
+    fitDistance(radius, camera.fov),
+    MIN_DISTANCE,
+    MAX_DISTANCE,
+  )
+  const pos = target.clone().add(direction.normalize().multiplyScalar(distance))
+  const frozen = toVec3(pos)
+  setFlyToPosition(frozen)
+  return frozen
+}
 
 function LoadingBar() {
   // useProgress is a zustand store backed by three's DefaultLoadingManager,
@@ -47,98 +73,71 @@ function LoadingBar() {
   )
 }
 
-// Lives inside <Canvas> so useThree/useFrame have access to the camera. Owns
-// the OrbitControls ref and the damped fly-to tween for click-to-focus.
-function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) {
+// Lives inside <Canvas> so useThree/useFrame have access to the camera. Owns the
+// OrbitControls ref and carries out whatever fly-to the controller has armed.
+function SceneController() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
-  const tween = useRef<{ toTarget: THREE.Vector3; toPos: THREE.Vector3 } | null>(null)
 
-  // One-shot snap to the desk's authored camera pose once the scene resolves.
-  // `initialPoseApplied` stops the snap re-running; `applyingInitialPose` keeps
-  // the snap's own 'change' (from controls.update) from counting as a user move
-  // that would dismiss the greeting / active view.
+  // One-shot snap to the load view's authored camera pose once the scene
+  // resolves. `initialPoseApplied` stops the snap re-running;
+  // `applyingInitialPose` keeps the snap's own 'change' (from controls.update)
+  // from counting as a user move that would clear the selected view.
   const initialPoseApplied = useRef(false)
   const applyingInitialPose = useRef(false)
-
-  const flyTo = useCallback<FlyTo>(
-    (request) => {
-      const controls = controlsRef.current
-      if (!controls) return
-      const toTarget = new THREE.Vector3(...request.point)
-      let toPos: THREE.Vector3
-      if (request.cameraPos) {
-        // Fixed framing (the explicit cameraPos of a framing preset).
-        toPos = new THREE.Vector3(...request.cameraPos)
-      } else {
-        // Keep the camera's current direction, but set the distance from the
-        // object's size so big models (the car) fit in view instead of landing
-        // the camera inside their geometry.
-        const dir = camera.position.clone().sub(controls.target)
-        if (dir.lengthSq() === 0) dir.set(0, 0, 1)
-        const distance = THREE.MathUtils.clamp(
-          fitDistance(request.radius, camera.fov),
-          MIN_DISTANCE,
-          MAX_DISTANCE,
-        )
-        toPos = toTarget.clone().add(dir.normalize().multiplyScalar(distance))
-      }
-      tween.current = { toTarget, toPos }
-    },
-    [camera],
-  )
-
-  useEffect(() => {
-    flyToRef.current = flyTo
-    return () => {
-      flyToRef.current = null
-    }
-  }, [flyTo, flyToRef])
 
   // Sync the controls' baseline on mount. OrbitControls seeds its internal
   // lastPosition at the origin, so its first frame-loop update() (drei runs it
   // at priority -1, before this controller's snap arms applyingInitialPose)
-  // sees the camera seated at the desk preset, thinks it moved, and dispatches
-  // 'change' — which the onChange handler mistakes for a user move and uses to
-  // dismiss the greeting before the intro can type. A layout effect runs before
-  // drei's passive 'change' listener attaches, so this sync is silent.
+  // sees the camera seated at the load view, thinks it moved, and dispatches
+  // 'change' — which the onChange handler below would mistake for a user move
+  // and use to dismiss the greeting before the intro can type. A layout effect
+  // runs before drei's passive 'change' listener attaches, so this sync is
+  // silent.
   useLayoutEffect(() => {
     controlsRef.current?.update()
   }, [])
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const controls = controlsRef.current
-    // The desk view is the initial view; its authored pose only exists once the
-    // scene loads, so snap to it the first frame it resolves. The scene just
-    // appeared, so this reads as the view already framed — not a camera move.
+
+    // The load view's authored pose only exists once the scene loads, so snap to
+    // it the first frame it resolves. The scene just appeared, so this reads as
+    // the view already framed — not a camera move.
     if (!initialPoseApplied.current && controls) {
-      const resolved = resolveHomeHotspot(DESK_HOTSPOT)
-      if (resolved?.request.cameraPos) {
+      const request = resolveHomeHotspot(HOME_INITIAL_VIEW.hotspot)
+      if (request?.cameraPos) {
         initialPoseApplied.current = true
         applyingInitialPose.current = true
-        state.camera.position.set(...resolved.request.cameraPos)
-        controls.target.set(...resolved.request.point)
+        camera.position.set(...request.cameraPos)
+        controls.target.set(...request.point)
         controls.update()
         applyingInitialPose.current = false
       }
     }
-    const t = tween.current
-    if (!controls || !t) return
-    const factor = 1 - Math.exp(-delta * FOCUS_SPEED)
-    state.camera.position.lerp(t.toPos, factor)
-    controls.target.lerp(t.toTarget, factor)
+
+    const flight = getFlyTo()
+    if (!controls || !flight) return
+
+    const toPos = flight.pos ?? freezeFitPosition(camera, controls.target, flight.radius)
+    const nextPos = tweenStep(toVec3(camera.position), toPos, delta)
+    const nextTarget = tweenStep(toVec3(controls.target), flight.target, delta)
+    camera.position.set(nextPos[0], nextPos[1], nextPos[2])
+    controls.target.set(nextTarget[0], nextTarget[1], nextTarget[2])
     controls.update()
-    if (
-      state.camera.position.distanceTo(t.toPos) < 0.001 &&
-      controls.target.distanceTo(t.toTarget) < 0.001
-    ) {
-      tween.current = null
+    if (tweenSettled(nextPos, toPos) && tweenSettled(nextTarget, flight.target)) {
+      flyToSettled()
     }
   })
 
   return (
     <>
-      <SceneModels onFocus={flyTo} />
+      {/* The model suspends while its GLB streams in. This boundary is what
+          keeps that from reaching SceneCanvas's own Suspense, which would
+          unmount the controls — and this controller with them — mid-load. */}
+      <Suspense fallback={null}>
+        <ModelObject />
+      </Suspense>
       {/* HomeOrbitControls uses three's current OrbitControls (not drei's
           three-stdlib copy) so wheel zoom scales with the scroll delta —
           otherwise a trackpad swipe's momentum tail keeps zooming after the
@@ -148,7 +147,7 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
       <HomeOrbitControls
         ref={controlsRef}
         makeDefault
-        target={DESK_FOCUS.target}
+        target={HOME_INITIAL_VIEW.framing.target}
         enableDamping
         dampingFactor={0.08}
         zoomSpeed={0.5}
@@ -156,21 +155,15 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
         minDistance={MIN_DISTANCE}
         maxDistance={MAX_DISTANCE}
         // The user taking over (drag/zoom) cancels any in-flight fly-to.
-        onStart={() => {
-          tween.current = null
-        }}
+        onStart={cameraTakenOver}
         // A user-initiated camera move (rotate/pan/zoom) after the fly-to has
-        // settled dismisses the engaged greeting. 'change' also fires while the
-        // fly-to tween is running (controls.update each frame), so gate on the
-        // tween: keep the greeting visible until it settles, then hide on any
-        // real camera movement. Plain clicks don't move the camera, so they
-        // never dispatch 'change' and don't flicker the greeting. The initial
-        // desk-pose snap also fires 'change', so suppress it while applying.
+        // settled dismisses the selected view. 'change' also fires while the
+        // fly-to tween is running (controls.update each frame), which the
+        // controller discounts, and during the initial snap, suppressed here.
+        // Plain clicks don't move the camera, so they never dispatch 'change'
+        // and don't flicker the greeting.
         onChange={() => {
-          if (!tween.current && !applyingInitialPose.current) {
-            setHeroMode("intro")
-            setActiveView(null)
-          }
+          if (!applyingInitialPose.current) cameraMoved()
         }}
       />
     </>
@@ -178,31 +171,15 @@ function SceneController({ flyToRef }: { flyToRef: { current: FlyTo | null } }) 
 }
 
 export function HomeCanvas() {
-  const flyToRef = useRef<FlyTo | null>(null)
-  const activeView = useActiveView()
+  const { activeView } = useSceneState()
 
-  // A fresh scene loads already framed on the desk view (its authored camera
-  // snaps in once the scene resolves), and the desk preset's hero keeps the
-  // greeting engaged, so it types without a click. Reset on every mount so
-  // returning to home greets again (the camera remounts on client-side
-  // navigation, but the hero store persists). The load view is a switcher
-  // button, so mark the desk view active.
+  // A fresh scene loads already framed on the load view (its authored camera
+  // snaps in once the scene resolves), and that view keeps the greeting engaged,
+  // so it types without a click. Reset on every mount so returning to home
+  // greets again (the camera remounts on client-side navigation, but the
+  // controller's state persists).
   useEffect(() => {
-    setHeroMode(DESK_FOCUS.hero)
-    setActiveView("desk")
-  }, [])
-
-  // Fly a switcher button to its authored camera view. Resolution goes through
-  // the shared home-scene-resolver so the buttons frame identically to object
-  // clicks; the scene is registered by ModelObject once loaded.
-  const handleSelectView = useCallback((id: string) => {
-    const hotspot = HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.id === id)
-    if (!hotspot) return
-    const resolved = resolveHomeHotspot(hotspot)
-    if (!resolved) return
-    flyToRef.current?.(resolved.request)
-    if (resolved.hero) setHeroMode(resolved.hero)
-    setActiveView(id)
+    resetToInitial()
   }, [])
 
   return (
@@ -216,13 +193,13 @@ export function HomeCanvas() {
           intensity is tuned in Blender (energy → candela is linear, ~54 cd/W)
           and re-exported to the GLB. */}
       <SceneCanvas
-        camera={{ position: DESK_FOCUS.cameraPos, fov: 45 }}
+        camera={{ position: HOME_INITIAL_VIEW.framing.cameraPos, fov: 45 }}
         directional={false}
       >
-        <SceneController flyToRef={flyToRef} />
+        <SceneController />
       </SceneCanvas>
       <LoadingBar />
-      <HomeViewSwitcher activeView={activeView} onSelectView={handleSelectView} />
+      <HomeViewSwitcher activeView={activeView} onSelectView={selectHotspot} />
     </div>
   )
 }
