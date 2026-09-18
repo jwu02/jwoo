@@ -1,4 +1,4 @@
-import { Range } from "./types";
+import { Range } from "@/lib/ranges";
 
 // Compact large counts to K/M: 1,200,000 → "1.2M", 550,000 → "550K".
 export function formatCompactNumber(value: number): string {

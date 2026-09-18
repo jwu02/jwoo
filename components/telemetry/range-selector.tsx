@@ -1,21 +1,9 @@
-import { AiUsageRange, Range, TelemetryRange } from "@/lib/telemetry/types";
+import { Range } from "@/lib/ranges";
 
 export interface RangeOption<T extends Range> {
   value: T;
   label: string;
 }
-
-export const TELEMETRY_RANGE_OPTIONS: RangeOption<TelemetryRange>[] = [
-  { value: "24h", label: "24h" },
-  { value: "30d", label: "30d" },
-  { value: "1y", label: "1y" },
-];
-
-export const AI_USAGE_RANGE_OPTIONS: RangeOption<AiUsageRange>[] = [
-  { value: "24h", label: "24h" },
-  { value: "30d", label: "30d" },
-  { value: "1y", label: "1y" },
-];
 
 interface RangeSelectorProps<T extends Range> {
   value: T;

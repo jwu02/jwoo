@@ -1,4 +1,4 @@
-import { Range } from "./types";
+import { Range } from "@/lib/ranges";
 
 export function getTicksForRange(
   buckets: string[],
