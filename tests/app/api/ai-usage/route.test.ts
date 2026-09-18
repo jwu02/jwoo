@@ -3,7 +3,7 @@
  */
 import { GET } from "@/app/api/ai-usage/route";
 
-jest.mock("@/lib/telemetry/db", () => ({
+jest.mock("@/lib/db", () => ({
   getAiUsageCollection: jest.fn(),
 }));
 
@@ -16,7 +16,7 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchAiUsageTimeSeriesByModel: jest.fn(),
 }));
 
-import { getAiUsageCollection } from "@/lib/telemetry/db";
+import { getAiUsageCollection } from "@/lib/db";
 import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,

@@ -98,6 +98,16 @@ _Avoid_: timer, countdown (that is the string it renders)
 The moment a snapshot's window runs out. The page notices it on the cache clock and asks for a fresh snapshot once per snapshot — a failed ask is not retried on every tick.
 _Avoid_: timeout, cache invalidation
 
+### Dashboards
+
+**Activity telemetry**:
+The feature answering "how active was I": mouse and keyboard behaviour over a range — totals, the key heatmap, and the activity time series. Sibling to AI usage: the two share infrastructure, never domain logic.
+_Avoid_: telemetry (unqualified), activity dashboard
+
+**AI usage**:
+The feature answering "where did AI spend go": cost, tokens and session counts over a range, broken down by model, project and harness. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
+_Avoid_: AI dashboard, usage (on its own)
+
 ### Polled pages
 
 **Polled page**:

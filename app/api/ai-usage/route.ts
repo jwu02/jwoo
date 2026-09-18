@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAiUsageCollection } from "@/lib/telemetry/db";
+import { getAiUsageCollection } from "@/lib/db";
 import {
   fetchAiUsageTotals,
   fetchAiUsageByModel,

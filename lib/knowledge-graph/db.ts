@@ -1,4 +1,4 @@
-import { getMongoClient } from "@/lib/telemetry/db";
+import { getMongoClient } from "@/lib/db";
 import type { NoteDoc } from "./types";
 
 export async function getNotesCollection() {

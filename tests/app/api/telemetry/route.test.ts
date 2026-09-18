@@ -3,7 +3,7 @@
  */
 import { GET } from "@/app/api/telemetry/route";
 
-jest.mock("@/lib/telemetry/db", () => ({
+jest.mock("@/lib/db", () => ({
   getTelemetryCollection: jest.fn(),
   getKeyboardHeatmapCollection: jest.fn(),
 }));
@@ -14,7 +14,7 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchTimeSeries: jest.fn(),
 }));
 
-import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/telemetry/db";
+import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/db";
 import { fetchTotals, fetchKeyCounts, fetchTimeSeries } from "@/lib/telemetry/aggregation";
 
 const mockTelemetryCollection = {} as never;

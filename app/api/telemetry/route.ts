@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/telemetry/db";
+import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/db";
 import {
   fetchTotals,
   fetchKeyCounts,
