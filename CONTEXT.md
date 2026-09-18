@@ -124,6 +124,16 @@ _Avoid_: client, agent, tool
 The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.
 _Avoid_: repo, workspace
 
+### Keyboard heatmap
+
+**Physical key**:
+One key position on the tracked MacBook, named for where it sits rather than what it prints — `Left Cmd`, `Touch ID`. Counts aggregate onto these positions, because the heatmap tints key positions rather than the labels a key emits.
+_Avoid_: key, keycap, button
+
+**Key label**:
+A string the telemetry client emits for a single press — `!`, `Forward Delete`, `Section`. One physical key emits several labels depending on the modifiers held, which is why labels are folded onto keys before anything is counted or drawn.
+_Avoid_: key name, character, keycode
+
 ### Polled pages
 
 **Polled page**:

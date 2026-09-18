@@ -3,17 +3,6 @@ import { KeyCounts } from "./types";
 export interface PhysicalKeyDef {
   /** Unique identifier for this physical key position */
   id: string;
-  /** Short label rendered on the key in the SVG */
-  displayLabel: string;
-  /** Small shifted character rendered in the upper-left corner of the keycap */
-  shiftLabel?: string;
-  /** Small option-modified character rendered on the right side of the keycap */
-  optionLabel?: string;
-  /** Position and size in SVG viewBox coordinates */
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   /**
    * All telemetry data labels that map to this physical key.
    * Multiple labels may be produced by the same physical key
@@ -39,6 +28,11 @@ export interface PhysicalKeyDef {
 //   "'" key  → "'", '"'        (base + shift; @/" swapped to US-style)
 //   Delete   → "Delete", "Forward Delete"  (Fn+Delete)
 //   ↓ Arrow  → "Down Arrow", "Page Down"   (Fn+↓)
+//
+// The keycap legends these labels correspond to are drawn in the 3D model
+// (keyboard.glb); this module tracks data, not geometry.  The array order is
+// physical reading order — function row, then top to bottom, left to right —
+// and the a11y layer relies on it.
 
 // ---------------------------------------------------------------------------
 // Printable character mappings per physical key (UK Mac layout)
@@ -62,269 +56,115 @@ function symbols(base: string, shifted: string, ...option: string[]): string[] {
 // ---------------------------------------------------------------------------
 // Physical key definitions — MacBook M3 Air 13" UK layout (ANSI-style)
 // ---------------------------------------------------------------------------
-//
-// Coordinate system (viewBox: "0 0 668 288"):
-//   Standard key: 38×34 px, gap between keys: 4 px
-//   Wider keys scale proportionally from standard 38 px.
-//   Rows are spaced 38 px apart vertically (34 key + 4 gap).
 
-const K = 38; // standard key width unit
-const KH = 34; // standard key height
-const G = 4; // gap
-
-function kx(col: number, offset = 0): number {
-  return col * (K + G) + offset;
-}
-
-// Right edge of the main keyboard body — the function row (right of Touch ID),
-// rows 1–4 (right of Delete / Return / Right Shift), and the bottom row's arrow
-// cluster all share this right edge.
-const KB_RIGHT = 626;
-
-// ---------------------------------------------------------------------------
-// Row 0 — Function row (y=0, h=34 — same height as regular keys)
-// ---------------------------------------------------------------------------
-const F_Y = 0;
-const F_H = 34;
-
-// Esc stops at the horizontal midpoint of the "1" key below it (kx(1) + K/2 =
-// 61) — wide enough to read as the M3 Air's broad Esc, but it no longer spans
-// the whole 1 key.  F1-F12 + Touch ID then fill the remaining width to the
-// body's right edge, staying flush right like the rows below.
-const ESC_W = kx(1) + K / 2;
-const F_KEYS_X = ESC_W + G;
-
-// 13 keys (F1-F12 + Touch ID) must span F_KEYS_X → KB_RIGHT with the standard
-// 4px gaps, so they render slightly wider than the 38px main-body keys.
-const F_KEY_W = (KB_RIGHT - F_KEYS_X - 12 * G) / 13;
-
+// Row 0 — Function row
 const F_ROW: PhysicalKeyDef[] = [
-  // Esc — reaches only to the midpoint of the "1" key below it
-  { id: "Esc", displayLabel: "esc", x: 0, y: F_Y, width: ESC_W, height: F_H,
-    labels: ["Escape"] },
+  { id: "Esc", labels: ["Escape"] },
 
   // F1-F12
   ...[...Array.from({ length: 12 }, (_, i) => ({
     id: `F${i + 1}`,
-    displayLabel: `F${i + 1}`,
-    x: F_KEYS_X + i * (F_KEY_W + G),
-    y: F_Y,
-    width: F_KEY_W,
-    height: F_H,
     labels: [`F${i + 1}`],
   }))],
 
-  { id: "Touch ID", displayLabel: "", x: F_KEYS_X + 12 * (F_KEY_W + G), y: F_Y, width: F_KEY_W, height: F_H,
-    labels: [] },
+  { id: "Touch ID", labels: [] },
 ];
 
-// ---------------------------------------------------------------------------
-// Row 1 — Number / symbol row (y=32)
-// ---------------------------------------------------------------------------
-const R1_Y = F_Y + F_H + G;
-
+// Row 1 — Number / symbol row
 const R1_ROW: PhysicalKeyDef[] = [
   // § / ±  (labelled "Section" in keymap, "Grave" on US keyboards)
-  { id: "Section", displayLabel: "§", shiftLabel: "±", x: kx(0), y: R1_Y, width: K, height: KH,
-    labels: ["Section", "Grave", "§", "±"] },
-  { id: "1", displayLabel: "1", shiftLabel: "!", x: kx(1), y: R1_Y, width: K, height: KH,
-    labels: symbols("1", "!") },
-  // Currency symbols (€ option+2, £ shift+3) are drawn on the keycap via
-  // optionLabel/shiftLabel but deliberately NOT tracked as heatmap characters.
-  { id: "2", displayLabel: "2", shiftLabel: "@", optionLabel: "€", x: kx(2), y: R1_Y, width: K, height: KH,
-    labels: symbols("2", "@") },
-  { id: "3", displayLabel: "3", shiftLabel: "£", optionLabel: "#", x: kx(3), y: R1_Y, width: K, height: KH,
-    labels: symbols("3", "#") },
-  { id: "4", displayLabel: "4", shiftLabel: "$", x: kx(4), y: R1_Y, width: K, height: KH,
-    labels: symbols("4", "$") },
-  { id: "5", displayLabel: "5", shiftLabel: "%", x: kx(5), y: R1_Y, width: K, height: KH,
-    labels: symbols("5", "%") },
-  { id: "6", displayLabel: "6", shiftLabel: "^", x: kx(6), y: R1_Y, width: K, height: KH,
-    labels: symbols("6", "^") },
-  { id: "7", displayLabel: "7", shiftLabel: "&", x: kx(7), y: R1_Y, width: K, height: KH,
-    labels: symbols("7", "&") },
-  { id: "8", displayLabel: "8", shiftLabel: "*", x: kx(8), y: R1_Y, width: K, height: KH,
-    labels: symbols("8", "*") },
-  { id: "9", displayLabel: "9", shiftLabel: "(", x: kx(9), y: R1_Y, width: K, height: KH,
-    labels: symbols("9", "(") },
-  { id: "0", displayLabel: "0", shiftLabel: ")", x: kx(10), y: R1_Y, width: K, height: KH,
-    labels: symbols("0", ")") },
-  { id: "Minus", displayLabel: "-", shiftLabel: "_", x: kx(11), y: R1_Y, width: K, height: KH,
-    labels: ["Minus", "-", "_"] },
-  { id: "Equal", displayLabel: "=", shiftLabel: "+", x: kx(12), y: R1_Y, width: K, height: KH,
-    labels: ["Equal", "=", "+"] },
-  // Delete / Backspace — ~2u wide
-  { id: "Delete", displayLabel: "delete", x: kx(13), y: R1_Y, width: K * 2 + G, height: KH,
-    labels: ["Delete", "Forward Delete", "Help"] },
+  { id: "Section", labels: ["Section", "Grave", "§", "±"] },
+  { id: "1", labels: symbols("1", "!") },
+  // Currency symbols (€ option+2, £ shift+3) are deliberately NOT tracked as
+  // heatmap labels.
+  { id: "2", labels: symbols("2", "@") },
+  { id: "3", labels: symbols("3", "#") },
+  { id: "4", labels: symbols("4", "$") },
+  { id: "5", labels: symbols("5", "%") },
+  { id: "6", labels: symbols("6", "^") },
+  { id: "7", labels: symbols("7", "&") },
+  { id: "8", labels: symbols("8", "*") },
+  { id: "9", labels: symbols("9", "(") },
+  { id: "0", labels: symbols("0", ")") },
+  { id: "Minus", labels: ["Minus", "-", "_"] },
+  { id: "Equal", labels: ["Equal", "=", "+"] },
+  // Delete / Backspace
+  { id: "Delete", labels: ["Delete", "Forward Delete", "Help"] },
 ];
 
-// ---------------------------------------------------------------------------
-// Row 2 — QWERTY top row (y=70)
-// ---------------------------------------------------------------------------
-const R2_Y = R1_Y + KH + G;
-
+// Row 2 — QWERTY top row
 const R2_ROW: PhysicalKeyDef[] = [
-  // Tab — ~1.5u
-  { id: "Tab", displayLabel: "tab", x: kx(0), y: R2_Y, width: K * 1.5 + G * 0.5, height: KH,
-    labels: ["Tab"] },
+  { id: "Tab", labels: ["Tab"] },
   // Letters Q-P
-  ...[..."QWERTYUIOP"].map((c, i) => ({
+  ...[..."QWERTYUIOP"].map((c) => ({
     id: c,
-    displayLabel: c,
-    x: kx(i + 1) + K * 0.5 + G * 0.5,
-    y: R2_Y,
-    width: K,
-    height: KH,
     labels: letters(c),
   })),
   // Left Bracket [  (UK: shift = {)
-  { id: "Left Bracket", displayLabel: "[", shiftLabel: "{", x: kx(11) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
-    labels: ["Left Bracket", "[", "{"] },
+  { id: "Left Bracket", labels: ["Left Bracket", "[", "{"] },
   // Right Bracket ]  (UK: shift = })
-  { id: "Right Bracket", displayLabel: "]", shiftLabel: "}", x: kx(12) + K * 0.5 + G * 0.5, y: R2_Y, width: K, height: KH,
-    labels: ["Right Bracket", "]", "}"] },
-  // Backslash \  (to the right of ], above Return).  ~1.5u — the same width as
-  // Tab on the row's left — so the row keeps the keyboard's right edge at 626.
-  { id: "Backslash", displayLabel: "\\", shiftLabel: "|", x: kx(13) + K * 0.5 + G * 0.5, y: R2_Y, width: K * 1.5 + G * 0.5, height: KH,
-    labels: ["Backslash", "\\", "|"] },
+  { id: "Right Bracket", labels: ["Right Bracket", "]", "}"] },
+  // Backslash \
+  { id: "Backslash", labels: ["Backslash", "\\", "|"] },
 ];
 
-// ---------------------------------------------------------------------------
-// Row 3 — Home row (y=108)
-// ---------------------------------------------------------------------------
-const R3_Y = R2_Y + KH + G;
-
+// Row 3 — Home row
 const R3_ROW: PhysicalKeyDef[] = [
-  // Caps Lock — ~1.75u
-  { id: "Caps Lock", displayLabel: "caps", x: kx(0), y: R3_Y, width: K * 1.75 + G * 0.75, height: KH,
-    labels: ["Caps Lock"] },
+  { id: "Caps Lock", labels: ["Caps Lock"] },
   // Letters A-L
-  ...[..."ASDFGHJKL"].map((c, i) => ({
+  ...[..."ASDFGHJKL"].map((c) => ({
     id: c,
-    displayLabel: c,
-    x: kx(i + 1) + K * 0.75 + G * 0.75,
-    y: R3_Y,
-    width: K,
-    height: KH,
     labels: letters(c),
   })),
   // Semicolon ; (UK: shift = :)
-  { id: "Semicolon", displayLabel: ";", shiftLabel: ":", x: kx(10) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
-    labels: ["Semicolon", ";", ":"] },
+  { id: "Semicolon", labels: ["Semicolon", ";", ":"] },
   // Quote ' (shift = " — @/" swapped to US-style)
-  { id: "Quote", displayLabel: "'", shiftLabel: '"', x: kx(11) + K * 0.75 + G * 0.75, y: R3_Y, width: K, height: KH,
-    labels: ["Quote", "'", '"'] },
-  // Return / Enter — ~2.25u
-  { id: "Return", displayLabel: "return", x: kx(12) + K * 0.75 + G * 0.75, y: R3_Y, width: K * 2.25 + G * 1.25, height: KH,
-    labels: ["Return", "Numpad Enter"] },
+  { id: "Quote", labels: ["Quote", "'", '"'] },
+  // Return / Enter
+  { id: "Return", labels: ["Return", "Numpad Enter"] },
 ];
 
-// ---------------------------------------------------------------------------
-// Row 4 — Shift row (y=146)
-// ---------------------------------------------------------------------------
-const R4_Y = R3_Y + KH + G;
-
-// Left Shift is shortened to ~1.5u to make room for the ISO extra key
-// (backtick/tilde) that sits between it and Z.  Everything after shifts right
-// by (K*1.5 + G*2 - K*1.25 - G*1.25) = 8.5px, and Right Shift narrows so the
-// row keeps its right edge at 626.
-const R4_LETTER_OFFSET = 61;
-
+// Row 4 — Shift row
 const R4_ROW: PhysicalKeyDef[] = [
-  // Left Shift — ~1.5u, shortened for the ~/` key to its right
-  { id: "Left Shift", displayLabel: "shift", x: kx(0), y: R4_Y, width: K * 1.5, height: KH,
-    labels: ["Left Shift"] },
+  { id: "Left Shift", labels: ["Left Shift"] },
   // ISO extra key — backtick / tilde, between Left Shift and Z
-  { id: "Backtick", displayLabel: "`", shiftLabel: "~", x: kx(0) + K * 1.5 + G, y: R4_Y, width: K, height: KH,
-    labels: ["`", "~"] },
+  { id: "Backtick", labels: ["`", "~"] },
   // Letters Z-M
-  ...[..."ZXCVBNM"].map((c, i) => ({
+  ...[..."ZXCVBNM"].map((c) => ({
     id: c,
-    displayLabel: c,
-    x: kx(i + 1) + R4_LETTER_OFFSET,
-    y: R4_Y,
-    width: K,
-    height: KH,
     labels: letters(c),
   })),
   // Comma , (UK: shift = <)
-  { id: "Comma", displayLabel: ",", shiftLabel: "<", x: kx(8) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
-    labels: ["Comma", ",", "<"] },
+  { id: "Comma", labels: ["Comma", ",", "<"] },
   // Period . (UK: shift = >)
-  { id: "Period", displayLabel: ".", shiftLabel: ">", x: kx(9) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
-    labels: ["Period", ".", ">"] },
+  { id: "Period", labels: ["Period", ".", ">"] },
   // Slash / (UK: shift = ?)
-  { id: "Slash", displayLabel: "/", shiftLabel: "?", x: kx(10) + R4_LETTER_OFFSET, y: R4_Y, width: K, height: KH,
-    labels: ["Slash", "/", "?"] },
-  // Right Shift — ~2.5u, narrowed so the row keeps its right edge at 626
-  { id: "Right Shift", displayLabel: "shift", x: kx(11) + R4_LETTER_OFFSET, y: R4_Y, width: K * 2.5 + G * 2, height: KH,
-    labels: ["Right Shift"] },
+  { id: "Slash", labels: ["Slash", "/", "?"] },
+  { id: "Right Shift", labels: ["Right Shift"] },
 ];
 
-// ---------------------------------------------------------------------------
-// Row 5 — Bottom row (modifiers, space, arrows) (y=184)
-// ---------------------------------------------------------------------------
-const R5_Y = R4_Y + KH + G;
-
-// Modifier key width in the bottom row (~1.25u = 47.5, floored to 47).
-// Both Options and both Cmds use this; Fn and the arrows are 1u (K).
-const MOD_W = 47;
-
-// Arrow cluster positions, computed right-to-left from KB_RIGHT (shared right
-// edge, defined at the top of the file) so the cluster stays glued to the
-// Right Option key and shares the keyboard's right edge.
-const arrowRightX = KB_RIGHT - K;          // right arrow
-const arrowStackX = arrowRightX - K - G;   // up / down stacked
-const arrowLeftX = arrowStackX - K - G;    // left arrow
-const rightOptX = arrowLeftX - MOD_W - G;  // right option
-const rightCmdX = rightOptX - MOD_W - G;   // right cmd
-
+// Row 5 — Bottom row (modifiers, space, arrows)
 const R5_ROW: PhysicalKeyDef[] = [
-  // Fn — ~1u
-  { id: "Fn", displayLabel: "fn", x: kx(0), y: R5_Y, width: K, height: KH,
-    labels: ["Fn"] },
-  // Left Ctrl — ~1.25u
-  { id: "Left Ctrl", displayLabel: "ctrl", x: kx(1), y: R5_Y, width: MOD_W, height: KH,
-    labels: ["Left Ctrl", "Right Ctrl"] },
-  // Left Option — ~1.25u
-  { id: "Left Option", displayLabel: "opt", x: kx(1) + MOD_W + G, y: R5_Y, width: MOD_W, height: KH,
-    labels: ["Left Option"] },
-  // Left Cmd — ~1.25u
-  { id: "Left Cmd", displayLabel: "cmd", x: kx(1) + 2 * (MOD_W + G), y: R5_Y, width: MOD_W, height: KH,
-    labels: ["Left Cmd"] },
-  // Space — fills the gap between the two Cmd keys
-  { id: "Space", displayLabel: "", x: kx(1) + 3 * (MOD_W + G), y: R5_Y,
-    width: rightCmdX - G - (kx(1) + 3 * (MOD_W + G)), height: KH,
-    labels: ["Space"] },
-  // Right Cmd — ~1.25u
-  { id: "Right Cmd", displayLabel: "cmd", x: rightCmdX, y: R5_Y, width: MOD_W, height: KH,
-    labels: ["Right Cmd"] },
-  // Right Option — ~1.25u
-  { id: "Right Option", displayLabel: "opt", x: rightOptX, y: R5_Y, width: MOD_W, height: KH,
-    labels: ["Right Option"] },
+  { id: "Fn", labels: ["Fn"] },
+  { id: "Left Ctrl", labels: ["Left Ctrl", "Right Ctrl"] },
+  { id: "Left Option", labels: ["Left Option"] },
+  { id: "Left Cmd", labels: ["Left Cmd"] },
+  { id: "Space", labels: ["Space"] },
+  { id: "Right Cmd", labels: ["Right Cmd"] },
+  { id: "Right Option", labels: ["Right Option"] },
 ];
 
-// Arrow keys — stacked to the right of the bottom-row modifiers.  Left and
-// right arrows are half-height like the up/down pair, sitting on the same row
-// as the down arrow (2px hairline gap above the stack top).  Their printed
-// chevron glyphs live in the 3D model (keyboard.glb legends), so the ids carry
-// no rendered label here — they are counted and announced, not drawn.
-const ARROW_Y = R5_Y;
-const ARROW_HALF = Math.floor((KH - 2) / 2);
-
+// Arrow keys — counted and announced, not drawn: their printed chevron glyphs
+// live in the 3D model (keyboard.glb legends).
 const ARROW_KEYS: PhysicalKeyDef[] = [
   // Left Arrow (Fn+Left = Home)
-  { id: "Left Arrow", displayLabel: "", x: arrowLeftX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
-    labels: ["Left Arrow", "Home"] },
-  // Up Arrow (half-height top, Fn+Up = Page Up)
-  { id: "Up Arrow", displayLabel: "", x: arrowStackX, y: ARROW_Y, width: K, height: ARROW_HALF,
-    labels: ["Up Arrow", "Page Up"] },
-  // Down Arrow (half-height bottom, Fn+Down = Page Down)
-  { id: "Down Arrow", displayLabel: "", x: arrowStackX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
-    labels: ["Down Arrow", "Page Down"] },
+  { id: "Left Arrow", labels: ["Left Arrow", "Home"] },
+  // Up Arrow (Fn+Up = Page Up)
+  { id: "Up Arrow", labels: ["Up Arrow", "Page Up"] },
+  // Down Arrow (Fn+Down = Page Down)
+  { id: "Down Arrow", labels: ["Down Arrow", "Page Down"] },
   // Right Arrow (Fn+Right = End)
-  { id: "Right Arrow", displayLabel: "", x: arrowRightX, y: ARROW_Y + ARROW_HALF + 2, width: K, height: ARROW_HALF,
-    labels: ["Right Arrow", "End"] },
+  { id: "Right Arrow", labels: ["Right Arrow", "End"] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -363,7 +203,7 @@ for (const key of PHYSICAL_KEYS) {
  * Aggregate raw KeyCounts (label → press count) into physical-key counts.
  *
  * Multiple telemetry labels that originate from the same physical key
- * (e.g. "1", "!", "¡" all from the "1" key on a UK Mac) are summed
+ * (e.g. "1", "!" all from the "1" key on a UK Mac) are summed
  * into a single count for that key.
  *
  * Labels not present in the layout mapping are silently ignored.

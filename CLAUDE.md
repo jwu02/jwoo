@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A personal site built with Next.js 16 (App Router), React 19, Tailwind CSS v4, and shadcn/ui: a 3D home scene at `/`, an activity-telemetry dashboard, AI-usage charts, a knowledge graph, and a resume. Data comes from MongoDB and is drawn with Recharts, a custom SVG keyboard heatmap, and react-three-fiber scenes.
+A personal site built with Next.js 16 (App Router), React 19, Tailwind CSS v4, and shadcn/ui: a 3D home scene at `/`, an activity-telemetry dashboard, AI-usage charts, a knowledge graph, and a resume. Data comes from MongoDB and is drawn with Recharts, a 3D keyboard heatmap, and react-three-fiber scenes.
 
 ## Commands
 
@@ -41,7 +41,7 @@ Both aggregations also sit on `lib/ranges.ts` and `lib/timezone.ts`.
 - **`lib/telemetry/`** — activity telemetry only. Shares the range type with AI usage but keeps its own bucket interval (24h bins every 30 minutes) and its own `RANGE_OPTIONS`:
   - `types.ts` — the wire types (`TelemetryRange`, `TelemetryTotals`, `KeyCounts`, `TimeSeriesPoint`, `TelemetryResponse`).
   - `aggregation.ts` — the mouse/keyboard pipelines. `fetchTimeSeries` fills empty buckets with zero values so charts are always continuous.
-  - `key-layout.ts` — the physical MacBook M3 UK keyboard geometry (`PHYSICAL_KEYS`) and the raw-label → physical-key map (`buildKeyCountMap`).
+  - `key-layout.ts` — the tracked MacBook M3 UK keyboard's physical keys (`PHYSICAL_KEYS`, in physical reading order) and the key label → physical key map (`buildKeyCountMap`). Geometry lives in the GLB, not here — `key-node-map.ts` holds the physical key → GLB node mapping; see `CONTEXT.md` for the physical key / key label distinction.
 - **`lib/ai-usage/`** — AI usage only, importing nothing from `lib/telemetry/` and vice versa; shared code is reached from the lib root. `tests/lib/features-do-not-import-each-other.test.ts` enforces that boundary:
   - `types.ts` — the wire types (`Totals`, the `byModel`/`byProject`/`byHarness` rows, the time series).
   - `aggregation.ts` — the AI-usage pipelines and fetchers.

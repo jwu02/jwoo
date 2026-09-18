@@ -1,8 +1,4 @@
-import {
-  PHYSICAL_KEYS,
-  buildKeyCountMap,
-  PhysicalKeyDef,
-} from "@/lib/telemetry/key-layout";
+import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout";
 import { KeyCounts } from "@/lib/telemetry/types";
 
 describe("PHYSICAL_KEYS", () => {
@@ -19,19 +15,13 @@ describe("PHYSICAL_KEYS", () => {
     }
   });
 
-  it("every key has positive dimensions", () => {
-    for (const key of PHYSICAL_KEYS) {
-      expect(key.width).toBeGreaterThan(0);
-      expect(key.height).toBeGreaterThan(0);
-    }
-  });
-
   it("includes the function row (Esc + F1-F12)", () => {
     const ids = PHYSICAL_KEYS.map((k) => k.id);
     expect(ids).toContain("Esc");
     for (let i = 1; i <= 12; i++) {
       expect(ids).toContain(`F${i}`);
     }
+    expect(ids.filter((id) => /^F\d+$/.test(id)).length).toBe(12);
   });
 
   it("includes UK-specific Section key (key left of 1)", () => {
@@ -75,106 +65,11 @@ describe("PHYSICAL_KEYS", () => {
     expect(ids).not.toContain("Keypad Enter");
   });
 
-  it("includes a Touch ID key to the right of F12", () => {
-    const touchId = PHYSICAL_KEYS.find((key) => key.id === "Touch ID");
-    expect(touchId).toBeDefined();
-    expect(touchId!.height).toBe(34);
-
-    const f12 = PHYSICAL_KEYS.find((key) => key.id === "F12");
-    expect(f12).toBeDefined();
-    expect(touchId!.x).toBeGreaterThan(f12!.x);
-    // Touch ID matches the F-key width so the function row reads as uniform.
-    expect(touchId!.width).toBe(f12!.width);
-  });
-
-  it("has function keys the same height as standard keys", () => {
-    const functionKeys = PHYSICAL_KEYS.filter((key) =>
-      /^F(1[0-2]|[1-9])$/.test(key.id)
-    );
-    expect(functionKeys.length).toBe(12);
-    for (const key of functionKeys) {
-      expect(key.height).toBe(34);
-    }
-  });
-
-  it("has shift labels on shifted symbol keys", () => {
-    const one = PHYSICAL_KEYS.find((key) => key.id === "1");
-    expect(one?.shiftLabel).toBe("!");
-
-    const section = PHYSICAL_KEYS.find((key) => key.id === "Section");
-    expect(section?.shiftLabel).toBe("±");
-
-    const slash = PHYSICAL_KEYS.find((key) => key.id === "Slash");
-    expect(slash?.shiftLabel).toBe("?");
-  });
-
-  it("does not add shift labels to letters or modifiers", () => {
-    const a = PHYSICAL_KEYS.find((key) => key.id === "A");
-    expect(a?.shiftLabel).toBeUndefined();
-
-    const leftShift = PHYSICAL_KEYS.find((key) => key.id === "Left Shift");
-    expect(leftShift?.shiftLabel).toBeUndefined();
-  });
-
-  it("adds option labels on the 2 and 3 keys", () => {
-    const two = PHYSICAL_KEYS.find((key) => key.id === "2");
-    expect(two?.optionLabel).toBe("€");
-
-    const three = PHYSICAL_KEYS.find((key) => key.id === "3");
-    expect(three?.optionLabel).toBe("#");
-  });
-
-  it("sets option labels on exactly the 2 and 3 keys", () => {
-    const idsWithOption = PHYSICAL_KEYS.filter((key) => key.optionLabel)
-      .map((key) => key.id)
-      .sort();
-    expect(idsWithOption).toEqual(["2", "3"]);
-  });
-
-  describe("keyboard body alignment", () => {
-    // The M3 Air keyboard is drawn as a clean rectangle: every full-height row
-    // (function, number, QWERTY, home, shift) starts flush at x=0 and ends flush
-    // at the shared right edge (626). The bottom row steps down into the arrow
-    // cluster, so its right corner is defined by the Right Arrow instead.
-    const RIGHT_EDGE = 626;
-
-    it("keeps every full-height row's left and right edges flush", () => {
-      const rowsByY = new Map<number, PhysicalKeyDef[]>();
-      for (const key of PHYSICAL_KEYS) {
-        const row = rowsByY.get(key.y) ?? [];
-        row.push(key);
-        rowsByY.set(key.y, row);
-      }
-
-      const fullHeightRows = [...rowsByY.values()].filter((keys) =>
-        keys.every((key) => key.height === 34)
-      );
-      expect(fullHeightRows.length).toBe(5);
-
-      for (const keys of fullHeightRows) {
-        expect(Math.min(...keys.map((key) => key.x))).toBe(0);
-        expect(Math.max(...keys.map((key) => key.x + key.width))).toBe(
-          RIGHT_EDGE
-        );
-      }
-    });
-
-    it("ends the Esc key at the midpoint of the 1 key below it", () => {
-      const esc = PHYSICAL_KEYS.find((key) => key.id === "Esc");
-      const one = PHYSICAL_KEYS.find((key) => key.id === "1");
-      expect(esc).toBeDefined();
-      expect(one).toBeDefined();
-      // Esc starts at x=0, so its width is its right edge. It should reach the
-      // horizontal centre of the "1" key (kx(1) + K/2 = 61) rather than span it.
-      expect(esc!.width).toBe(one!.x + one!.width / 2);
-    });
-
-    it("places the arrow cluster's right corner on the same right edge", () => {
-      const rightmost = Math.max(
-        ...PHYSICAL_KEYS.map((key) => key.x + key.width)
-      );
-      expect(rightmost).toBe(RIGHT_EDGE);
-    });
+  it("includes Touch ID, ordered after the function keys", () => {
+    const ids = PHYSICAL_KEYS.map((key) => key.id);
+    const touchId = ids.indexOf("Touch ID");
+    expect(touchId).toBeGreaterThan(-1);
+    expect(touchId).toBeGreaterThan(ids.indexOf("F12"));
   });
 });
 
