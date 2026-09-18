@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { RangeSelector } from "@/components/telemetry/range-selector";
+import { RangeSelector } from "@/components/polled/range-selector";
 import { RANGE_OPTIONS } from "@/lib/telemetry/ranges";
 
 describe("RangeSelector", () => {

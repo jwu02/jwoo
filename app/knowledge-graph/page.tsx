@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { CacheToast } from "@/components/knowledge-graph/cache-toast";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
-import { ErrorBanner } from "@/components/telemetry/error-banner";
+import { ErrorBanner } from "@/components/polled/error-banner";
 import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 
 export default function KnowledgeGraphPage() {
