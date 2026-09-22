@@ -20,7 +20,9 @@ import type {
 import { computeNodeEmphasis } from "@/lib/knowledge-graph/emphasis";
 import {
   computeDegrees,
+  computeFocusTransform,
   computeNodeTextureRadius,
+  FIT_ANIMATION_MS,
   graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
@@ -40,6 +42,17 @@ interface ForceGraphProps {
   // note list drives — can be shown in the list too. Optional: the graph is
   // still a complete hover surface on its own.
   onHoverChange?: (noteId: string | null) => void;
+  // The note the page has taken the Focus on. A change to a note flies the
+  // camera to frame it with its neighbours, and the note keeps the emphasis a
+  // hover would give it until the focus ends. Null is the page saying the focus
+  // is over: the emphasis goes away and the camera stays exactly where the
+  // dismissal found it — a dismissal is not a reason to reframe the graph.
+  focusedNote?: string | null;
+  // The focus is over, and not because the page said so: the visitor took the
+  // camera, or a fresh graph no longer holds the note. The page is the owner of
+  // the focus, so it is told rather than left believing in a note the graph is
+  // no longer showing.
+  onFocusClear?: () => void;
   // React 19 hands `ref` to a function component as an ordinary prop, so this
   // needs no forwardRef wrapper — which matters, because a wrapper would sit
   // outside the memo below and let every page render through.
@@ -116,9 +129,12 @@ function mixColors(c1: number, c2: number, t: number): number {
 export const ForceGraph = memo(function ForceGraph({
   graph,
   onHoverChange,
+  focusedNote,
+  onFocusClear,
   ref,
 }: ForceGraphProps) {
   const { nodes, edges } = graph;
+  const focused = focusedNote ?? null;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -132,6 +148,12 @@ export const ForceGraph = memo(function ForceGraph({
   useEffect(() => {
     onHoverChangeRef.current = onHoverChange;
   }, [onHoverChange]);
+  // The focus is ended from outside React's render cycle too — by the zoom
+  // gesture — so the report is reached the same way.
+  const onFocusClearRef = useRef(onFocusClear);
+  useEffect(() => {
+    onFocusClearRef.current = onFocusClear;
+  }, [onFocusClear]);
 
   const labelRef = useRef<HTMLDivElement>(null);
   const labelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -154,9 +176,14 @@ export const ForceGraph = memo(function ForceGraph({
   // The emphasis rule, for the label layer. applyHover computes the same map
   // from the pointer handlers, which run before React has committed the state
   // change — one rule, called from the two places that need it.
+  //
+  // A focus is drawn exactly as a hover is: the focused note keeps the emphasis
+  // the pointer would have given it, so both read one id — the pointer's while
+  // there is one, the focused note's otherwise.
+  const emphasizedId = hoveredId ?? focused;
   const emphasis = useMemo(
-    () => computeNodeEmphasis(graphNodes, graphEdges, hoveredId),
-    [graphNodes, graphEdges, hoveredId]
+    () => computeNodeEmphasis(graphNodes, graphEdges, emphasizedId),
+    [graphNodes, graphEdges, emphasizedId]
   );
 
   const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
@@ -170,6 +197,15 @@ export const ForceGraph = memo(function ForceGraph({
   const linkSpritesRef = useRef<Map<GraphLink, import("pixi.js").Sprite>>(new Map());
   const worldContainerRef = useRef<import("pixi.js").Container | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
+  // The focus the graph is drawing, which is the prop except when the graph has
+  // been told the focus is over ahead of the page: the take-over in the zoom
+  // gesture clears it the moment it happens rather than a re-render later, so
+  // nothing emphasizes a note the visitor has just panned away from.
+  const drawnFocusRef = useRef<string | null>(null);
+  // The focus the camera was last flown to. A rebuild hands over new arrays for
+  // the same focus, and that is not a new focus: the flight has been made, and
+  // the fresh graph is about to frame itself.
+  const flownFocusRef = useRef<string | null>(null);
   const dragNodeRef = useRef<GraphNode | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
   const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
@@ -239,9 +275,14 @@ export const ForceGraph = memo(function ForceGraph({
   // outside React's render cycle, and the sprites have to update within the same
   // gesture, before the state change commits. So it computes the emphasis itself
   // — the same function, and so the same rule, the labels are styled from.
+  //
+  // A hover that has just ended falls back to the focused note, which is the
+  // whole of "the focus keeps its emphasis": the pointer comes and goes, the
+  // focus stays on at the end of the gesture.
   const applyHover = useCallback(
     (hovered: string | null) => {
-      const states = computeNodeEmphasis(graphNodes, graphEdges, hovered);
+      const emphasized = hovered ?? drawnFocusRef.current;
+      const states = computeNodeEmphasis(graphNodes, graphEdges, emphasized);
       const colors = colorsRef.current;
       const radii = nodeRadiusRef.current;
 
@@ -264,13 +305,22 @@ export const ForceGraph = memo(function ForceGraph({
       // fade back — and only these sprites read it, so the rule stays here.
       for (const [link, sprite] of linkSpritesRef.current) {
         const isIncident =
-          hovered !== null && (link.source.id === hovered || link.target.id === hovered);
+          emphasized !== null &&
+          (link.source.id === emphasized || link.target.id === emphasized);
         sprite.tint = isIncident ? colors.hover : colors.link;
-        sprite.alpha = hovered === null ? 0.15 : isIncident ? 1 : 0.08;
+        sprite.alpha = emphasized === null ? 0.15 : isIncident ? 1 : 0.08;
       }
     },
     [graphNodes, graphEdges]
   );
+
+  // The painter, for the callbacks that outlive any one graph: the zoom gesture
+  // that ends a focus owes the sprites a repaint, and it may not be re-created
+  // every time the graph is.
+  const applyHoverRef = useRef(applyHover);
+  useEffect(() => {
+    applyHoverRef.current = applyHover;
+  }, [applyHover]);
 
   // Moves the hover. The only way in: the sprite handlers call it from the
   // pointer, the imperative handle calls it from the note list, and a rebuild
@@ -290,6 +340,17 @@ export const ForceGraph = memo(function ForceGraph({
   );
 
   useImperativeHandle(ref, () => ({ setHoveredNote: setHovered }), [setHovered]);
+
+  // Ends the focus the graph is drawing, and reports it to the page that owns
+  // it. Stable, so the zoom gesture can hold onto it across every rebuild: the
+  // hover, the painter and the report are all reached through refs.
+  const clearFocus = useCallback(() => {
+    if (drawnFocusRef.current === null) return;
+    drawnFocusRef.current = null;
+    flownFocusRef.current = null;
+    applyHoverRef.current(hoveredIdRef.current);
+    onFocusClearRef.current?.();
+  }, []);
 
   const startDrag = useCallback(
     (event: NodePointerEvent, node: GraphNode) => {
@@ -366,6 +427,43 @@ export const ForceGraph = memo(function ForceGraph({
       document.addEventListener("pointerup", handleUp);
     },
     [updateLinkSprite, positionLabel, positionAllLabels]
+  );
+
+  // Flies the camera to frame a note with its neighbours. Called when the page
+  // hands over a focus, and again when a layout settles under one — the
+  // positions the first framing was computed from are the pre-settle ones.
+  //
+  // Declared above the build effect because that effect's own handlers settle
+  // the layout, and a dependency array is read while rendering, before a
+  // `const` below it exists.
+  const flyToFocus = useCallback(
+    (noteId: string) => {
+      const wrapper = wrapperRef.current;
+      const selection = zoomSelectionRef.current;
+      const zoom = zoomBehaviorRef.current;
+      if (!wrapper || !selection || !zoom) return;
+
+      const transform = computeFocusTransform(
+        noteId,
+        graphNodes,
+        graphEdges,
+        wrapper.clientWidth,
+        wrapper.clientHeight
+      );
+      if (!transform) return;
+
+      // A fit still easing would otherwise fight the flight, and d3 keeps one
+      // transition per name: interrupt it and take the camera.
+      selection.interrupt();
+      selection
+        .transition()
+        .duration(FIT_ANIMATION_MS)
+        .call(
+          zoom.transform,
+          d3.zoomIdentity.translate(transform.x, transform.y).scale(transform.k)
+        );
+    },
+    [graphNodes, graphEdges]
   );
 
   // Build the Pixi scene and d3-force simulation once per data set.
@@ -563,6 +661,10 @@ export const ForceGraph = memo(function ForceGraph({
       const fitViewport = (trigger: FitTrigger) => {
         const plan = planFit(trigger, {
           userInteracted: userInteractedRef.current,
+          // A note holding the focus is the visitor's claim on the camera, made
+          // later and more specifically than the fit's: the framing they asked
+          // for is the one that stands.
+          focused: drawnFocusRef.current !== null,
           nodes: simNodes,
           viewportWidth: clientWidth,
           viewportHeight: clientHeight,
@@ -595,7 +697,18 @@ export const ForceGraph = memo(function ForceGraph({
 
       // "end" fires when alpha drops below alphaMin, so positions are final and
       // the settling fit frames the layout the viewer is left with.
-      simulation.on("end", () => fitViewport("settled"));
+      simulation.on("end", () => {
+        // A focus was framed against a layout that has since moved — an early
+        // click, or a fresh snapshot's own layout — so the flight is made again
+        // rather than a fit taking the camera off the note. The focus outranks
+        // the fit either way: planFit plans nothing while one is held.
+        const focused = drawnFocusRef.current;
+        if (focused !== null) {
+          flyToFocus(focused);
+          return;
+        }
+        fitViewport("settled");
+      });
     };
 
     build();
@@ -604,7 +717,7 @@ export const ForceGraph = memo(function ForceGraph({
       cancelled = true;
       teardownWorld();
     };
-  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite, setHovered]);
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite, setHovered, clearFocus, flyToFocus]);
 
   // d3-zoom drives the Pixi world container transform.
   useEffect(() => {
@@ -615,9 +728,16 @@ export const ForceGraph = memo(function ForceGraph({
       .zoom<HTMLDivElement, unknown>()
       .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
       .on("zoom", (event) => {
+        // A sourceEvent is the visitor's own hand — a wheel, a drag, a
+        // double-click. The graph's own transitions carry none, which is what
+        // lets the flight below be told apart from the gesture that ends it.
         if (event.sourceEvent) {
           userInteractedRef.current = true;
           zoomSelectionRef.current?.interrupt();
+          // The camera is the visitor's again: a flight still in the air is
+          // cancelled, and a focus already framed is over — the note list must
+          // not go on claiming a note they have panned away from.
+          clearFocus();
         }
         zoomTransformRef.current = { x: event.transform.x, y: event.transform.y, k: event.transform.k };
         const world = worldContainerRef.current;
@@ -648,7 +768,47 @@ export const ForceGraph = memo(function ForceGraph({
       zoomBehaviorRef.current = null;
       zoomSelectionRef.current = null;
     };
-  }, [positionLabel, positionAllLabels]);
+  }, [positionLabel, positionAllLabels, clearFocus]);
+
+  // The Focus: fly the camera to frame the note with its neighbours, and hold
+  // the note's emphasis for as long as the focus lasts.
+  //
+  // Deliberately not gated by the fit's yield-to-viewer rule — focusing is
+  // something the visitor asked for, so it may move a graph they have already
+  // panned. What applies instead is the take-over rule, in the zoom gesture
+  // above: their hand on the camera ends the focus wherever it is.
+  useEffect(() => {
+    // A focus the graph cannot show is no focus at all — a snapshot that no
+    // longer holds the note, or a layout with no position for it. The emphasis
+    // follows the graph rather than the prop, so it is never drawn for a note
+    // that is not on screen, and the page is told so that the focus it believes
+    // in ends rather than lingering as state nothing on the page agrees with.
+    // Quietly: the camera stays where the visitor had it.
+    const held =
+      focused !== null && graphNodes.some((node) => node.id === focused);
+    drawnFocusRef.current = held ? focused : null;
+    applyHover(hoveredIdRef.current);
+
+    // Nothing is focused, so nothing has been flown to: the next focus — even
+    // of this same note — is a new flight.
+    if (!held) {
+      flownFocusRef.current = null;
+      if (focused !== null) onFocusClearRef.current?.();
+      return;
+    }
+
+    // The same focus arriving with a fresh graph — a snapshot rotation that
+    // kept the note — has already been flown to, and flying again would aim at
+    // the layout the simulation has not built yet. The settle that follows is
+    // what re-frames it, against positions that mean something.
+    if (flownFocusRef.current === focused) return;
+
+    flownFocusRef.current = focused;
+    flyToFocus(focused);
+    // `app` is here because the flight needs the world the Pixi app builds: a
+    // row can be clicked before that has loaded, and the focus must fly once it
+    // has rather than being dropped on the floor.
+  }, [focused, graphNodes, graphEdges, applyHover, flyToFocus, app]);
 
   return (
     <div

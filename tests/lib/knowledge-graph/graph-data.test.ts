@@ -2,6 +2,8 @@ import {
   buildGraph,
   computeDegrees,
   computeFitTransform,
+  computeFocusTransform,
+  computeNeighbors,
   computeNodeTextureRadius,
   computeRoughInitialTransform,
   FIT_ANIMATION_MS,
@@ -52,6 +54,43 @@ describe("computeDegrees", () => {
         ["B.md", 2],
       ])
     );
+  });
+});
+
+describe("computeNeighbors", () => {
+  const nodes = [
+    { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
+    { id: "B.md", createdAt: "2024-01-01T00:00:00.000Z" },
+    { id: "C.md", createdAt: "2024-01-01T00:00:00.000Z" },
+  ];
+
+  it("reads an edge as a relationship both of its ends have", () => {
+    const neighbors = computeNeighbors(nodes, [
+      { source: "A.md", target: "B.md" },
+    ]);
+
+    expect([...neighbors.get("A.md")!]).toEqual(["B.md"]);
+    expect([...neighbors.get("B.md")!]).toEqual(["A.md"]);
+  });
+
+  // The same node twice is one neighbour, which is what keeps a reciprocal
+  // pair's two nodes from reading as two hops apart in either rule.
+  it("counts a reciprocal pair once", () => {
+    const neighbors = computeNeighbors(nodes, [
+      { source: "A.md", target: "B.md" },
+      { source: "B.md", target: "A.md" },
+    ]);
+
+    expect([...neighbors.get("A.md")!]).toEqual(["B.md"]);
+    expect(neighbors.get("A.md")!.size).toBe(1);
+  });
+
+  it("gives every node a set of its own, isolated ones included", () => {
+    const neighbors = computeNeighbors(nodes, [
+      { source: "A.md", target: "B.md" },
+    ]);
+
+    expect(neighbors.get("C.md")!.size).toBe(0);
   });
 });
 
@@ -121,6 +160,98 @@ describe("computeFitTransform", () => {
       x: 400,
       y: 300,
     });
+  });
+});
+
+describe("computeFocusTransform", () => {
+  const width = 800;
+  const height = 600;
+  const padding = 60;
+  const at = (id: string, x: number, y: number) => ({ id, x, y });
+
+  // The graph below is a chain whose far end is thousands of units away, so a
+  // framing that included it would be visibly wider than the note's own
+  // neighbourhood — the difference between focusing and fitting.
+  const chain = [at("A.md", 0, 0), at("B.md", 200, 200), at("C.md", 5000, 5000)];
+  const chainEdges = [
+    { source: "A.md", target: "B.md" },
+    { source: "B.md", target: "C.md" },
+  ];
+
+  it("frames the note together with its neighbours, not the whole graph", () => {
+    // A and B span 200×200 around (100,100) → 680/200 vs 480/200 → 2.4.
+    expect(
+      computeFocusTransform("A.md", chain, chainEdges, width, height, padding)
+    ).toEqual({ k: 2.4, x: 160, y: 60 });
+  });
+
+  it("stops at the note's own neighbours", () => {
+    // A line, so including A — two links from C — would visibly widen the
+    // frame: 400 units of content at 1.2 rather than 200 at 2.4.
+    const line = [at("A.md", 0, 0), at("B.md", 200, 200), at("C.md", 400, 400)];
+    const lineEdges = [
+      { source: "A.md", target: "B.md" },
+      { source: "B.md", target: "C.md" },
+    ];
+
+    // C is framed with B, and only with B.
+    expect(
+      computeFocusTransform("C.md", line, lineEdges, width, height, padding)
+    ).toEqual({ k: 2.4, x: -320, y: -420 });
+  });
+
+  it("frames an isolated note at natural scale, centered on it", () => {
+    const nodes = [at("A.md", 100, 100), at("B.md", 5000, 5000)];
+
+    expect(computeFocusTransform("A.md", nodes, [], width, height, padding)).toEqual({
+      k: 1,
+      x: 300,
+      y: 200,
+    });
+  });
+
+  it("holds a tight neighbourhood at the maximum zoom", () => {
+    const nodes = [at("A.md", 0, 0), at("B.md", 10, 10)];
+    const edges = [{ source: "A.md", target: "B.md" }];
+
+    expect(
+      computeFocusTransform("A.md", nodes, edges, width, height, padding)
+    ).toEqual({ k: 4, x: 380, y: 280 });
+  });
+
+  it("clamps a far-flung neighbourhood to the minimum zoom", () => {
+    const nodes = [at("A.md", 0, 0), at("B.md", 500_000, 500_000)];
+    const edges = [{ source: "A.md", target: "B.md" }];
+
+    expect(
+      computeFocusTransform("A.md", nodes, edges, width, height, padding)
+    ).toEqual({ k: 0.1, x: -24600, y: -24700 });
+  });
+
+  it("ignores a neighbour the layout has not placed yet", () => {
+    const nodes = [at("A.md", 0, 0), at("B.md", 200, 200), { id: "C.md" }];
+    const edges = [
+      { source: "A.md", target: "B.md" },
+      { source: "A.md", target: "C.md" },
+    ];
+
+    expect(
+      computeFocusTransform("A.md", nodes, edges, width, height, padding)
+    ).toEqual({ k: 2.4, x: 160, y: 60 });
+  });
+
+  it("has no transform for a note the graph does not hold", () => {
+    expect(
+      computeFocusTransform("Z.md", chain, chainEdges, width, height, padding)
+    ).toBeNull();
+  });
+
+  it("has no transform for a note the layout has not placed yet", () => {
+    const nodes = [{ id: "A.md" }, at("B.md", 200, 200)];
+
+    expect(
+      computeFocusTransform("A.md", nodes, [], width, height, padding)
+    ).toBeNull();
   });
 });
 
@@ -240,8 +371,9 @@ describe("planFit", () => {
     { x: 300, y: 300 },
   ];
 
-  const context = (userInteracted = false) => ({
+  const context = (userInteracted = false, focused = false) => ({
     userInteracted,
+    focused,
     nodes,
     viewportWidth: width,
     viewportHeight: height,
@@ -268,6 +400,15 @@ describe("planFit", () => {
     // Neither fit may move a graph the viewer has zoomed or panned themselves.
     expect(planFit("first-tick", context(true))).toBeNull();
     expect(planFit("settled", context(true))).toBeNull();
+  });
+
+  // A focus is the visitor's claim on the camera too, and a stronger one than
+  // the fit's: it is a note they picked out, so a fit that framed the whole
+  // graph would take the camera off the thing they asked to see. The renderer
+  // re-frames the focus itself once the layout settles under it.
+  it("plans nothing while a note holds the focus", () => {
+    expect(planFit("first-tick", context(false, true))).toBeNull();
+    expect(planFit("settled", context(false, true))).toBeNull();
   });
 
   it("gives the settled fit a duration a transition can actually run", () => {

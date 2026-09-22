@@ -29,14 +29,24 @@ export function filterNotes(rows: readonly NoteRow[], query: string): NoteRow[] 
   return rows.filter((row) => row.title.toLowerCase().includes(needle));
 }
 
-// Whether a row stands for the hovered note. This lives here because it is
+// Whether a row stands for the note an id names. This lives here because it is
 // really a question about the graph's vocabulary, not the panel's: a node's id
-// *is* a note's title, so a hovered node id resolves to a row by identity —
-// exact, unlike the search's case-insensitive substring, because a hover names
-// one note and a search matches many.
+// *is* a note's title, so a note's id resolves to a row by identity — exact,
+// unlike the search's case-insensitive substring, because a hover or a focus
+// each name one note while a search matches many.
 //
-// A null id matches nothing, which is what leaves every row unemphasized while
-// nothing is hovered.
+// A null id matches nothing, which is what leaves every row unemphasized and
+// unmarked while no note is hovered or focused.
+function standsFor(row: NoteRow, noteId: string | null): boolean {
+  return noteId !== null && row.title === noteId;
+}
+
+// Whether a row stands for the note currently under the pointer.
 export function isHoveredNote(row: NoteRow, hoveredId: string | null): boolean {
-  return hoveredId !== null && row.title === hoveredId;
+  return standsFor(row, hoveredId);
+}
+
+// Whether a row stands for the note holding the Focus.
+export function isFocusedNote(row: NoteRow, focusedId: string | null): boolean {
+  return standsFor(row, focusedId);
 }

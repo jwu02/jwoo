@@ -17,27 +17,37 @@ const mockGraphRenders = { count: 0 };
 
 // `setHoveredNote` stands in for the renderer's imperative hover setter, so a
 // row hover can be asserted on the stub; `hoverNote` stands in for the
-// renderer reporting a hover back, which is the other direction.
+// renderer reporting a hover back, which is the other direction. `focusProps`
+// records the focus the page hands down, and `takeCamera` stands in for the
+// renderer reporting that the visitor has taken the camera back.
 const mockGraph = {
   setHoveredNote: jest.fn(),
   hoverNote: null as ((id: string | null) => void) | null,
   // Every `graph` prop the stub has been rendered with. A hover must not add
   // one: the memo compares that prop, so its identity is the contract.
   graphProps: [] as unknown[],
+  focusProps: [] as (string | null)[],
+  takeCamera: null as (() => void) | null,
 };
 
 jest.mock("@/components/knowledge-graph/force-graph", () => ({
   ForceGraph: ({
     graph,
     onHoverChange,
+    focusedNote,
+    onFocusClear,
     ref,
   }: {
     graph: { nodes: unknown[]; edges: unknown[] };
     onHoverChange?: (id: string | null) => void;
+    focusedNote?: string | null;
+    onFocusClear?: () => void;
     ref?: unknown;
   }) => {
     mockGraphRenders.count += 1;
     mockGraph.hoverNote = onHoverChange ?? null;
+    mockGraph.focusProps.push(focusedNote ?? null);
+    mockGraph.takeCamera = onFocusClear ?? null;
     mockGraph.graphProps.push(graph);
     if (typeof ref === "function") {
       ref({ setHoveredNote: mockGraph.setHoveredNote });
@@ -83,6 +93,8 @@ afterEach(() => {
   mockGraph.setHoveredNote.mockClear();
   mockGraph.hoverNote = null;
   mockGraph.graphProps.length = 0;
+  mockGraph.focusProps.length = 0;
+  mockGraph.takeCamera = null;
 });
 
 // The panel is the only search field the page renders: the mobile sheet is
@@ -108,6 +120,19 @@ const emphasizedRows = () =>
     .getAllByRole("listitem")
     .filter((row) => row.hasAttribute("data-hovered"))
     .map((row) => within(row).getByTestId("kg-note-title").textContent);
+
+const focusedRows = () =>
+  screen
+    .getAllByRole("listitem")
+    .filter((row) => row.hasAttribute("data-focused"))
+    .map((row) => within(row).getByTestId("kg-note-title").textContent);
+
+// The last focus the page handed the renderer — what the camera was asked to
+// frame, as the stub sees it.
+const focusedNoteProp = () => mockGraph.focusProps.at(-1) ?? null;
+
+const clickRow = (title: string) =>
+  fireEvent.click(within(rowByTitle(title)).getByRole("button"));
 
 describe("KnowledgeGraphPage", () => {
   it("fetches and renders the graph", async () => {
@@ -314,6 +339,96 @@ describe("KnowledgeGraphPage note list hover", () => {
     act(() => {
       mockGraph.hoverNote!(null);
     });
+
+    expect(mockGraph.graphProps.every((prop) => prop === graphProp)).toBe(true);
+  });
+});
+
+describe("KnowledgeGraphPage note list focus", () => {
+  it("hands the renderer the note a row is clicked, and marks its row", async () => {
+    await renderLoadedPage();
+
+    clickRow("B.md");
+
+    expect(focusedNoteProp()).toBe("B.md");
+    expect(focusedRows()).toEqual(["B.md"]);
+  });
+
+  it("lets the focus go when the focused row is clicked again", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+
+    clickRow("B.md");
+
+    expect(focusedNoteProp()).toBeNull();
+    expect(focusedRows()).toEqual([]);
+  });
+
+  it("clears the focus when Escape is pressed", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(focusedNoteProp()).toBeNull();
+    expect(focusedRows()).toEqual([]);
+  });
+
+  // Escape in the search field undoes the query rather than the focus: it is
+  // the nearer thing to undo, and the focus is left holding.
+  it("clears the search rather than the focus when Escape is pressed in the field", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+    fireEvent.change(searchFields()[0], { target: { value: "B" } });
+
+    fireEvent.keyDown(searchFields()[0], { key: "Escape" });
+
+    expect(searchFields()[0]).toHaveValue("");
+    expect(focusedNoteProp()).toBe("B.md");
+  });
+
+  // ...and with nothing to clear, the field lets the key through to the focus.
+  it("clears the focus when Escape is pressed in an empty field", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+
+    fireEvent.keyDown(searchFields()[0], { key: "Escape" });
+
+    expect(focusedNoteProp()).toBeNull();
+    expect(focusedRows()).toEqual([]);
+  });
+
+  it("clears the focus from the panel's own affordance", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear focus" }));
+
+    expect(focusedNoteProp()).toBeNull();
+    expect(focusedRows()).toEqual([]);
+  });
+
+  // The renderer ends a focus the visitor has taken the camera away from. The
+  // page owns the focus, so the renderer reports it rather than deciding it.
+  it("drops a focus the renderer reports the visitor has taken", async () => {
+    await renderLoadedPage();
+    clickRow("B.md");
+
+    act(() => mockGraph.takeCamera!());
+
+    expect(focusedNoteProp()).toBeNull();
+    expect(focusedRows()).toEqual([]);
+  });
+
+  // Focus re-renders the page — that is how the rows mark themselves — and the
+  // guarantee is that the graph prop out of that render is the same object it
+  // was, so the renderer and its simulation stay out of it.
+  it("hands the renderer the same graph object through a focus change", async () => {
+    await renderLoadedPage();
+    const graphProp = mockGraph.graphProps.at(-1);
+
+    clickRow("B.md");
+    clickRow("B.md");
 
     expect(mockGraph.graphProps.every((prop) => prop === graphProp)).toBe(true);
   });

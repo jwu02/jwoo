@@ -1,3 +1,4 @@
+import { computeNeighbors } from "./graph-data";
 import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "./types";
 
 // A node's base appearance, independent of hover. Only leaves are drawn
@@ -17,8 +18,9 @@ export interface NodeEmphasis {
 // sprite painting and the DOM label layer — read this one map, so the dot and
 // its name cannot disagree about which nodes a hover is highlighting.
 //
-// Adjacency is built here rather than passed in: it is the rule's own input,
-// and every caller needs it.
+// Adjacency comes from the graph's own helper rather than being rebuilt here:
+// the nodes this rule keeps bright and the nodes a focus frames are the same
+// set, and one definition is what keeps them the same.
 export function computeNodeEmphasis(
   nodes: readonly KnowledgeGraphNode[],
   edges: readonly KnowledgeGraphEdge[],
@@ -27,14 +29,9 @@ export function computeNodeEmphasis(
   // Unique neighbours. A leaf is a node with exactly one of them, which is not
   // the same as degree 1: reciprocal links (A→B and B→A) would otherwise count
   // twice and report a true leaf as a degree-2 hub, hiding its tint.
-  const neighbors = new Map<string, Set<string>>();
-  for (const node of nodes) neighbors.set(node.id, new Set());
-  for (const edge of edges) {
-    neighbors.get(edge.source)?.add(edge.target);
-    neighbors.get(edge.target)?.add(edge.source);
-  }
+  const neighbors = computeNeighbors(nodes, edges);
 
-  // Every node is seeded a Set above, so this lookup never misses.
+  // Every node is seeded a Set by the helper, so this lookup never misses.
   const hoveredNeighbors = hoveredId === null ? null : neighbors.get(hoveredId);
 
   const emphasis = new Map<string, NodeEmphasis>();

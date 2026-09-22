@@ -71,7 +71,7 @@ The transform that frames the whole graph inside its viewport. A rough fit frame
 _Avoid_: reframe, zoom-to-fit
 
 **Focus**:
-The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis; it ends on Esc or the note list's clear affordance, and a viewer-driven camera move cancels the flight and clears it.
+The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis. It ends on Esc (an Escape in the search field clears the query first), on the panel's clear affordance, or by clicking the focused row again — and it ends where it stands, the camera never returning to where it was. A viewer-driven camera move cancels the flight and clears the focus; a snapshot that no longer holds the note clears it quietly.
 _Avoid_: highlight, pin, zoom-to-node
 
 **Label threshold**:

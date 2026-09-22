@@ -5,6 +5,7 @@ import { BookTextIcon } from "lucide-react";
 import {
   buildNoteList,
   filterNotes,
+  isFocusedNote,
   isHoveredNote,
   type NoteRow,
 } from "@/lib/knowledge-graph/note-list";
@@ -18,6 +19,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useNoteHover } from "./note-hover";
+import { useNoteFocus } from "./note-focus";
 
 interface NoteListProps {
   nodes: readonly KnowledgeGraphNode[];
@@ -37,9 +39,24 @@ interface NoteListProps {
 // feedback as pointing at a node. The row does not keep that hover — it says
 // which note it stands for, and the renderer answers with the emphasis a
 // pointer on the node would have drawn.
+//
+// Focus is the state a row does keep: clicking one hands the note to the page,
+// which flies the camera and holds the row marked until the focus ends. The
+// activation itself is a button's, so Enter and Space come with it — the row
+// still carries the hover, because a pointer entering it has not left it when
+// it crosses onto the button.
 function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
   const { hoveredNote, setHoveredNote } = useNoteHover();
+  const { focusedNote, focusNote, clearFocus } = useNoteFocus();
   const { title } = row;
+  const focused = isFocusedNote(row, focusedNote);
+
+  // The focused row is its own way out: clicking it again lets the focus go,
+  // the way a second click on a selected thing usually does.
+  const activate = useCallback(
+    () => (focused ? clearFocus() : focusNote(title)),
+    [focused, clearFocus, focusNote, title]
+  );
   const enter = useCallback(
     () => setHoveredNote(title),
     [setHoveredNote, title]
@@ -70,27 +87,36 @@ function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
 
   return (
     <li
-      // Focusable rather than a button: a row acts on nothing yet, and a button
-      // that answers to Enter would promise an interaction this slice does not
-      // deliver.
-      tabIndex={0}
-      // Where the row's Emphasis is written down, so the styling below and
-      // anything asking why a row is emphasized read the same answer.
+      // Where the row's Emphasis and its Focus are written down, so the styling
+      // below and anything asking why a row is marked read the same answer.
       data-hovered={hovered ? "" : undefined}
+      data-focused={focused ? "" : undefined}
       onPointerEnter={enter}
       onPointerLeave={leave}
       onFocus={enter}
       onBlur={leave}
-      className={`cursor-default px-4 py-2.5 outline-none transition-colors focus-visible:bg-accent/60 ${
-        hovered ? "bg-accent/60" : ""
-      }`}
+      // The focused row stays marked while the pointer is elsewhere — that is
+      // the whole of what "focused" looks like in the list — so its fill is the
+      // hover's at full strength rather than the hover's own.
+      className={`transition-colors ${focused ? "bg-accent" : hovered ? "bg-accent/60" : ""}`}
     >
-      <span
-        data-testid="kg-note-title"
-        className="block text-sm leading-snug text-foreground wrap-anywhere"
+      <button
+        type="button"
+        // A toggle, because the row is one: it says whether this note holds the
+        // focus, and pressing it again lets that go.
+        aria-pressed={focused}
+        onClick={activate}
+        // The padding is the button's rather than the row's, so the row's whole
+        // surface is the target instead of only the text inside it.
+        className="block w-full cursor-pointer px-4 py-2.5 text-left outline-none focus-visible:bg-accent/60"
       >
-        {row.title}
-      </span>
+        <span
+          data-testid="kg-note-title"
+          className="block text-sm leading-snug text-foreground wrap-anywhere"
+        >
+          {row.title}
+        </span>
+      </button>
     </li>
   );
 }
@@ -101,6 +127,7 @@ function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
 function NoteListBody({ nodes }: NoteListProps) {
   const [query, setQuery] = useState("");
   const { hoveredNote } = useNoteHover();
+  const { focusedNote, clearFocus } = useNoteFocus();
 
   // One list per graph object: the order flips once, and typing re-filters the
   // rows already built rather than rebuilding them on every keystroke.
@@ -115,11 +142,24 @@ function NoteListBody({ nodes }: NoteListProps) {
     // list — 656 rows of titles — floors it wider than the panel, pushing the
     // search field and every row off the panel's right edge.
     <div className="flex h-full w-full min-w-0 flex-col">
-      <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
+      <div className="flex items-center justify-between gap-2 px-4 pt-4">
         <h2 className="font-heading text-sm font-medium">Notes</h2>
-        {/* The count describes the graph, so it holds still while the list
-            narrows — the list itself is the answer to the query. */}
-        <span className="text-xs text-muted-foreground">{countLabel}</span>
+        <div className="flex items-center gap-2">
+          {/* The panel's own way out of a Focus, for a pointer that is already
+              here: Esc is the keyboard's, and the focused row is the row's. */}
+          {focusedNote !== null && (
+            <button
+              type="button"
+              onClick={clearFocus}
+              className="cursor-pointer rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Clear focus
+            </button>
+          )}
+          {/* The count describes the graph, so it holds still while the list
+              narrows — the list itself is the answer to the query. */}
+          <span className="text-xs text-muted-foreground">{countLabel}</span>
+        </div>
       </div>
 
       {/* No search icon: the field filters as it is typed, so the icon would
@@ -131,6 +171,16 @@ function NoteListBody({ nodes }: NoteListProps) {
           placeholder="Search notes…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            // Escape in the field is the field's: clearing the query is the
+            // nearer thing to undo than the focus, so the field takes the key
+            // and marks it handled — which is what tells the page's own
+            // dismissal that this Escape has already been answered. An empty
+            // field has nothing to clear, and lets the key through to it.
+            if (event.key !== "Escape" || query === "") return;
+            event.preventDefault();
+            setQuery("");
+          }}
         />
       </div>
 

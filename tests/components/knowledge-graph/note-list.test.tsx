@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NoteList } from "@/components/knowledge-graph/note-list";
 import { NoteHoverProvider } from "@/components/knowledge-graph/note-hover";
+import { NoteFocusProvider } from "@/components/knowledge-graph/note-focus";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 
 const node = (id: string, createdAt: string): KnowledgeGraphNode => ({
@@ -16,17 +17,24 @@ const graph = [
 
 // Stands in for the renderer, which is where hover lives: the list drives it
 // and reads back what it is told, exactly as the page wires the two together.
+// Focus is the page's, and arrives as state the list reports on rather than
+// keeps — so these tests hand it in and watch which call comes back.
 function renderNoteList(
   nodes: KnowledgeGraphNode[] = graph,
-  hoveredNote: string | null = null
+  hoveredNote: string | null = null,
+  focusedNote: string | null = null
 ) {
   const setHoveredNote = jest.fn();
+  const focusNote = jest.fn();
+  const clearFocus = jest.fn();
   const view = render(
     <NoteHoverProvider value={{ hoveredNote, setHoveredNote }}>
-      <NoteList nodes={nodes} />
+      <NoteFocusProvider value={{ focusedNote, focusNote, clearFocus }}>
+        <NoteList nodes={nodes} />
+      </NoteFocusProvider>
     </NoteHoverProvider>
   );
-  return { ...view, setHoveredNote };
+  return { ...view, setHoveredNote, focusNote, clearFocus };
 }
 
 const rowByTitle = (title: string) =>
@@ -40,6 +48,15 @@ const emphasizedRow = () =>
   screen
     .getAllByRole("listitem")
     .find((item) => item.hasAttribute("data-hovered"));
+
+const focusedRow = () =>
+  screen
+    .getAllByRole("listitem")
+    .find((item) => item.hasAttribute("data-focused"));
+
+// The row's own control: what the pointer clicks and what the keyboard reaches.
+const rowButton = (title: string) =>
+  within(rowByTitle(title)).getByRole("button");
 
 const rowTitles = () =>
   screen
@@ -182,11 +199,14 @@ describe("NoteList rows drive the graph's hover", () => {
     expect(setHoveredNote).toHaveBeenLastCalledWith(null);
   });
 
-  it("puts its rows in the tab order", () => {
+  // The control a row offers is a real button, so it is in the tab order and
+  // Enter and Space are the platform's rather than something hand-rolled onto
+  // the row.
+  it("puts a button for each row in the tab order", () => {
     renderNoteList();
 
-    for (const row of screen.getAllByRole("listitem")) {
-      expect(row).toHaveAttribute("tabindex", "0");
+    for (const title of ["gamma.md", "beta.md", "alpha.md"]) {
+      expect(rowButton(title).tabIndex).toBe(0);
     }
   });
 
@@ -219,11 +239,16 @@ describe("NoteList rows drive the graph's hover", () => {
   // nor blur on an unmount — so the emphasis has to be given up by the row
   // that is going away, or the graph keeps emphasizing a note with no row.
   it("gives up the hover when the hovered row is filtered away", () => {
-    const { setHoveredNote, rerender } = renderNoteList(graph, "gamma.md");
+    const { setHoveredNote, focusNote, clearFocus, rerender } = renderNoteList(
+      graph,
+      "gamma.md"
+    );
 
     rerender(
       <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
-        <NoteList nodes={[graph[0]]} />
+        <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
+          <NoteList nodes={[graph[0]]} />
+        </NoteFocusProvider>
       </NoteHoverProvider>
     );
 
@@ -233,11 +258,16 @@ describe("NoteList rows drive the graph's hover", () => {
   // The rows beside it go in the same commit, and each of those owes the graph
   // nothing — only the note actually being hovered may clear the hover.
   it("leaves the hover alone when a different row goes away", () => {
-    const { setHoveredNote, rerender } = renderNoteList(graph, "gamma.md");
+    const { setHoveredNote, focusNote, clearFocus, rerender } = renderNoteList(
+      graph,
+      "gamma.md"
+    );
 
     rerender(
       <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
-        <NoteList nodes={graph.filter((n) => n.id !== "alpha.md")} />
+        <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
+          <NoteList nodes={graph.filter((n) => n.id !== "alpha.md")} />
+        </NoteFocusProvider>
       </NoteHoverProvider>
     );
 
@@ -254,5 +284,104 @@ describe("NoteList rows drive the graph's hover", () => {
 
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(Element.prototype.scrollIntoView).toBe(scrollIntoView);
+  });
+});
+
+describe("NoteList rows take the Focus", () => {
+  it("takes the focus for the note a row stands for", () => {
+    const { focusNote } = renderNoteList();
+
+    fireEvent.click(rowButton("gamma.md"));
+
+    expect(focusNote).toHaveBeenCalledWith("gamma.md");
+  });
+
+  // The row that holds the focus is its own way out of it.
+  it("lets the focus go when the focused row is clicked again", () => {
+    const { focusNote, clearFocus } = renderNoteList(graph, null, "gamma.md");
+
+    fireEvent.click(rowButton("gamma.md"));
+
+    expect(clearFocus).toHaveBeenCalled();
+    expect(focusNote).not.toHaveBeenCalled();
+  });
+
+  it("takes the focus for a note that is not the focused one", () => {
+    const { focusNote, clearFocus } = renderNoteList(graph, null, "gamma.md");
+
+    fireEvent.click(rowButton("alpha.md"));
+
+    expect(focusNote).toHaveBeenCalledWith("alpha.md");
+    expect(clearFocus).not.toHaveBeenCalled();
+  });
+
+  // The mark is what tells a visitor which note the camera is sitting on, so it
+  // is on the focused row and nowhere else.
+  it("marks the focused row and no other", () => {
+    renderNoteList(graph, null, "beta.md");
+
+    expect(focusedRow()).toBe(rowByTitle("beta.md"));
+  });
+
+  it("marks nothing while no note is focused", () => {
+    renderNoteList();
+
+    expect(focusedRow()).toBeUndefined();
+  });
+
+  it("offers the panel's own way out of the focus", () => {
+    const { clearFocus } = renderNoteList(graph, null, "beta.md");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear focus" }));
+
+    expect(clearFocus).toHaveBeenCalled();
+  });
+
+  it("offers no way out while nothing is focused", () => {
+    renderNoteList();
+
+    expect(
+      screen.queryByRole("button", { name: "Clear focus" })
+    ).not.toBeInTheDocument();
+  });
+
+  // A focus is the page's, not the row's: narrowing the list is not dismissing
+  // anything. The panel's way out stays where it is, so the focus is still
+  // reachable from a query that hides its row.
+  it("leaves the focus alone when the search hides its row", () => {
+    const { clearFocus } = renderNoteList(graph, null, "gamma.md");
+
+    fireEvent.change(searchField(), { target: { value: "alpha" } });
+
+    expect(rowTitles()).toEqual(["alpha.md"]);
+    expect(clearFocus).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Clear focus" })
+    ).toBeInTheDocument();
+  });
+});
+
+describe("NoteList search Escape", () => {
+  // Escape in the field undoes the query rather than the focus, which is the
+  // nearer thing to it — and it marks the key handled, which is how the page
+  // knows this Escape has already been answered. fireEvent reports the
+  // cancellation as a false return.
+  it("clears the query, and takes the key, when there is a query to clear", () => {
+    renderNoteList();
+    fireEvent.change(searchField(), { target: { value: "gamma" } });
+
+    const notCancelled = fireEvent.keyDown(searchField(), { key: "Escape" });
+
+    expect(searchField()).toHaveValue("");
+    expect(rowTitles()).toEqual(["gamma.md", "beta.md", "alpha.md"]);
+    expect(notCancelled).toBe(false);
+  });
+
+  it("lets the key through when the field has nothing to clear", () => {
+    renderNoteList();
+
+    const notCancelled = fireEvent.keyDown(searchField(), { key: "Escape" });
+
+    expect(notCancelled).toBe(true);
   });
 });

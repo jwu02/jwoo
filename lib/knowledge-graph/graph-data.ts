@@ -27,6 +27,23 @@ export function buildGraph(docs: NoteDoc[]) {
   return { nodes, edges };
 }
 
+// Who each node sits next to, both ends of an edge claiming the other. A
+// reciprocal pair (A→B and B→A) is one relationship rather than two, so the set
+// counts it once — which is what makes "the neighbours" the same set whether a
+// note is being framed by a focus or kept bright by a hover.
+export function computeNeighbors(
+  nodes: readonly { id: string }[],
+  edges: readonly KnowledgeGraphEdge[]
+): Map<string, Set<string>> {
+  const neighbors = new Map<string, Set<string>>();
+  for (const node of nodes) neighbors.set(node.id, new Set());
+  for (const edge of edges) {
+    neighbors.get(edge.source)?.add(edge.target);
+    neighbors.get(edge.target)?.add(edge.source);
+  }
+  return neighbors;
+}
+
 export function computeDegrees(
   nodes: KnowledgeGraphNode[],
   edges: KnowledgeGraphEdge[]
@@ -42,15 +59,22 @@ export function computeDegrees(
   return degrees;
 }
 
+// The room a framing leaves around what it frames, in viewport pixels. One
+// value, so the whole-graph fit and the focus framing agree about how tightly
+// the graph may be drawn.
+const FIT_PADDING = 60;
+
 // Zoom transform (scale k + translate x/y) that fits the given positioned
-// nodes inside a viewport with `padding` around the edges, clamped to the
-// graph's zoom range (NODE_MIN_ZOOM..NODE_MAX_ZOOM). Kept framework-free so it
-// is unit-testable; the component wraps the result in a d3.zoomIdentity.
-export function computeFitTransform(
-  nodes: Array<{ x?: number; y?: number }>,
+// points inside a viewport with `padding` around the edges, clamped to the
+// graph's zoom range (NODE_MIN_ZOOM..NODE_MAX_ZOOM). Every framing the graph
+// makes of itself is this function with a different set of points — the whole
+// layout's, or one note's neighbourhood. Kept framework-free so it is
+// unit-testable; the component wraps the result in a d3.zoomIdentity.
+function fitPoints(
+  nodes: readonly { x?: number; y?: number }[],
   viewportWidth: number,
   viewportHeight: number,
-  padding = 60
+  padding: number
 ): { k: number; x: number; y: number } {
   const positioned = nodes.filter((n) => n.x !== undefined && n.y !== undefined);
   if (positioned.length === 0) return { k: 1, x: 0, y: 0 };
@@ -89,6 +113,43 @@ export function computeFitTransform(
     x: viewportWidth / 2 - k * centerX,
     y: viewportHeight / 2 - k * centerY,
   };
+}
+
+// Zoom transform that frames the whole graph — the framing the page is left
+// with when nothing is focused.
+export function computeFitTransform(
+  nodes: Array<{ x?: number; y?: number }>,
+  viewportWidth: number,
+  viewportHeight: number,
+  padding = FIT_PADDING
+): { k: number; x: number; y: number } {
+  return fitPoints(nodes, viewportWidth, viewportHeight, padding);
+}
+
+// The framing the camera flies to when a note takes the Focus: the note and its
+// neighbours, padded and clamped like any other framing. Deliberately not the
+// whole graph — seeing the note in its company is the point of focusing it.
+//
+// A note with no neighbours has no extent to frame, so it lands at natural
+// scale centered on itself, the same rule the whole-graph fit uses for a graph
+// of one node. Null when there is nothing to aim at: a note the graph does not
+// hold, or one the layout has not placed yet.
+export function computeFocusTransform(
+  noteId: string,
+  nodes: readonly { id: string; x?: number; y?: number }[],
+  edges: readonly KnowledgeGraphEdge[],
+  viewportWidth: number,
+  viewportHeight: number,
+  padding = FIT_PADDING
+): { k: number; x: number; y: number } | null {
+  const note = nodes.find((node) => node.id === noteId);
+  if (!note || note.x === undefined || note.y === undefined) return null;
+
+  const neighbors = computeNeighbors(nodes, edges).get(noteId);
+  const framed = nodes.filter(
+    (node) => node.id === noteId || neighbors?.has(node.id)
+  );
+  return fitPoints(framed, viewportWidth, viewportHeight, padding);
 }
 
 // A deliberately loose initial framing for the first paint, before the force
@@ -177,12 +238,16 @@ export function planFit(
     // Once the viewer has zoomed or panned, the graph is where they put it:
     // neither fit may move it out from under them.
     userInteracted: boolean;
+    // A note holding the Focus is the same kind of claim, made by the same
+    // visitor: the camera is framing that note's neighbourhood, so a fit that
+    // framed the whole graph would take it away from what they asked for.
+    focused: boolean;
     nodes: Array<{ x?: number; y?: number }>;
     viewportWidth: number;
     viewportHeight: number;
   }
 ): FitPlan | null {
-  if (context.userInteracted) return null;
+  if (context.userInteracted || context.focused) return null;
 
   const { nodes, viewportWidth, viewportHeight } = context;
 

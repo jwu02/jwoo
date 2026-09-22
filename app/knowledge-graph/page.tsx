@@ -7,6 +7,7 @@ import {
 } from "@/components/knowledge-graph/force-graph";
 import { NoteList } from "@/components/knowledge-graph/note-list";
 import { NoteHoverProvider } from "@/components/knowledge-graph/note-hover";
+import { NoteFocusProvider } from "@/components/knowledge-graph/note-focus";
 import { CacheNotice } from "@/components/knowledge-graph/cache-notice";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
@@ -80,6 +81,36 @@ export default function KnowledgeGraphPage() {
     [hoveredNote, driveHover]
   );
 
+  // Which note holds the Focus. It lives here rather than in a row because it
+  // outlives the rows: the camera is left framing the note long after the
+  // pointer has moved on, and the graph itself can ask for the focus to end.
+  // The renderer is handed the id and does the flying; the list is handed the
+  // id and does the marking.
+  const [focusedNote, setFocusedNote] = useState<string | null>(null);
+
+  const focusNote = useCallback((noteId: string) => setFocusedNote(noteId), []);
+  const clearFocus = useCallback(() => setFocusedNote(null), []);
+
+  const noteFocus = useMemo(
+    () => ({ focusedNote, focusNote, clearFocus }),
+    [focusedNote, focusNote, clearFocus]
+  );
+
+  // Escape lets go of the focus — unless the search field has already answered
+  // it, which it marks by cancelling the key: clearing the query is the nearer
+  // thing to undo, and an empty field has nothing to clear and lets the key
+  // through to here. The listener is only up while there is something to
+  // dismiss.
+  useEffect(() => {
+    if (focusedNote === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setFocusedNote(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [focusedNote]);
+
   // A snapshot with no notes is not a graph to draw, so it takes the empty
   // state below rather than reaching the scene with nothing in it.
   const graph = !loading && data && data.nodes.length > 0 ? data : null;
@@ -100,18 +131,22 @@ export default function KnowledgeGraphPage() {
     // ResizeObserver on the container), so a row that gave way to a banner
     // would clip the graph rather than resize it.
     <NoteHoverProvider value={noteHover}>
-      <div className="relative flex h-full shrink-0 overflow-hidden">
-        <ForceGraph
-          ref={graphRef}
-          graph={graph}
-          onHoverChange={setReportedHover}
-        />
-        <NoteList nodes={graph.nodes} />
-        {/* Inside the row, not above it: the notice belongs to the graph's own
-            corner, and a row-relative box puts it there without the page having
-            to know how wide the sidebar or the note panel are. */}
-        {countdown && <CacheNotice {...countdown} />}
-      </div>
+      <NoteFocusProvider value={noteFocus}>
+        <div className="relative flex h-full shrink-0 overflow-hidden">
+          <ForceGraph
+            ref={graphRef}
+            graph={graph}
+            onHoverChange={setReportedHover}
+            focusedNote={focusedNote}
+            onFocusClear={clearFocus}
+          />
+          <NoteList nodes={graph.nodes} />
+          {/* Inside the row, not above it: the notice belongs to the graph's own
+              corner, and a row-relative box puts it there without the page having
+              to know how wide the sidebar or the note panel are. */}
+          {countdown && <CacheNotice {...countdown} />}
+        </div>
+      </NoteFocusProvider>
     </NoteHoverProvider>
   ) : error && !data ? (
     // Only fatal when there is nothing to show. Once a graph is on screen, a

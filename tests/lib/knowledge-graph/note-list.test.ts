@@ -1,6 +1,7 @@
 import {
   buildNoteList,
   filterNotes,
+  isFocusedNote,
   isHoveredNote,
 } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
@@ -125,5 +126,24 @@ describe("isHoveredNote", () => {
 
   it("marks nothing while no node is hovered", () => {
     expect(isHoveredNote({ title: "beta.md" }, null)).toBe(false);
+  });
+});
+
+describe("isFocusedNote", () => {
+  it("marks the row whose title is the focused note's id", () => {
+    expect(isFocusedNote({ title: "beta.md" }, "beta.md")).toBe(true);
+  });
+
+  it("leaves the other rows unmarked", () => {
+    expect(isFocusedNote({ title: "beta.md" }, "gamma.md")).toBe(false);
+  });
+
+  // A focus names one note, so unlike the search it matches the title exactly.
+  it("matches the title exactly", () => {
+    expect(isFocusedNote({ title: "beta.md" }, "BETA.md")).toBe(false);
+  });
+
+  it("marks nothing while no note is focused", () => {
+    expect(isFocusedNote({ title: "beta.md" }, null)).toBe(false);
   });
 });
