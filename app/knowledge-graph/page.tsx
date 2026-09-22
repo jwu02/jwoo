@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ForceGraph } from "@/components/knowledge-graph/force-graph";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ForceGraph,
+  type ForceGraphHandle,
+} from "@/components/knowledge-graph/force-graph";
 import { NoteList } from "@/components/knowledge-graph/note-list";
+import { NoteHoverProvider } from "@/components/knowledge-graph/note-hover";
 import { CacheNotice } from "@/components/knowledge-graph/cache-notice";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
@@ -57,6 +61,25 @@ export default function KnowledgeGraphPage() {
   // does not poll, because a snapshot's life is measured in hours.
   const countdown = useCacheClock(data, load);
 
+  // Which note's node is emphasized. Hover lives in the renderer; this is only
+  // what the renderer last reported, held so the list can give that note's row
+  // the same Emphasis. The list drives hover back through the renderer's own
+  // setter rather than through this state, so a pointer moving over the rows
+  // never goes near the force simulation.
+  const [hoveredNote, setReportedHover] = useState<string | null>(null);
+  const graphRef = useRef<ForceGraphHandle>(null);
+
+  // One name per direction: this one goes *to* the renderer, where the reported
+  // setter above takes what comes *from* it.
+  const driveHover = useCallback((noteId: string | null) => {
+    graphRef.current?.setHoveredNote(noteId);
+  }, []);
+
+  const noteHover = useMemo(
+    () => ({ hoveredNote, setHoveredNote: driveHover }),
+    [hoveredNote, driveHover]
+  );
+
   // A snapshot with no notes is not a graph to draw, so it takes the empty
   // state below rather than reaching the scene with nothing in it.
   const graph = !loading && data && data.nodes.length > 0 ? data : null;
@@ -76,14 +99,20 @@ export default function KnowledgeGraphPage() {
     // wrapper, and `resizeTo` only hears about window resizes (pixi 8 has no
     // ResizeObserver on the container), so a row that gave way to a banner
     // would clip the graph rather than resize it.
-    <div className="relative flex h-full shrink-0 overflow-hidden">
-      <ForceGraph graph={graph} />
-      <NoteList nodes={graph.nodes} />
-      {/* Inside the row, not above it: the notice belongs to the graph's own
-          corner, and a row-relative box puts it there without the page having
-          to know how wide the sidebar or the note panel are. */}
-      {countdown && <CacheNotice {...countdown} />}
-    </div>
+    <NoteHoverProvider value={noteHover}>
+      <div className="relative flex h-full shrink-0 overflow-hidden">
+        <ForceGraph
+          ref={graphRef}
+          graph={graph}
+          onHoverChange={setReportedHover}
+        />
+        <NoteList nodes={graph.nodes} />
+        {/* Inside the row, not above it: the notice belongs to the graph's own
+            corner, and a row-relative box puts it there without the page having
+            to know how wide the sidebar or the note panel are. */}
+        {countdown && <CacheNotice {...countdown} />}
+      </div>
+    </NoteHoverProvider>
   ) : error && !data ? (
     // Only fatal when there is nothing to show. Once a graph is on screen, a
     // failed refresh reports itself alongside the stale graph instead.

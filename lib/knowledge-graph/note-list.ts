@@ -28,3 +28,15 @@ export function filterNotes(rows: readonly NoteRow[], query: string): NoteRow[] 
   if (needle === "") return [...rows];
   return rows.filter((row) => row.title.toLowerCase().includes(needle));
 }
+
+// Whether a row stands for the hovered note. This lives here because it is
+// really a question about the graph's vocabulary, not the panel's: a node's id
+// *is* a note's title, so a hovered node id resolves to a row by identity —
+// exact, unlike the search's case-insensitive substring, because a hover names
+// one note and a search matches many.
+//
+// A null id matches nothing, which is what leaves every row unemphasized while
+// nothing is hovered.
+export function isHoveredNote(row: NoteRow, hoveredId: string | null): boolean {
+  return hoveredId !== null && row.title === hoveredId;
+}

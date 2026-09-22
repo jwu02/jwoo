@@ -1,6 +1,15 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import * as d3 from "d3";
 import type { FederatedPointerEvent } from "pixi.js";
 import type {
@@ -27,6 +36,22 @@ import { usePixiApp } from "./use-pixi-app";
 
 interface ForceGraphProps {
   graph: KnowledgeGraphData;
+  // Told what the hover is now, so a hover the graph does not own — one the
+  // note list drives — can be shown in the list too. Optional: the graph is
+  // still a complete hover surface on its own.
+  onHoverChange?: (noteId: string | null) => void;
+  // React 19 hands `ref` to a function component as an ordinary prop, so this
+  // needs no forwardRef wrapper — which matters, because a wrapper would sit
+  // outside the memo below and let every page render through.
+  ref?: Ref<ForceGraphHandle>;
+}
+
+// What the note list drives: the renderer's hover, set from outside it. The
+// list owns no hover state of its own — it says which note is hovered and the
+// renderer does the rest, so the list and the graph cannot end up emphasizing
+// two different notes.
+export interface ForceGraphHandle {
+  setHoveredNote(noteId: string | null): void;
 }
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
@@ -88,12 +113,25 @@ function mixColors(c1: number, c2: number, t: number): number {
 // a number in a badge. Internal state (hover, the label threshold) re-renders
 // it as usual, and `memo` does not block context updates, so the theme still
 // reaches it.
-export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
+export const ForceGraph = memo(function ForceGraph({
+  graph,
+  onHoverChange,
+  ref,
+}: ForceGraphProps) {
   const { nodes, edges } = graph;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const app = usePixiApp(wrapperRef);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showAllLabels, setShowAllLabels] = useState(false);
+  // The report is called from outside React's render cycle — from pointer
+  // handlers and from the imperative setter — so it is read through a ref and
+  // never re-creates the setters that call it. Written in an effect rather than
+  // during render: a render React discards would otherwise leave the ref
+  // holding a callback from a pass that never committed.
+  const onHoverChangeRef = useRef(onHoverChange);
+  useEffect(() => {
+    onHoverChangeRef.current = onHoverChange;
+  }, [onHoverChange]);
 
   const labelRef = useRef<HTMLDivElement>(null);
   const labelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -234,6 +272,25 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
     [graphNodes, graphEdges]
   );
 
+  // Moves the hover. The only way in: the sprite handlers call it from the
+  // pointer, the imperative handle calls it from the note list, and a rebuild
+  // calls it to clear. One entry point is what keeps the ref, React's state,
+  // the painted sprites and the note list from disagreeing about what is
+  // hovered — and the ref is written first because the painter and the label
+  // layer read it before React has committed anything.
+  const setHovered = useCallback(
+    (noteId: string | null) => {
+      hoveredIdRef.current = noteId;
+      setHoveredId(noteId);
+      applyHover(noteId);
+      positionLabel();
+      onHoverChangeRef.current?.(noteId);
+    },
+    [applyHover, positionLabel]
+  );
+
+  useImperativeHandle(ref, () => ({ setHoveredNote: setHovered }), [setHovered]);
+
   const startDrag = useCallback(
     (event: NodePointerEvent, node: GraphNode) => {
       event.stopPropagation();
@@ -357,8 +414,10 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
       // The effect cleanup tears the previous world down on rebuild; this call
       // is defensive for the async gap between a cancelled build and the next.
       teardownWorld();
-      hoveredIdRef.current = null;
-      setHoveredId(null);
+      // A fresh snapshot replaces every sprite, so a hover carried over from
+      // the last one would point at nodes that are gone — and would leave the
+      // note list marking a row the graph no longer emphasizes.
+      setHovered(null);
       dragNodeRef.current = null;
       userInteractedRef.current = false;
 
@@ -438,17 +497,12 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
         sprite.on("pointerover", (e: FederatedPointerEvent) => {
           e.stopPropagation();
           if (dragNodeRef.current?.id === node.id) return;
-          hoveredIdRef.current = node.id;
-          setHoveredId(node.id);
-          applyHover(node.id);
-          positionLabel();
+          setHovered(node.id);
         });
         sprite.on("pointerout", (e: FederatedPointerEvent) => {
           e.stopPropagation();
           if (dragNodeRef.current?.id === node.id) return;
-          hoveredIdRef.current = null;
-          setHoveredId(null);
-          applyHover(null);
+          setHovered(null);
         });
         sprite.on("pointerdown", (e: FederatedPointerEvent) => {
           startDrag(e, node);
@@ -550,7 +604,7 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
       cancelled = true;
       teardownWorld();
     };
-  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite]);
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite, setHovered]);
 
   // d3-zoom drives the Pixi world container transform.
   useEffect(() => {

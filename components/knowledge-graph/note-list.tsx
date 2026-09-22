@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookTextIcon } from "lucide-react";
-import { buildNoteList, filterNotes, type NoteRow } from "@/lib/knowledge-graph/note-list";
+import {
+  buildNoteList,
+  filterNotes,
+  isHoveredNote,
+  type NoteRow,
+} from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useNoteHover } from "./note-hover";
 
 interface NoteListProps {
   nodes: readonly KnowledgeGraphNode[];
@@ -25,9 +31,60 @@ interface NoteListProps {
 // `wrap-anywhere` is for the titles that are not words at all: a note named
 // after a URL carries one unbreakable token wider than the panel, and a row
 // that will not wrap is a row that widens every other row with it.
-function NoteListRow({ row }: { row: NoteRow }) {
+//
+// The row is a hover surface in its own right: the pointer and the keyboard
+// both drive the renderer's hover through it, so Tab gives the same spatial
+// feedback as pointing at a node. The row does not keep that hover — it says
+// which note it stands for, and the renderer answers with the emphasis a
+// pointer on the node would have drawn.
+function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
+  const { hoveredNote, setHoveredNote } = useNoteHover();
+  const { title } = row;
+  const enter = useCallback(
+    () => setHoveredNote(title),
+    [setHoveredNote, title]
+  );
+  const leave = useCallback(() => setHoveredNote(null), [setHoveredNote]);
+
+  // Leaving a row is not the only way to stop hovering it: a row can be taken
+  // away underneath the pointer — by the search, by the mobile sheet closing —
+  // and React fires neither pointerleave nor blur on an unmount. Without this,
+  // the graph would go on emphasizing a note whose row is gone, and would
+  // still be emphasizing it when a later query brought the row back.
+  //
+  // Where this row the one holding the Emphasis is asked once per render and
+  // held by a ref, rather than read back out of context at cleanup: the rows
+  // beside it unmount in the same commit on a query change, and each of those
+  // owes the graph nothing.
+  const holdsHover = hoveredNote !== null && hoveredNote === title;
+  const holdsHoverRef = useRef(holdsHover);
+  useEffect(() => {
+    holdsHoverRef.current = holdsHover;
+  }, [holdsHover]);
+  useEffect(
+    () => () => {
+      if (holdsHoverRef.current) setHoveredNote(null);
+    },
+    [setHoveredNote]
+  );
+
   return (
-    <li className="px-4 py-2.5">
+    <li
+      // Focusable rather than a button: a row acts on nothing yet, and a button
+      // that answers to Enter would promise an interaction this slice does not
+      // deliver.
+      tabIndex={0}
+      // Where the row's Emphasis is written down, so the styling below and
+      // anything asking why a row is emphasized read the same answer.
+      data-hovered={hovered ? "" : undefined}
+      onPointerEnter={enter}
+      onPointerLeave={leave}
+      onFocus={enter}
+      onBlur={leave}
+      className={`cursor-default px-4 py-2.5 outline-none transition-colors focus-visible:bg-accent/60 ${
+        hovered ? "bg-accent/60" : ""
+      }`}
+    >
       <span
         data-testid="kg-note-title"
         className="block text-sm leading-snug text-foreground wrap-anywhere"
@@ -43,6 +100,7 @@ function NoteListRow({ row }: { row: NoteRow }) {
 // drift — the layout around it is the caller's.
 function NoteListBody({ nodes }: NoteListProps) {
   const [query, setQuery] = useState("");
+  const { hoveredNote } = useNoteHover();
 
   // One list per graph object: the order flips once, and typing re-filters the
   // rows already built rather than rebuilding them on every keystroke.
@@ -87,8 +145,17 @@ function NoteListBody({ nodes }: NoteListProps) {
         </p>
       ) : (
         <ul className="min-h-0 min-w-0 flex-1 divide-y divide-border overflow-y-auto">
+          {/* Only the rows the search kept are here, so only they can take an
+              Emphasis: a note filtered out of the list has no row to answer a
+              node hover. Nothing scrolls them either — the list holds the
+              viewer's reading position while the graph moves under the
+              pointer. */}
           {visible.map((row) => (
-            <NoteListRow key={row.title} row={row} />
+            <NoteListRow
+              key={row.title}
+              row={row}
+              hovered={isHoveredNote(row, hoveredNote)}
+            />
           ))}
         </ul>
       )}

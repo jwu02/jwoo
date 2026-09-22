@@ -1,4 +1,8 @@
-import { buildNoteList, filterNotes } from "@/lib/knowledge-graph/note-list";
+import {
+  buildNoteList,
+  filterNotes,
+  isHoveredNote,
+} from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 
 const node = (id: string, createdAt: string): KnowledgeGraphNode => ({
@@ -101,5 +105,25 @@ describe("filterNotes", () => {
 
   it("preserves the order it was given", () => {
     expect(titles(filterNotes(rows, ".md"))).toEqual(titles(rows));
+  });
+});
+
+describe("isHoveredNote", () => {
+  it("marks the row whose title is the hovered node's id", () => {
+    expect(isHoveredNote({ title: "beta.md" }, "beta.md")).toBe(true);
+  });
+
+  it("leaves the other rows unmarked", () => {
+    expect(isHoveredNote({ title: "beta.md" }, "gamma.md")).toBe(false);
+  });
+
+  // The search is case-insensitive; this is not. A title is an id, and a node
+  // hover is an identity claim about one note.
+  it("matches the title exactly", () => {
+    expect(isHoveredNote({ title: "beta.md" }, "BETA.md")).toBe(false);
+  });
+
+  it("marks nothing while no node is hovered", () => {
+    expect(isHoveredNote({ title: "beta.md" }, null)).toBe(false);
   });
 });

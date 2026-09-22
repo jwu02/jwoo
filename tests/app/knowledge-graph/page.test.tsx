@@ -15,13 +15,37 @@ function renderPage() {
 // change the displayed minute leaves the graph alone.
 const mockGraphRenders = { count: 0 };
 
+// `setHoveredNote` stands in for the renderer's imperative hover setter, so a
+// row hover can be asserted on the stub; `hoverNote` stands in for the
+// renderer reporting a hover back, which is the other direction.
+const mockGraph = {
+  setHoveredNote: jest.fn(),
+  hoverNote: null as ((id: string | null) => void) | null,
+  // Every `graph` prop the stub has been rendered with. A hover must not add
+  // one: the memo compares that prop, so its identity is the contract.
+  graphProps: [] as unknown[],
+};
+
 jest.mock("@/components/knowledge-graph/force-graph", () => ({
   ForceGraph: ({
     graph,
+    onHoverChange,
+    ref,
   }: {
     graph: { nodes: unknown[]; edges: unknown[] };
+    onHoverChange?: (id: string | null) => void;
+    ref?: unknown;
   }) => {
     mockGraphRenders.count += 1;
+    mockGraph.hoverNote = onHoverChange ?? null;
+    mockGraph.graphProps.push(graph);
+    if (typeof ref === "function") {
+      ref({ setHoveredNote: mockGraph.setHoveredNote });
+    } else if (ref && typeof ref === "object") {
+      (ref as { current: unknown }).current = {
+        setHoveredNote: mockGraph.setHoveredNote,
+      };
+    }
     return (
       <div
         data-testid="kg-graph"
@@ -56,7 +80,34 @@ const originalFetch = global.fetch;
 afterEach(() => {
   global.fetch = originalFetch;
   jest.useRealTimers();
+  mockGraph.setHoveredNote.mockClear();
+  mockGraph.hoverNote = null;
+  mockGraph.graphProps.length = 0;
 });
+
+// The panel is the only search field the page renders: the mobile sheet is
+// unmounted until it is opened.
+const searchFields = () => screen.queryAllByRole("searchbox");
+
+// The graph is a stub here, so what these tests assert is the wiring: which
+// call went where, and which row it emphasized.
+async function renderLoadedPage() {
+  renderPage();
+  await waitFor(() => {
+    expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
+  });
+}
+
+const rowByTitle = (title: string) =>
+  screen
+    .getAllByRole("listitem")
+    .find((row) => within(row).getByTestId("kg-note-title").textContent === title)!;
+
+const emphasizedRows = () =>
+  screen
+    .getAllByRole("listitem")
+    .filter((row) => row.hasAttribute("data-hovered"))
+    .map((row) => within(row).getByTestId("kg-note-title").textContent);
 
 describe("KnowledgeGraphPage", () => {
   it("fetches and renders the graph", async () => {
@@ -188,6 +239,83 @@ describe("KnowledgeGraphPage note list", () => {
     fireEvent.change(searchFields()[0], { target: { value: "A" } });
 
     expect(mockGraphRenders.count).toBe(renders);
+  });
+});
+
+describe("KnowledgeGraphPage note list hover", () => {
+  it("drives the renderer's hover when a row is hovered, focus included", async () => {
+    await renderLoadedPage();
+
+    fireEvent.pointerEnter(rowByTitle("B.md"));
+    expect(mockGraph.setHoveredNote).toHaveBeenLastCalledWith("B.md");
+
+    fireEvent.focus(rowByTitle("A.md"));
+    expect(mockGraph.setHoveredNote).toHaveBeenLastCalledWith("A.md");
+
+    // Leaving either way clears: there is one hover, and both its sources end
+    // it through the same call.
+    fireEvent.pointerLeave(rowByTitle("B.md"));
+    expect(mockGraph.setHoveredNote).toHaveBeenLastCalledWith(null);
+    fireEvent.blur(rowByTitle("A.md"));
+    expect(mockGraph.setHoveredNote).toHaveBeenLastCalledWith(null);
+  });
+
+  it("emphasizes the row of the note the graph reports hovered", async () => {
+    await renderLoadedPage();
+
+    act(() => {
+      mockGraph.hoverNote!("B.md");
+    });
+
+    expect(emphasizedRows()).toEqual(["B.md"]);
+  });
+
+  it("drops that Emphasis when the graph reports the hover gone", async () => {
+    await renderLoadedPage();
+    act(() => {
+      mockGraph.hoverNote!("B.md");
+    });
+
+    act(() => {
+      mockGraph.hoverNote!(null);
+    });
+
+    expect(emphasizedRows()).toEqual([]);
+  });
+
+  // The rows the list renders are the rows the search kept, so a row the
+  // search took away cannot answer a hover — there is no row to light.
+  it("does not emphasize a row the search has filtered out", async () => {
+    await renderLoadedPage();
+    fireEvent.change(searchFields()[0], { target: { value: "A" } });
+
+    act(() => {
+      mockGraph.hoverNote!("B.md");
+    });
+
+    expect(emphasizedRows()).toEqual([]);
+  });
+
+  // Hovering re-renders the page — that is how the rows tint — and the
+  // guarantee is that the graph prop out of that render is the same object it
+  // was: the memo compares that one object, so it is what keeps the renderer,
+  // and the simulation inside it, out of every hover. The countdown ticks are
+  // held to the same contract.
+  it("hands the renderer the same graph object through a hover", async () => {
+    await renderLoadedPage();
+    const graphProp = mockGraph.graphProps.at(-1);
+
+    const row = rowByTitle("B.md");
+    fireEvent.pointerEnter(row);
+    fireEvent.pointerLeave(row);
+    act(() => {
+      mockGraph.hoverNote!("A.md");
+    });
+    act(() => {
+      mockGraph.hoverNote!(null);
+    });
+
+    expect(mockGraph.graphProps.every((prop) => prop === graphProp)).toBe(true);
   });
 });
 
