@@ -80,6 +80,13 @@ async function getSimulation() {
   });
 }
 
+// jsdom lays every element out at 0×0, so a test that needs a viewport with a
+// shape to speak of gives the wrapper one.
+function mockViewport(element: Element, width: number, height: number) {
+  Object.defineProperty(element, "clientWidth", { value: width, configurable: true });
+  Object.defineProperty(element, "clientHeight", { value: height, configurable: true });
+}
+
 function setPositions(nodes: Array<{ x?: number; y?: number }>) {
   const simNodes = forceSimulationMock.mock.calls[0][0] as Array<{
     x?: number;
@@ -149,6 +156,41 @@ describe("ForceGraph auto-fit", () => {
         expect(t.k).toBeCloseTo(0.1);
         expect(t.x).toBeCloseTo(-20);
         expect(t.y).toBeCloseTo(-20);
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  // The layout takes its time to settle, and the note list can be collapsed
+  // while it does: the graph is a panel wider by the time the fit lands. It is
+  // the framing of the viewport the graph is in by then — a fit computed
+  // against the box the graph was built in would frame the whole graph
+  // off-centre, undoing the compensation that had held the viewer's centre.
+  it("frames the viewport the graph is in now, not the one it was built in", async () => {
+    const { wrapper } = renderGraph();
+    const sim = await getSimulation();
+    await waitFor(() => expect(sim.handlers.end).toBeDefined());
+
+    setPositions([
+      { x: 100, y: 100 },
+      { x: 300, y: 300 },
+    ]);
+    // The viewport the collapsed panel leaves: a panel's width wider than the
+    // 0×0 jsdom gave the build.
+    mockViewport(wrapper, 1088, 600);
+
+    act(() => {
+      sim.handlers.end();
+    });
+
+    // 200×200 of content into 1088×600 less the fit's padding on each side →
+    // 2.4, centered on (200,200): x = 544 - 480, y = 300 - 480.
+    await waitFor(
+      () => {
+        const t = d3.zoomTransform(wrapper);
+        expect(t.k).toBeCloseTo(2.4);
+        expect(t.x).toBeCloseTo(64);
+        expect(t.y).toBeCloseTo(-180);
       },
       { timeout: 3000 }
     );

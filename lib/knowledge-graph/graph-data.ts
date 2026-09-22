@@ -152,6 +152,31 @@ export function computeFocusTransform(
   return fitPoints(framed, viewportWidth, viewportHeight, padding);
 }
 
+// The camera a layout change leaves behind: the panel beside the graph opened
+// or collapsed, so the graph's viewport is a different width — and the world it
+// draws is anchored to that viewport's left edge, which did not move.
+//
+// What the viewer was looking at is the centre of the viewport, so that is what
+// is put back: the graph point that was at the old centre is moved to the new
+// one, and the zoom they are holding is kept. A pure translation — a viewport
+// that grew by `d` on the right has a centre `d/2` further right, and the graph
+// has to follow it there.
+//
+// Not a framing: nothing here decides how much of the graph should be on
+// screen, which is why it applies from wherever the camera is, including over a
+// viewer who has panned away from every fit.
+export function computeReanchorTransform(
+  transform: { k: number; x: number; y: number },
+  previousWidth: number,
+  nextWidth: number
+): { k: number; x: number; y: number } {
+  return {
+    k: transform.k,
+    x: transform.x + (nextWidth - previousWidth) / 2,
+    y: transform.y,
+  };
+}
+
 // A deliberately loose initial framing for the first paint, before the force
 // layout has run. It centers the seeded centroid and scales so the node spread
 // occupies `margin` of the smaller viewport dimension, clamped to a sane zoom
@@ -209,9 +234,10 @@ export function graphPointFromClient(
   };
 }
 
-// How long the settled fit takes to animate. The rough fit is a snap by
-// comparison — see planFit — so this is the only duration the graph has.
-export const FIT_ANIMATION_MS = 500;
+// How long a camera move the graph makes on its own takes: the settled fit, and
+// the re-anchor a layout change asks for. The rough fit is a snap by comparison
+// — see planFit — and a gesture's motion is the viewer's, not the graph's.
+export const GRAPH_ANIMATION_MS = 500;
 
 // What asked for a fit. The simulation nudges the nodes on every tick, so the
 // first one has nothing settled to frame yet, and "end" is the first moment
@@ -269,7 +295,7 @@ export function planFit(
   return {
     mode: "animate",
     transform: computeFitTransform(nodes, viewportWidth, viewportHeight),
-    durationMs: FIT_ANIMATION_MS,
+    durationMs: GRAPH_ANIMATION_MS,
   };
 }
 

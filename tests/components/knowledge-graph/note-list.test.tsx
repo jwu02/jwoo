@@ -22,19 +22,28 @@ const graph = [
 function renderNoteList(
   nodes: KnowledgeGraphNode[] = graph,
   hoveredNote: string | null = null,
-  focusedNote: string | null = null
+  focusedNote: string | null = null,
+  open = true
 ) {
   const setHoveredNote = jest.fn();
   const focusNote = jest.fn();
   const clearFocus = jest.fn();
+  const onToggle = jest.fn();
   const view = render(
     <NoteHoverProvider value={{ hoveredNote, setHoveredNote }}>
       <NoteFocusProvider value={{ focusedNote, focusNote, clearFocus }}>
-        <NoteList nodes={nodes} />
+        <NoteList nodes={nodes} open={open} onToggle={onToggle} />
       </NoteFocusProvider>
     </NoteHoverProvider>
   );
-  return { ...view, setHoveredNote, focusNote, clearFocus };
+  return { ...view, setHoveredNote, focusNote, clearFocus, onToggle };
+}
+
+// The panel as a desktop that has collapsed it leaves it: the same list, with
+// nothing of it on the page. Named rather than passed as a fourth argument,
+// since a trailing `null, null, false` says nothing about what it is.
+function renderCollapsedNoteList(nodes: KnowledgeGraphNode[] = graph) {
+  return renderNoteList(nodes, null, null, false);
 }
 
 const rowByTitle = (title: string) =>
@@ -92,6 +101,62 @@ describe("NoteList", () => {
     const row = screen.getAllByRole("listitem")[0];
     expect(within(row).getByTestId("kg-note-title")).toHaveTextContent("gamma.md");
     expect(row).toHaveTextContent(/^gamma\.md$/);
+  });
+});
+
+describe("NoteList panel visibility", () => {
+  const panel = () => screen.queryByTestId("kg-note-list");
+  const hideButton = () => screen.queryByRole("button", { name: "Hide notes" });
+  const showButton = () => screen.queryByRole("button", { name: "Show notes" });
+  const browseButton = () => screen.queryByRole("button", { name: "Browse notes" });
+
+  it("offers a way to collapse the panel it is showing", () => {
+    const { onToggle } = renderNoteList();
+
+    fireEvent.click(hideButton()!);
+
+    expect(onToggle).toHaveBeenCalled();
+  });
+
+  // Collapsed means collapsed: the panel is gone, and so is everything it
+  // held — there is no residue of a note list left in the layout.
+  it("leaves no note list behind when it is collapsed", () => {
+    renderCollapsedNoteList();
+
+    expect(panel()).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("listitem")).toEqual([]);
+    expect(screen.queryByText("3 notes")).not.toBeInTheDocument();
+    expect(hideButton()).not.toBeInTheDocument();
+  });
+
+  it("offers the way back while the panel is collapsed", () => {
+    const { onToggle } = renderCollapsedNoteList();
+
+    fireEvent.click(showButton()!);
+
+    expect(onToggle).toHaveBeenCalled();
+  });
+
+  // Below the desktop breakpoint the panel is an overlay, and the graph keeps
+  // the full width: the panel is out of the layout, and the overlay's own
+  // trigger is the one on screen. jsdom evaluates no media queries, so what is
+  // asserted is the CSS that draws the line.
+  it("keeps the panel out of the layout below the desktop breakpoint", () => {
+    renderNoteList();
+
+    expect(panel()).toHaveClass("hidden", "md:flex");
+    expect(hideButton()).toHaveClass("hidden", "md:inline-flex");
+    expect(browseButton()).toHaveClass("md:hidden");
+  });
+
+  // The desktop's way back is the desktop's: below the breakpoint the overlay
+  // is still the way to the notes, so its trigger stays wherever the panel is.
+  it("keeps the overlay's trigger to the narrow screens, collapsed or not", () => {
+    renderCollapsedNoteList();
+
+    expect(showButton()).toHaveClass("hidden", "md:block");
+    expect(browseButton()).toHaveClass("md:hidden");
+    expect(browseButton()).toBeInTheDocument();
   });
 });
 
@@ -247,7 +312,7 @@ describe("NoteList rows drive the graph's hover", () => {
     rerender(
       <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
         <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
-          <NoteList nodes={[graph[0]]} />
+          <NoteList nodes={[graph[0]]} open onToggle={jest.fn()} />
         </NoteFocusProvider>
       </NoteHoverProvider>
     );
@@ -266,7 +331,7 @@ describe("NoteList rows drive the graph's hover", () => {
     rerender(
       <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
         <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
-          <NoteList nodes={graph.filter((n) => n.id !== "alpha.md")} />
+          <NoteList nodes={graph.filter((n) => n.id !== "alpha.md")} open onToggle={jest.fn()} />
         </NoteFocusProvider>
       </NoteHoverProvider>
     );

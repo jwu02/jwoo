@@ -95,8 +95,12 @@ The content one node of the graph represents — a note whose title is that node
 _Avoid_: entry, document
 
 **Note list**:
-The side panel listing every note, newest first, searchable by title. Hovering a row gives its node Emphasis exactly as pointing at the node does; clicking one takes the Focus.
+The side panel listing every note, newest first, searchable by title. Hovering a row gives its node Emphasis exactly as pointing at the node does; clicking one takes the Focus. On desktop it shares the row with the graph and can be collapsed; below the desktop breakpoint it is an overlay behind a toggle, and the graph keeps the full width.
 _Avoid_: sidebar, index, notes panel
+
+**Re-anchor**:
+The compensation a layout change makes to the camera: the note list appeared or went, so the graph's viewport is a different width. The zoom is kept and the graph point the viewer had at the centre is put back at the centre, so the change never reframes or clips what they were looking at. It answers to nothing — not the fit's yield-to-viewer rule, since it is compensation for a change the viewer made — and a change that leaves the viewport alone, the note list's overlay, is owed none.
+_Avoid_: reframe, resize (that is the browser's), fit (that is the whole graph)
 
 **Graph**:
 The nodes and edges of the knowledge graph as one immutable set — what the builder produces, the cache stores, and the renderer draws. A snapshot pairs a graph with its cache provenance.

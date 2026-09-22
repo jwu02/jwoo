@@ -22,6 +22,9 @@ const mockGraphRenders = { count: 0 };
 // renderer reporting that the visitor has taken the camera back.
 const mockGraph = {
   setHoveredNote: jest.fn(),
+  // The other half of the renderer's imperative API: what it is told when the
+  // layout around it changes shape.
+  reanchorViewport: jest.fn(),
   hoverNote: null as ((id: string | null) => void) | null,
   // Every `graph` prop the stub has been rendered with. A hover must not add
   // one: the memo compares that prop, so its identity is the contract.
@@ -49,12 +52,14 @@ jest.mock("@/components/knowledge-graph/force-graph", () => ({
     mockGraph.focusProps.push(focusedNote ?? null);
     mockGraph.takeCamera = onFocusClear ?? null;
     mockGraph.graphProps.push(graph);
+    const handle = {
+      setHoveredNote: mockGraph.setHoveredNote,
+      reanchorViewport: mockGraph.reanchorViewport,
+    };
     if (typeof ref === "function") {
-      ref({ setHoveredNote: mockGraph.setHoveredNote });
+      ref(handle);
     } else if (ref && typeof ref === "object") {
-      (ref as { current: unknown }).current = {
-        setHoveredNote: mockGraph.setHoveredNote,
-      };
+      (ref as { current: unknown }).current = handle;
     }
     return (
       <div
@@ -91,6 +96,7 @@ afterEach(() => {
   global.fetch = originalFetch;
   jest.useRealTimers();
   mockGraph.setHoveredNote.mockClear();
+  mockGraph.reanchorViewport.mockClear();
   mockGraph.hoverNote = null;
   mockGraph.graphProps.length = 0;
   mockGraph.focusProps.length = 0;
@@ -431,6 +437,101 @@ describe("KnowledgeGraphPage note list focus", () => {
     clickRow("B.md");
 
     expect(mockGraph.graphProps.every((prop) => prop === graphProp)).toBe(true);
+  });
+});
+
+describe("KnowledgeGraphPage note list panel", () => {
+  const noteList = () => screen.queryByTestId("kg-note-list");
+  const hideNotes = () => screen.getByRole("button", { name: "Hide notes" });
+  const showNotes = () => screen.getByRole("button", { name: "Show notes" });
+
+  it("collapses the panel, leaving nothing of it on the page", async () => {
+    await renderLoadedPage();
+
+    fireEvent.click(hideNotes());
+
+    expect(noteList()).not.toBeInTheDocument();
+    expect(searchFields()).toEqual([]);
+    expect(screen.queryAllByRole("listitem")).toEqual([]);
+  });
+
+  // Collapsing the panel takes the list with it, so opening it again shows the
+  // whole list rather than a half-remembered one.
+  it("opens the panel again on the whole list, newest first", async () => {
+    await renderLoadedPage();
+    fireEvent.click(hideNotes());
+
+    fireEvent.click(showNotes());
+
+    expect(noteList()).toBeInTheDocument();
+    expect(
+      within(noteList()!).getAllByRole("listitem").map((row) => row.textContent)
+    ).toEqual([expect.stringContaining("B.md"), expect.stringContaining("A.md")]);
+  });
+
+  // The panel appearing or going is a change to the graph's viewport, so each
+  // one is compensated: the renderer is told, and it puts the viewer's centre
+  // back at the centre. Both directions, or the framing would drift a panel's
+  // width every time the list was shown.
+  it("re-anchors the graph on every change to the panel", async () => {
+    await renderLoadedPage();
+
+    fireEvent.click(hideNotes());
+    expect(mockGraph.reanchorViewport).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(showNotes());
+    expect(mockGraph.reanchorViewport).toHaveBeenCalledTimes(2);
+  });
+
+  // The compensation is a camera move, not a rebuild: a renderer torn down and
+  // rebuilt would re-frame the graph, which is the thing the re-anchor exists
+  // to prevent. The memo compares the graph object, so this is that contract
+  // held across a panel toggle.
+  it("hands the renderer the same graph object through a panel toggle", async () => {
+    await renderLoadedPage();
+    const graphProp = mockGraph.graphProps.at(-1);
+
+    fireEvent.click(hideNotes());
+    fireEvent.click(showNotes());
+
+    expect(mockGraph.graphProps.every((prop) => prop === graphProp)).toBe(true);
+  });
+
+  // Below the desktop breakpoint the panel is an overlay: it sits above the
+  // graph rather than taking a column of the row, so the graph keeps the full
+  // width and there is no layout change to compensate for. The page asserts
+  // what CSS cannot be asked in jsdom: which of the two the page renders for
+  // which width.
+  it("lays the overlay over the graph below the desktop breakpoint", async () => {
+    await renderLoadedPage();
+
+    expect(noteList()).toHaveClass("hidden", "md:flex");
+    expect(screen.getByRole("button", { name: "Browse notes" })).toHaveClass(
+      "md:hidden"
+    );
+  });
+
+  it("opens the note list as an overlay without re-anchoring the graph", async () => {
+    await renderLoadedPage();
+
+    // The sheet's trigger opens on a pointer's click, so the press is made by
+    // a pointer: a bare click event is not one.
+    const browse = screen.getByRole("button", { name: "Browse notes" });
+    fireEvent.pointerDown(browse, { pointerType: "mouse" });
+    fireEvent.click(browse);
+
+    // The overlay is up...
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    // ...and it cost the graph nothing, because it is drawn over the graph
+    // rather than beside it: there is no change of shape to compensate for.
+    expect(mockGraph.reanchorViewport).not.toHaveBeenCalled();
+
+    // Closing it is no such change either.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    expect(mockGraph.reanchorViewport).not.toHaveBeenCalled();
   });
 });
 

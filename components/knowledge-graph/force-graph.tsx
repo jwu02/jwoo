@@ -22,7 +22,8 @@ import {
   computeDegrees,
   computeFocusTransform,
   computeNodeTextureRadius,
-  FIT_ANIMATION_MS,
+  computeReanchorTransform,
+  GRAPH_ANIMATION_MS,
   graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
@@ -65,6 +66,11 @@ interface ForceGraphProps {
 // two different notes.
 export interface ForceGraphHandle {
   setHoveredNote(noteId: string | null): void;
+  // The layout around the graph changed shape — the note panel collapsed or
+  // opened — so the camera is put back where the viewer left it: the graph
+  // point that was at the centre of the viewport, at the zoom they are
+  // holding, moved to the centre of the one that replaces it.
+  reanchorViewport(): void;
 }
 
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
@@ -209,6 +215,11 @@ export const ForceGraph = memo(function ForceGraph({
   const dragNodeRef = useRef<GraphNode | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
   const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
+  // The width the graph last laid itself out against. The renderer measures its
+  // wrapper once, at build, and pixi's `resizeTo` hears about window resizes and
+  // nothing else — so this is what a re-anchor compares the viewport it now has
+  // against the one the viewer was looking at.
+  const viewportWidthRef = useRef(0);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<HTMLDivElement, unknown> | null>(null);
   const zoomSelectionRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null);
   const userInteractedRef = useRef(false);
@@ -339,7 +350,52 @@ export const ForceGraph = memo(function ForceGraph({
     [applyHover, positionLabel]
   );
 
-  useImperativeHandle(ref, () => ({ setHoveredNote: setHovered }), [setHovered]);
+  // The layout around the graph changed — the note panel opened or collapsed —
+  // so the graph puts back what the viewer was looking at, and eases there so
+  // they can see which way it moved instead of finding it moved.
+  //
+  // Not gated by anything, unlike a fit: this is compensation for a change the
+  // viewer made to the page rather than a framing of its own, so it applies
+  // over a viewer who has panned away from every fit. A layout that left the
+  // viewport alone — the note list's overlay, which sits above the graph
+  // rather than beside it — has nothing to compensate for.
+  const reanchorViewport = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    const selection = zoomSelectionRef.current;
+    const zoom = zoomBehaviorRef.current;
+    if (!wrapper || !selection || !zoom) return;
+
+    const nextWidth = wrapper.clientWidth;
+    const previousWidth = viewportWidthRef.current;
+    viewportWidthRef.current = nextWidth;
+    // Nothing has been built yet, or the viewport is the one the graph is
+    // already drawn against: either way there is nothing to put back.
+    if (previousWidth === 0 || nextWidth === previousWidth) return;
+
+    // The surface the world is drawn into follows the viewport it is drawn in:
+    // it is still the width the graph was built at, and a canvas the old width
+    // would clip the graph at an edge the viewport no longer has.
+    app?.resize();
+
+    const { x, y, k } = computeReanchorTransform(
+      zoomTransformRef.current,
+      previousWidth,
+      nextWidth
+    );
+    // A fit or a flight still in the air would fight this one — d3 keeps one
+    // transition per element — so the camera is taken before it is moved.
+    selection.interrupt();
+    selection
+      .transition()
+      .duration(GRAPH_ANIMATION_MS)
+      .call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(k));
+  }, [app]);
+
+  useImperativeHandle(
+    ref,
+    () => ({ setHoveredNote: setHovered, reanchorViewport }),
+    [setHovered, reanchorViewport]
+  );
 
   // Ends the focus the graph is drawing, and reports it to the page that owns
   // it. Stable, so the zoom gesture can hold onto it across every rebuild: the
@@ -457,7 +513,7 @@ export const ForceGraph = memo(function ForceGraph({
       selection.interrupt();
       selection
         .transition()
-        .duration(FIT_ANIMATION_MS)
+        .duration(GRAPH_ANIMATION_MS)
         .call(
           zoom.transform,
           d3.zoomIdentity.translate(transform.x, transform.y).scale(transform.k)
@@ -472,6 +528,9 @@ export const ForceGraph = memo(function ForceGraph({
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const { clientWidth, clientHeight } = wrapper;
+    // The viewport this build frames against, and so the one a later layout
+    // change is measured from.
+    viewportWidthRef.current = clientWidth;
 
     const teardownWorld = () => {
       dragCleanupRef.current?.();
@@ -666,8 +725,14 @@ export const ForceGraph = memo(function ForceGraph({
           // for is the one that stands.
           focused: drawnFocusRef.current !== null,
           nodes: simNodes,
-          viewportWidth: clientWidth,
-          viewportHeight: clientHeight,
+          // The viewport the graph is in now, which the fit is the framing of.
+          // Read live rather than taken from the build: a panel that came or
+          // went while the layout was still settling leaves the graph a
+          // different box to be framed inside, and a fit computed against the
+          // one it was built in would frame it off-centre — undoing the
+          // compensation that kept the viewer's centre while it settled.
+          viewportWidth: wrapper.clientWidth,
+          viewportHeight: wrapper.clientHeight,
         });
         if (plan) applyFit(plan);
       };
@@ -724,6 +789,17 @@ export const ForceGraph = memo(function ForceGraph({
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
+    // A window resize is not the graph's to compensate for — pixi's `resizeTo`
+    // follows it and the camera is left where the viewer put it — but the width
+    // it leaves behind is the viewport the graph is drawn against, and so the
+    // one a later panel toggle measures from. Recorded where it happens rather
+    // than measured at the toggle, which would take the width the graph had
+    // before the window moved and compensate for that as well.
+    const recordViewport = () => {
+      viewportWidthRef.current = wrapper.clientWidth;
+    };
+    window.addEventListener("resize", recordViewport);
+
     const zoom = d3
       .zoom<HTMLDivElement, unknown>()
       .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
@@ -731,12 +807,21 @@ export const ForceGraph = memo(function ForceGraph({
         // A sourceEvent is the visitor's own hand — a wheel, a drag, a
         // double-click. The graph's own transitions carry none, which is what
         // lets the flight below be told apart from the gesture that ends it.
+        //
+        // What is deliberately *not* here is an interrupt. A gesture takes the
+        // camera off whatever the graph was doing, but d3-zoom interrupts the
+        // element's transitions itself the moment one begins, before it emits
+        // the first zoom of the gesture — and interrupting from here instead
+        // would take the graph's own moves down with it: a wheel keeps its
+        // gesture live for a moment after the last event, a transition started
+        // inside that window reuses that gesture, and every frame of the
+        // graph's own camera move would then read as the visitor's hand and
+        // cancel it on its first frame.
         if (event.sourceEvent) {
           userInteractedRef.current = true;
-          zoomSelectionRef.current?.interrupt();
-          // The camera is the visitor's again: a flight still in the air is
-          // cancelled, and a focus already framed is over — the note list must
-          // not go on claiming a note they have panned away from.
+          // The camera is the visitor's again: a focus already framed is over,
+          // because the note list must not go on claiming a note they have
+          // panned away from.
           clearFocus();
         }
         zoomTransformRef.current = { x: event.transform.x, y: event.transform.y, k: event.transform.k };
@@ -765,6 +850,7 @@ export const ForceGraph = memo(function ForceGraph({
 
     return () => {
       selection.on(".zoom", null);
+      window.removeEventListener("resize", recordViewport);
       zoomBehaviorRef.current = null;
       zoomSelectionRef.current = null;
     };
@@ -816,7 +902,14 @@ export const ForceGraph = memo(function ForceGraph({
       // `flex-1 min-w-0` rather than `w-full`: the wrapper shares its row with
       // the note list, and a fixed `width: 100%` would ignore the sibling's
       // share of it.
-      className="relative h-full min-w-0 flex-1 overflow-hidden touch-none"
+      //
+      // The canvas is taken out of the wrapper's flow for the same reason, and
+      // it is load-bearing rather than tidiness: pixi sizes it with an explicit
+      // width, and a width the wrapper cannot shrink below is a wrapper the row
+      // cannot shrink below — so a surface still the width of the viewport the
+      // graph had a moment ago would widen the page around it instead of being
+      // clipped by the box it is drawn in.
+      className="relative h-full min-w-0 flex-1 overflow-hidden touch-none [&>canvas]:absolute [&>canvas]:top-0 [&>canvas]:left-0"
       data-testid="kg-graph-wrapper"
     >
       {/* One label per node, drawn from the start so crossing the zoom

@@ -129,10 +129,21 @@ class Application {
       remove: () => {},
     };
     this.__destroyed = false;
+    this.__size = null;
   }
 
   async init(options) {
     this.options = options;
+    this.resize();
+  }
+
+  // Mirrors the ResizePlugin: the surface takes the size of whatever it was
+  // told to follow, so a test can assert which box the graph was drawn into.
+  resize() {
+    const target = this.options?.resizeTo;
+    this.__size = target
+      ? { width: target.clientWidth, height: target.clientHeight }
+      : null;
   }
 
   destroy(rendererDestroyOptions, options) {

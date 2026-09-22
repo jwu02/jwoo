@@ -5,8 +5,9 @@ import {
   computeFocusTransform,
   computeNeighbors,
   computeNodeTextureRadius,
+  computeReanchorTransform,
   computeRoughInitialTransform,
-  FIT_ANIMATION_MS,
+  GRAPH_ANIMATION_MS,
   graphPointFromClient,
   LABEL_ZOOM_THRESHOLD,
   nodeRadius,
@@ -321,6 +322,52 @@ describe("computeRoughInitialTransform", () => {
   });
 });
 
+describe("computeReanchorTransform", () => {
+  const transform = { k: 2, x: -400, y: -300 };
+
+  // Where a graph point is drawn, in the viewport's own pixels. What a
+  // re-anchor is for is that one point keeps landing in the middle.
+  const screenOf = (
+    t: { k: number; x: number; y: number },
+    point: { x: number; y: number }
+  ) => ({ x: point.x * t.k + t.x, y: point.y * t.k + t.y });
+
+  it("draws the graph point that was at the centre at the centre of the new viewport", () => {
+    // The point under the middle of the 512-wide viewport: (256 - -400) / 2.
+    const centre = { x: 328, y: 300 };
+    expect(screenOf(transform, centre)).toEqual({ x: 256, y: 300 });
+
+    const after = computeReanchorTransform(transform, 512, 800);
+
+    // The same point, in a viewport whose middle is now 400.
+    expect(screenOf(after, centre)).toEqual({ x: 400, y: 300 });
+  });
+
+  it("holds the zoom the viewer is at", () => {
+    expect(computeReanchorTransform(transform, 512, 800).k).toBe(2);
+  });
+
+  it("moves the camera by half the width it gained", () => {
+    expect(computeReanchorTransform(transform, 512, 800)).toEqual({
+      k: 2,
+      x: -256,
+      y: -300,
+    });
+  });
+
+  it("moves it back the other way when the viewport narrows", () => {
+    expect(computeReanchorTransform(transform, 800, 512)).toEqual({
+      k: 2,
+      x: -544,
+      y: -300,
+    });
+  });
+
+  it("leaves a viewport that did not change alone", () => {
+    expect(computeReanchorTransform(transform, 800, 800)).toEqual(transform);
+  });
+});
+
 describe("graphPointFromClient", () => {
   // The wrapper's own offset on the page, which the pointer has to be measured
   // against before the transform is considered.
@@ -392,7 +439,7 @@ describe("planFit", () => {
     expect(planFit("settled", context())).toEqual({
       mode: "animate",
       transform: computeFitTransform(nodes, width, height),
-      durationMs: FIT_ANIMATION_MS,
+      durationMs: GRAPH_ANIMATION_MS,
     });
   });
 
@@ -440,7 +487,7 @@ describe("planFit", () => {
     expect(planFit(trigger, empty)).toEqual({
       mode: "animate",
       transform: { k: 1, x: 0, y: 0 },
-      durationMs: FIT_ANIMATION_MS,
+      durationMs: GRAPH_ANIMATION_MS,
     });
   });
 });

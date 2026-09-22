@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookTextIcon } from "lucide-react";
+import { BookTextIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
 import {
   buildNoteList,
   filterNotes,
@@ -23,6 +23,13 @@ import { useNoteFocus } from "./note-focus";
 
 interface NoteListProps {
   nodes: readonly KnowledgeGraphNode[];
+  // Whether the panel is sharing the graph's row. The page owns it: the graph's
+  // viewport is a different width without it, and only the page can tell the
+  // renderer to put the viewer's framing back afterwards.
+  open: boolean;
+  // Asked for the panel to open or close. Both of its controls are this — the
+  // one in its header, and the one that stands in for it while it is gone.
+  onToggle: () => void;
 }
 
 // A row is its title. The titles carry the words a viewer remembers ("project
@@ -123,8 +130,13 @@ function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
 
 // The panel's body: header, search field, rows. Free-standing so the desktop
 // column and the mobile sheet draw the same thing rather than two copies that
-// drift — the layout around it is the caller's.
-function NoteListBody({ nodes }: NoteListProps) {
+// drift — the layout around it is the caller's, and so is the way out of it:
+// the sheet has the popup's own close button, so only the column is handed a
+// toggle to draw in its header.
+function NoteListBody({
+  nodes,
+  onToggle,
+}: Pick<NoteListProps, "nodes"> & { onToggle?: () => void }) {
   const [query, setQuery] = useState("");
   const { hoveredNote } = useNoteHover();
   const { focusedNote, clearFocus } = useNoteFocus();
@@ -159,6 +171,19 @@ function NoteListBody({ nodes }: NoteListProps) {
           {/* The count describes the graph, so it holds still while the list
               narrows — the list itself is the answer to the query. */}
           <span className="text-xs text-muted-foreground">{countLabel}</span>
+          {/* The panel's way out of the way, beside the things it is about.
+              Only the desktop column is given one: the sheet is dismissed by
+              the button the popup draws in its own corner. */}
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Hide notes"
+              className="hidden cursor-pointer rounded-sm p-0.5 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:inline-flex"
+            >
+              <PanelRightCloseIcon aria-hidden="true" className="size-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -214,22 +239,41 @@ function NoteListBody({ nodes }: NoteListProps) {
 }
 
 // The note list: every note newest first, searchable by title. Beside the graph
-// on desktop; behind a toggle over it below the desktop breakpoint, where the
-// graph keeps the full width.
-export function NoteList({ nodes }: NoteListProps) {
+// on desktop, where the page can collapse it; behind a toggle over it below the
+// desktop breakpoint, where the graph keeps the full width.
+export function NoteList({ nodes, open, onToggle }: NoteListProps) {
   return (
     <>
-      {/* `min-h-0` is load-bearing: a flex item's automatic minimum size is its
-          content, and this one holds every note in the graph. Without it the
-          panel's 656 rows set the row's height, and the graph beside it — sized
-          `h-full` — is stretched to match. */}
-      <aside
-        data-testid="kg-note-list"
-        aria-label="Note list"
-        className="hidden min-h-0 w-72 shrink-0 border-l border-border bg-card/40 md:flex"
-      >
-        <NoteListBody nodes={nodes} />
-      </aside>
+      {/* Off the row entirely rather than hidden inside it: the graph beside it
+          is sized from this row, and a panel that is not being shown must not
+          be taking any of it. */}
+      {open && (
+        /* `min-h-0` is load-bearing: a flex item's automatic minimum size is
+           its content, and this one holds every note in the graph. Without it
+           the panel's 656 rows set the row's height, and the graph beside it —
+           sized `h-full` — is stretched to match. */
+        <aside
+          data-testid="kg-note-list"
+          aria-label="Note list"
+          className="hidden min-h-0 w-72 shrink-0 border-l border-border bg-card/40 md:flex"
+        >
+          <NoteListBody nodes={nodes} onToggle={onToggle} />
+        </aside>
+      )}
+
+      {/* What the panel leaves behind: a desktop that has collapsed it needs a
+          way to bring it back, and that is the graph's own corner — the same
+          one the overlay's trigger appears in. */}
+      {!open && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Show notes"
+          className="absolute top-3 right-3 z-20 hidden cursor-pointer rounded-md border border-border bg-card p-2 text-muted-foreground outline-none hover:text-foreground md:block"
+        >
+          <PanelRightOpenIcon aria-hidden="true" className="size-4" />
+        </button>
+      )}
 
       {/* CSS, not `useIsMobile`, decides which of the two shows: the panel has
           to be present at first paint — the graph frames itself against the
@@ -241,7 +285,7 @@ export function NoteList({ nodes }: NoteListProps) {
             <button
               type="button"
               aria-label="Browse notes"
-              className="absolute top-3 right-3 z-20 rounded-md border border-border bg-card p-2 text-muted-foreground outline-none hover:text-foreground md:hidden"
+              className="absolute top-3 right-3 z-20 cursor-pointer rounded-md border border-border bg-card p-2 text-muted-foreground outline-none hover:text-foreground md:hidden"
             />
           }
         >

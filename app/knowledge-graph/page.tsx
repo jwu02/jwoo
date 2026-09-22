@@ -70,6 +70,28 @@ export default function KnowledgeGraphPage() {
   const [hoveredNote, setReportedHover] = useState<string | null>(null);
   const graphRef = useRef<ForceGraphHandle>(null);
 
+  // Whether the note list shares the graph's row. It is the page's to hold
+  // because it is not only the list's: the graph's viewport is a different
+  // width without it, and the renderer — which draws into the box it was built
+  // in — has to be told so it can put the viewer's framing back.
+  const [notesOpen, setNotesOpen] = useState(true);
+  const toggleNotes = useCallback(() => setNotesOpen((open) => !open), []);
+
+  // Every change to the panel is a change to the graph's viewport, so each one
+  // is compensated: zoom unchanged, the graph point the viewer had at the
+  // centre put back at the centre, so showing or hiding the list never reframes
+  // or clips what they were looking at. The first run is the mount itself,
+  // where nothing has moved and the graph has framed itself against the row it
+  // already has.
+  const laidOutRef = useRef(false);
+  useEffect(() => {
+    if (!laidOutRef.current) {
+      laidOutRef.current = true;
+      return;
+    }
+    graphRef.current?.reanchorViewport();
+  }, [notesOpen]);
+
   // One name per direction: this one goes *to* the renderer, where the reported
   // setter above takes what comes *from* it.
   const driveHover = useCallback((noteId: string | null) => {
@@ -140,7 +162,11 @@ export default function KnowledgeGraphPage() {
             focusedNote={focusedNote}
             onFocusClear={clearFocus}
           />
-          <NoteList nodes={graph.nodes} />
+          <NoteList
+            nodes={graph.nodes}
+            open={notesOpen}
+            onToggle={toggleNotes}
+          />
           {/* Inside the row, not above it: the notice belongs to the graph's own
               corner, and a row-relative box puts it there without the page having
               to know how wide the sidebar or the note panel are. */}
