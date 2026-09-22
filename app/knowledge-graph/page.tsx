@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { NoteList } from "@/components/knowledge-graph/note-list";
-import { CacheToast } from "@/components/knowledge-graph/cache-toast";
+import { CacheNotice } from "@/components/knowledge-graph/cache-notice";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
 import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
@@ -79,7 +79,10 @@ export default function KnowledgeGraphPage() {
     <div className="relative flex h-full shrink-0 overflow-hidden">
       <ForceGraph graph={graph} />
       <NoteList nodes={graph.nodes} />
-      {countdown && <CacheToast {...countdown} />}
+      {/* Inside the row, not above it: the notice belongs to the graph's own
+          corner, and a row-relative box puts it there without the page having
+          to know how wide the sidebar or the note panel are. */}
+      {countdown && <CacheNotice {...countdown} />}
     </div>
   ) : error && !data ? (
     // Only fatal when there is nothing to show. Once a graph is on screen, a

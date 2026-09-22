@@ -1,16 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import KnowledgeGraphPage from "@/app/knowledge-graph/page";
-import { Toaster } from "@/components/ui/toast";
 
-// The page's cache notice is a toast, so it needs the viewport the root layout
-// provides. The `Toaster` lands in the first commit and the notice only once
-// the fetch resolves, which is the order the app mounts them in.
 function renderPage() {
-  return render(
-    <Toaster>
-      <KnowledgeGraphPage />
-    </Toaster>
-  );
+  return render(<KnowledgeGraphPage />);
 }
 
 // This page owns the fetch, the countdown and the layout; the Pixi graph
@@ -232,7 +224,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
     await flush();
 
     expect(
-      screen.getByRole("dialog", { name: "Server-side Cache" })
+      screen.getByText("Server-side Cache")
     ).toBeInTheDocument();
     expect(screen.getByText("Expires in 30 min")).toBeInTheDocument();
     expect(screen.getByText(/Last updated /)).toBeInTheDocument();
