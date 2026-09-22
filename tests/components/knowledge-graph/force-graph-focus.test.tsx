@@ -76,8 +76,9 @@ const POSITIONS = [
   { x: 400, y: 400 },
 ];
 
-// Framing C means framing B with it: 200 units of content around (300,300).
-const FOCUS_C = { k: 2.4, x: -320, y: -420 };
+// Framing C means framing B with it: 200 units of content around (300,300),
+// fitted at 2.4 and eased back by FOCUS_ZOOM_OUT.
+const FOCUS_C = { k: 1.44, x: -32, y: -132 };
 
 interface MockNode {
   label?: string;
@@ -176,16 +177,17 @@ describe("ForceGraph focus", () => {
     expect(getContainers(container).nodesContainer?.children?.length).toBe(3);
   });
 
-  it("frames an isolated note at natural scale, centered on it", async () => {
-    // C has no links, so there is no extent to fit: the camera sits at natural
-    // scale over the note itself rather than zooming in on a point.
+  it("centers an isolated note at the eased-back scale", async () => {
+    // C has no links, so there is no extent to fit: the camera rests at
+    // natural scale over the note itself, eased back like every focus, rather
+    // than zooming in on a point.
     const isolated = { nodes: NODES, edges: [{ source: "A.md", target: "B.md" }] };
     const { rerender, wrapper } = await renderGraph(isolated);
     setPositions();
 
     rerender(<ForceGraph graph={isolated} focusedNote="C.md" />);
 
-    await waitFor(() => expectAt(wrapper, { k: 1, x: 0, y: -100 }), { timeout: 3000 });
+    await waitFor(() => expectAt(wrapper, { k: 0.6, x: 160, y: 60 }), { timeout: 3000 });
   });
 
   it("keeps the focused note emphasized while the pointer is elsewhere", async () => {
@@ -273,7 +275,7 @@ describe("ForceGraph focus against the fits", () => {
 
     // C with its neighbour B, framed where they now are.
     await waitFor(
-      () => expectAt(wrapper, { k: 2.4, x: -2240, y: -2340 }),
+      () => expectAt(wrapper, { k: 1.44, x: -1184, y: -1284 }),
       { timeout: 3000 }
     );
   });

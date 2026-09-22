@@ -180,15 +180,16 @@ describe("computeFocusTransform", () => {
   ];
 
   it("frames the note together with its neighbours, not the whole graph", () => {
-    // A and B span 200×200 around (100,100) → 680/200 vs 480/200 → 2.4.
+    // A and B span 200×200 around (100,100) → 680/200 vs 480/200 → 2.4 fitted,
+    // eased back by FOCUS_ZOOM_OUT → 1.44.
     expect(
       computeFocusTransform("A.md", chain, chainEdges, width, height, padding)
-    ).toEqual({ k: 2.4, x: 160, y: 60 });
+    ).toEqual({ k: 1.44, x: 256, y: 156 });
   });
 
   it("stops at the note's own neighbours", () => {
     // A line, so including A — two links from C — would visibly widen the
-    // frame: 400 units of content at 1.2 rather than 200 at 2.4.
+    // frame: 400 units of content rather than 200.
     const line = [at("A.md", 0, 0), at("B.md", 200, 200), at("C.md", 400, 400)];
     const lineEdges = [
       { source: "A.md", target: "B.md" },
@@ -198,26 +199,30 @@ describe("computeFocusTransform", () => {
     // C is framed with B, and only with B.
     expect(
       computeFocusTransform("C.md", line, lineEdges, width, height, padding)
-    ).toEqual({ k: 2.4, x: -320, y: -420 });
+    ).toEqual({ k: 1.44, x: -32, y: -132 });
   });
 
-  it("frames an isolated note at natural scale, centered on it", () => {
+  it("centers an isolated note at the eased-back scale", () => {
     const nodes = [at("A.md", 100, 100), at("B.md", 5000, 5000)];
 
+    // No extent to frame, so the fit rests at natural scale — and the focus
+    // eases back from it like every other.
     expect(computeFocusTransform("A.md", nodes, [], width, height, padding)).toEqual({
-      k: 1,
-      x: 300,
-      y: 200,
+      k: 0.6,
+      x: 340,
+      y: 240,
     });
   });
 
-  it("holds a tight neighbourhood at the maximum zoom", () => {
+  it("eases a tight neighbourhood back from the maximum zoom", () => {
     const nodes = [at("A.md", 0, 0), at("B.md", 10, 10)];
     const edges = [{ source: "A.md", target: "B.md" }];
 
+    // The fit itself clamps to 4; the focus then sits 40% back from it rather
+    // than filling the viewport with two nodes.
     expect(
       computeFocusTransform("A.md", nodes, edges, width, height, padding)
-    ).toEqual({ k: 4, x: 380, y: 280 });
+    ).toEqual({ k: 2.4, x: 388, y: 288 });
   });
 
   it("clamps a far-flung neighbourhood to the minimum zoom", () => {
@@ -238,7 +243,7 @@ describe("computeFocusTransform", () => {
 
     expect(
       computeFocusTransform("A.md", nodes, edges, width, height, padding)
-    ).toEqual({ k: 2.4, x: 160, y: 60 });
+    ).toEqual({ k: 1.44, x: 256, y: 156 });
   });
 
   it("has no transform for a note the graph does not hold", () => {

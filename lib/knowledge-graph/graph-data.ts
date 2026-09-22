@@ -126,14 +126,23 @@ export function computeFitTransform(
   return fitPoints(nodes, viewportWidth, viewportHeight, padding);
 }
 
+// How far back from its fitted scale the focus sits. The fitted scale is the
+// one that fills the viewport with the note and its direct neighbours — and
+// most neighbourhoods are tight enough to be clamped at the zoom ceiling,
+// which frames a note in nothing but its immediate company. Easing back from
+// the fit is what keeps the notes around it on screen: seeing the clicked note
+// as part of its graph is the point of focusing it.
+export const FOCUS_ZOOM_OUT = 0.6;
+
 // The framing the camera flies to when a note takes the Focus: the note and its
-// neighbours, padded and clamped like any other framing. Deliberately not the
-// whole graph — seeing the note in its company is the point of focusing it.
+// neighbours, padded and clamped like any other framing, then eased back from
+// the fitted scale by FOCUS_ZOOM_OUT. Deliberately not the whole graph — seeing
+// the note in its company is the point of focusing it.
 //
-// A note with no neighbours has no extent to frame, so it lands at natural
-// scale centered on itself, the same rule the whole-graph fit uses for a graph
-// of one node. Null when there is nothing to aim at: a note the graph does not
-// hold, or one the layout has not placed yet.
+// A note with no neighbours has no extent to frame, so it is centered on
+// itself at the eased-back scale, like every focus. Null when there is nothing
+// to aim at: a note the graph does not hold, or one the layout has not placed
+// yet.
 export function computeFocusTransform(
   noteId: string,
   nodes: readonly { id: string; x?: number; y?: number }[],
@@ -149,7 +158,21 @@ export function computeFocusTransform(
   const framed = nodes.filter(
     (node) => node.id === noteId || neighbors?.has(node.id)
   );
-  return fitPoints(framed, viewportWidth, viewportHeight, padding);
+  const fit = fitPoints(framed, viewportWidth, viewportHeight, padding);
+
+  // The eased-back scale stays inside the reachable zoom range: below the
+  // gesture's floor d3 would silently clamp the flight, and the camera would
+  // land somewhere the computed transform does not describe.
+  const k = Math.max(NODE_MIN_ZOOM, fit.k * FOCUS_ZOOM_OUT);
+  // The neighbourhood stays centred: the fit's translate is undone into the
+  // content centre it came from, and re-applied at the eased-back scale.
+  const centerX = (viewportWidth / 2 - fit.x) / fit.k;
+  const centerY = (viewportHeight / 2 - fit.y) / fit.k;
+  return {
+    k,
+    x: viewportWidth / 2 - k * centerX,
+    y: viewportHeight / 2 - k * centerY,
+  };
 }
 
 // The camera a layout change leaves behind: the panel beside the graph opened
