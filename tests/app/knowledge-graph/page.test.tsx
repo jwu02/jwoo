@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import KnowledgeGraphPage from "@/app/knowledge-graph/page";
 import { Toaster } from "@/components/ui/toast";
 
@@ -121,6 +121,81 @@ describe("KnowledgeGraphPage", () => {
     });
     expect(screen.queryByText(/invalid date/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/NaN/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("KnowledgeGraphPage note list", () => {
+  // The panel is the only search field the page renders: the mobile sheet is
+  // unmounted until it is opened.
+  const searchFields = () => screen.queryAllByRole("searchbox");
+  const noteList = () => screen.queryByTestId("kg-note-list");
+
+  it("renders the note list beside the graph once the snapshot loads", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
+    });
+
+    const panel = noteList();
+    expect(panel).toBeInTheDocument();
+    expect(within(panel!).getByText(/^2 notes$/)).toBeInTheDocument();
+    // Newest first: B.md was created a day after A.md.
+    expect(
+      within(panel!)
+        .getAllByRole("listitem")
+        .map((row) => row.textContent)
+    ).toEqual([
+      expect.stringContaining("B.md"),
+      expect.stringContaining("A.md"),
+    ]);
+  });
+
+  it("renders no panel while loading", () => {
+    renderPage();
+
+    expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
+    expect(searchFields()).toEqual([]);
+  });
+
+  it("renders no panel when the graph is empty", async () => {
+    global.fetch = fetchMock({ nodes: [], edges: [] });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("No notes synced yet.")).toBeInTheDocument();
+    });
+    expect(searchFields()).toEqual([]);
+  });
+
+  // An empty panel is not a usable one: with no graph to list, the panel's
+  // place is taken by the page's own empty state.
+  it("renders no panel when the load fails outright", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+    ) as jest.Mock;
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load knowledge graph")).toBeInTheDocument();
+    });
+    expect(searchFields()).toEqual([]);
+  });
+
+  // The search filters the list and nothing else, so typing in it must not
+  // reach the renderer — the same guarantee the countdown holds.
+  it("leaves the graph alone while the search is typed into", async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
+    });
+    const renders = mockGraphRenders.count;
+
+    fireEvent.change(searchFields()[0], { target: { value: "A" } });
+
+    expect(mockGraphRenders.count).toBe(renders);
   });
 });
 

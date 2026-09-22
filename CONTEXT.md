@@ -70,6 +70,10 @@ _Avoid_: tween, camera animation
 The transform that frames the whole graph inside its viewport. A rough fit frames the graph on first paint, before the layout has settled; a precise fit reframes it once it has. Both yield to the viewer as soon as they zoom or pan.
 _Avoid_: reframe, zoom-to-fit
 
+**Focus**:
+The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis; it ends on Esc or the note list's clear affordance, and a viewer-driven camera move cancels the flight and clears it.
+_Avoid_: highlight, pin, zoom-to-node
+
 **Label threshold**:
 The zoom level above which every node's label shows; below it, only the hovered node's.
 _Avoid_: label zoom, reveal zoom
@@ -85,6 +89,14 @@ _Avoid_: high-degree node
 **Emphasis**:
 The visual state hover gives a node: hovered, neighbor, or dimmed — idle when nothing is hovered. It layers over the node's base role (leaf or hub).
 _Avoid_: highlight, dim rule
+
+**Note**:
+The content one node of the graph represents — a note whose title is that node's id. Notes are what the list and search speak of; nodes are what the renderer draws. One thing, two words for two roles.
+_Avoid_: entry, document
+
+**Note list**:
+The side panel listing every note, newest first, searchable by title. Hovering a row gives its node Emphasis exactly as pointing at the node does; clicking one takes the Focus.
+_Avoid_: sidebar, index, notes panel
 
 **Graph**:
 The nodes and edges of the knowledge graph as one immutable set — what the builder produces, the cache stores, and the renderer draws. A snapshot pairs a graph with its cache provenance.

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
+import { NoteList } from "@/components/knowledge-graph/note-list";
 import { CacheToast } from "@/components/knowledge-graph/cache-toast";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
@@ -78,8 +79,20 @@ export default function KnowledgeGraphPage() {
           <ErrorBanner message={error} onRetry={load} />
         </div>
       )}
-      <div className="relative flex-1 overflow-hidden">
+      {/* The panel is a sibling of the graph, not an overlay, so the graph
+          frames itself against the width the list leaves — and the two are
+          mounted together, because a panel appearing after the first fit would
+          re-frame a graph the viewer had already looked at.
+          No `flex-1` on the row, and an explicit height rather than `h-full`:
+          the graph's own box is `h-full`, and a percentage has nothing to
+          resolve against — neither on a flex item sized `flex-1`, nor on the
+          page column, which the app shell sizes to `min-h-screen` rather than a
+          height. Either way the row would take its height from the note list's
+          rows instead, and the graph would be stretched to match them. The
+          branches above size themselves the same way. */}
+      <div className="relative flex h-[calc(100vh-4rem)] overflow-hidden">
         <ForceGraph graph={data} />
+        <NoteList nodes={data.nodes} />
         {countdown && <CacheToast {...countdown} />}
       </div>
     </div>

@@ -599,7 +599,10 @@ export const ForceGraph = memo(function ForceGraph({ graph }: ForceGraphProps) {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full overflow-hidden touch-none"
+      // `flex-1 min-w-0` rather than `w-full`: the wrapper shares its row with
+      // the note list, and a fixed `width: 100%` would ignore the sibling's
+      // share of it.
+      className="relative h-full min-w-0 flex-1 overflow-hidden touch-none"
       data-testid="kg-graph-wrapper"
     >
       {/* One label per node, drawn from the start so crossing the zoom
