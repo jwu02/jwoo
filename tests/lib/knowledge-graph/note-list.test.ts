@@ -28,10 +28,9 @@ describe("buildNoteList", () => {
     expect(buildNoteList(graph)[0].title).toBe("gamma.md");
   });
 
-  // The list renders the date itself; the graph's own ISO string is what it
-  // hands over, untouched.
-  it("carries the node's creation timestamp through", () => {
-    expect(buildNoteList(graph)[0].createdAt).toBe(newest.createdAt);
+  // A row is its title. The panel shows no date, so the row carries none.
+  it("carries nothing but the title", () => {
+    expect(Object.keys(buildNoteList(graph)[0])).toEqual(["title"]);
   });
 
   it("reads an empty graph as an empty list", () => {

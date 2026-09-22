@@ -4,12 +4,11 @@ import type { KnowledgeGraphNode } from "./types";
 // node's id, which is what the sync tool keys on, so it is also what the row
 // keys on — the two cannot diverge.
 //
-// The creation timestamp stays an ISO string rather than becoming a date here.
-// `lib/ui/` holds this project's formatting vocabulary and nothing in the lib
-// reaches down to it, so the panel does its own rendering.
+// A row is only its title. The node's creation date is not carried here: the
+// panel does not show one, and a field nothing renders is a field that starts
+// to drift.
 export interface NoteRow {
   title: string;
-  createdAt: string;
 }
 
 // The graph's nodes, newest first. The graph itself stays oldest→newest — that
@@ -18,9 +17,7 @@ export interface NoteRow {
 export function buildNoteList(
   nodes: readonly KnowledgeGraphNode[]
 ): NoteRow[] {
-  return [...nodes]
-    .reverse()
-    .map((node) => ({ title: node.id, createdAt: node.createdAt }));
+  return [...nodes].reverse().map((node) => ({ title: node.id }));
 }
 
 // The rows a query keeps: a case-insensitive substring of the title. A query

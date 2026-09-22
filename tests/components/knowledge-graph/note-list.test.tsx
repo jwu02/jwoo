@@ -43,15 +43,14 @@ describe("NoteList", () => {
     expect(screen.getByText("1 note")).toBeInTheDocument();
   });
 
-  // The format is pinned to en-US rather than the browser's locale, so the
-  // assertion is a literal — a runner in en-GB would otherwise fail on a
-  // difference the viewer never sees.
-  it("shows each note's title and creation date", () => {
+  // The date a note was written was on every row and is on none of them now —
+  // the row is the title and nothing else.
+  it("shows each note's title and nothing else", () => {
     renderNoteList();
 
     const row = screen.getAllByRole("listitem")[0];
     expect(within(row).getByTestId("kg-note-title")).toHaveTextContent("gamma.md");
-    expect(row).toHaveTextContent("Mar 2, 2025");
+    expect(row).toHaveTextContent(/^gamma\.md$/);
   });
 });
 

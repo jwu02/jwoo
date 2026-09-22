@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookTextIcon, SearchIcon } from "lucide-react";
+import { BookTextIcon } from "lucide-react";
 import { buildNoteList, filterNotes, type NoteRow } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 import { Input } from "@/components/ui/input";
@@ -17,31 +17,22 @@ interface NoteListProps {
   nodes: readonly KnowledgeGraphNode[];
 }
 
-// A note's creation date. en-US is pinned the way every other formatter in the
-// app pins it, so the string the server renders is the one the client keeps.
-function formatNoteDate(createdAt: string): string {
-  return new Date(createdAt).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-// Titles carry the words a viewer remembers ("project plan", "docker notes"),
-// so they take the row's full width and the date sits under them — a date in a
-// trailing column would be read first at a glance and take width from the one
-// thing being searched.
+// A row is its title. The titles carry the words a viewer remembers ("project
+// plan", "docker notes"), which is what the list is scanned and searched for —
+// a date under each one said nothing about a note and cost the panel a line of
+// the handful it has to give.
+//
+// `wrap-anywhere` is for the titles that are not words at all: a note named
+// after a URL carries one unbreakable token wider than the panel, and a row
+// that will not wrap is a row that widens every other row with it.
 function NoteListRow({ row }: { row: NoteRow }) {
   return (
     <li className="px-4 py-2.5">
       <span
         data-testid="kg-note-title"
-        className="block text-sm leading-snug text-foreground"
+        className="block text-sm leading-snug text-foreground wrap-anywhere"
       >
         {row.title}
-      </span>
-      <span className="text-xs text-muted-foreground">
-        {formatNoteDate(row.createdAt)}
       </span>
     </li>
   );
@@ -61,7 +52,11 @@ function NoteListBody({ nodes }: NoteListProps) {
   const countLabel = notes.length === 1 ? "1 note" : `${notes.length} notes`;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // `w-full min-w-0` hold the body inside the panel it was given. Without
+    // them a flex item is floored at its content's min-content width, and the
+    // list — 656 rows of titles — floors it wider than the panel, pushing the
+    // search field and every row off the panel's right edge.
+    <div className="flex h-full w-full min-w-0 flex-col">
       <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
         <h2 className="font-heading text-sm font-medium">Notes</h2>
         {/* The count describes the graph, so it holds still while the list
@@ -69,11 +64,9 @@ function NoteListBody({ nodes }: NoteListProps) {
         <span className="text-xs text-muted-foreground">{countLabel}</span>
       </div>
 
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <SearchIcon
-          aria-hidden="true"
-          className="size-3.5 shrink-0 text-muted-foreground"
-        />
+      {/* No search icon: the field filters as it is typed, so the icon would
+          announce what the results already show. */}
+      <div className="px-4 pt-3 pb-2">
         <Input
           type="search"
           aria-label="Search notes"
@@ -84,13 +77,16 @@ function NoteListBody({ nodes }: NoteListProps) {
       </div>
 
       {/* The two are one slot: a no-results note takes the list's place rather
-          than following an empty list that has already stretched the panel. */}
+          than following an empty list that has already stretched the panel.
+          The list's `min-w-0` is the body's for the same reason — a row is
+          floored at the width of the longest word in a title, and the list has
+          to be free to wrap rather than widen the panel. */}
       {visible.length === 0 ? (
         <p className="flex-1 px-4 py-6 text-center text-xs text-muted-foreground">
           No notes match {`"${query.trim()}"`}.
         </p>
       ) : (
-        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+        <ul className="min-h-0 min-w-0 flex-1 divide-y divide-border overflow-y-auto">
           {visible.map((row) => (
             <NoteListRow key={row.title} row={row} />
           ))}
