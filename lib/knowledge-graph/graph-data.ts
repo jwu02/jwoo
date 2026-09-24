@@ -257,6 +257,29 @@ export function graphPointFromClient(
   };
 }
 
+// How far a press on a node may drift, in screen pixels, before it counts as a
+// drag rather than a click. Small on purpose: this is the slop that lets a
+// click land on a node without the hand being perfectly still, and everything
+// past it is the drag the graph has always had.
+export const PRESS_SLOP_PX = 4;
+
+// Whether a press has become a drag. The points are graph coordinates — the
+// gesture captures the zoom transform when it starts and measures everything
+// through it, the way the drag itself does — while the slop is a distance on
+// screen, so the zoom is what converts one into the other. A visitor aiming at
+// a node at 4× may drift a quarter of a graph unit and still be clicking it.
+//
+// The boundary is crossed, not met: a press that has moved exactly the slop is
+// still a click.
+export function isDragGesture(
+  press: { x: number; y: number },
+  moved: { x: number; y: number },
+  transform: { k: number },
+  slop = PRESS_SLOP_PX
+): boolean {
+  return Math.hypot(moved.x - press.x, moved.y - press.y) * transform.k > slop;
+}
+
 // How long a camera move the graph makes on its own takes: the settled fit, and
 // the re-anchor a layout change asks for. The rough fit is a snap by comparison
 // — see planFit — and a gesture's motion is the viewer's, not the graph's.

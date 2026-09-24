@@ -9,11 +9,13 @@ import {
   computeRoughInitialTransform,
   GRAPH_ANIMATION_MS,
   graphPointFromClient,
+  isDragGesture,
   LABEL_ZOOM_THRESHOLD,
   nodeRadius,
   NODE_MAX_ZOOM,
   NODE_MIN_ZOOM,
   planFit,
+  PRESS_SLOP_PX,
   type FitTrigger,
 } from "@/lib/knowledge-graph/graph-data";
 import type { NoteDoc } from "@/lib/knowledge-graph/types";
@@ -412,6 +414,45 @@ describe("graphPointFromClient", () => {
 
     expect(graph.x * transform.k + transform.x + rect.left).toBeCloseTo(300, 5);
     expect(graph.y * transform.k + transform.y + rect.top).toBeCloseTo(250, 5);
+  });
+});
+
+describe("isDragGesture", () => {
+  // The points are graph coordinates, the slop is a screen distance, and k is
+  // what connects them — so the same drift is a different gesture depending on
+  // how far the graph is zoomed.
+  const atZoom = (k: number) => ({ k });
+  const press = { x: 100, y: 100 };
+
+  it("is not a drag until the pointer moves past the slop", () => {
+    expect(isDragGesture(press, { x: 100, y: 100 }, atZoom(1))).toBe(false);
+    expect(isDragGesture(press, { x: 103, y: 100 }, atZoom(1))).toBe(false);
+    // Exactly at the slop is still a click: the boundary is crossed, not met.
+    expect(isDragGesture(press, { x: 104, y: 100 }, atZoom(1))).toBe(false);
+    expect(isDragGesture(press, { x: 105, y: 100 }, atZoom(1))).toBe(true);
+  });
+
+  it("measures the drift diagonally, not along either axis", () => {
+    // 3 and 4 is 5: a predicate reading either axis alone would call this a
+    // click at a 4px slop.
+    expect(isDragGesture(press, { x: 103, y: 104 }, atZoom(1))).toBe(true);
+  });
+
+  it("reads the drift in screen pixels at a zoomed-in transform", () => {
+    // At k = 2 a graph unit is two screen pixels, so half the drift is enough.
+    expect(isDragGesture(press, { x: 102, y: 100 }, atZoom(2))).toBe(false);
+    expect(isDragGesture(press, { x: 103, y: 100 }, atZoom(2))).toBe(true);
+  });
+
+  it("allows twice the drift at a zoomed-out transform", () => {
+    // At k = 0.5 a screen pixel is two graph units.
+    expect(isDragGesture(press, { x: 108, y: 100 }, atZoom(0.5))).toBe(false);
+    expect(isDragGesture(press, { x: 110, y: 100 }, atZoom(0.5))).toBe(true);
+  });
+
+  it("takes its slop from the constant by default", () => {
+    expect(isDragGesture(press, { x: 100 + PRESS_SLOP_PX, y: 100 }, atZoom(1))).toBe(false);
+    expect(isDragGesture(press, { x: 100 + PRESS_SLOP_PX + 1, y: 100 }, atZoom(1))).toBe(true);
   });
 });
 

@@ -71,8 +71,12 @@ The transform that frames the whole graph inside its viewport. A rough fit frame
 _Avoid_: reframe, zoom-to-fit
 
 **Focus**:
-The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis. It ends on Esc (an Escape in the search field clears the query first), on the panel's clear affordance, or by clicking the focused row again — and it ends where it stands, the camera never returning to where it was. A viewer-driven camera move cancels the flight and clears the focus; a snapshot that no longer holds the note clears it quietly.
+The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis. It is taken by clicking a note's row or by clicking its node, and those two are one gesture in two surfaces: a click on the note that already holds it — in either surface — lets it go. It also ends on Esc (an Escape in the search field clears the query first) and on the panel's clear affordance — and it ends where it stands, the camera never returning to where it was. A viewer-driven camera move cancels the flight and clears the focus; a snapshot that no longer holds the note clears it quietly.
 _Avoid_: highlight, pin, zoom-to-node
+
+**Press**:
+A pointer going down on a node, and the release that judges it: a release within a few pixels of where it went down is a click, and anything past them is the drag the graph has always had. A press is inert — it moves no camera, pins no node and reheats no layout — and while one is down the renderer refuses d3 every camera gesture, so the few pixels a click drifts cannot pan the graph under the visitor's hand. A double-click on a node is refused the zoom the background keeps.
+_Avoid_: hold, grab
 
 **Label threshold**:
 The zoom level above which every node's label shows; below it, only the hovered node's.
@@ -95,7 +99,7 @@ The content one node of the graph represents — a note whose title is that node
 _Avoid_: entry, document
 
 **Note list**:
-The side panel listing every note, newest first, searchable by title. Hovering a row gives its node Emphasis exactly as pointing at the node does; clicking one takes the Focus. On desktop it shares the row with the graph and can be collapsed; below the desktop breakpoint it is an overlay behind a toggle, and the graph keeps the full width.
+The side panel listing every note, newest first, searchable by title. Hovering a row gives its node Emphasis exactly as pointing at the node does, and clicking one takes the Focus exactly as clicking its node does — the row and the node are twin surfaces for both. On desktop it shares the row with the graph and can be collapsed; below the desktop breakpoint it is an overlay behind a toggle, and the graph keeps the full width.
 _Avoid_: sidebar, index, notes panel
 
 **Re-anchor**:

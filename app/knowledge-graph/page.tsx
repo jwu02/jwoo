@@ -108,6 +108,13 @@ export default function KnowledgeGraphPage() {
   // pointer has moved on, and the graph itself can ask for the focus to end.
   // The renderer is handed the id and does the flying; the list is handed the
   // id and does the marking.
+  //
+  // A row is not the only way in or out. A click on a node asks for the same
+  // thing, so the renderer reports the take back through focusNote — and a
+  // click on the note that already holds it lets it go through clearFocus,
+  // which is the report the renderer has always made. Which of the two a click
+  // is is the renderer's to decide, because it is the one that knows what is
+  // focused; this state stays the single answer to what is.
   const [focusedNote, setFocusedNote] = useState<string | null>(null);
 
   const focusNote = useCallback((noteId: string) => setFocusedNote(noteId), []);
@@ -161,6 +168,7 @@ export default function KnowledgeGraphPage() {
             onHoverChange={setReportedHover}
             focusedNote={focusedNote}
             onFocusClear={clearFocus}
+            onFocusTake={focusNote}
           />
           <NoteList
             nodes={graph.nodes}

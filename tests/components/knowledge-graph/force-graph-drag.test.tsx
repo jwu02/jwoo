@@ -188,8 +188,7 @@ describe("ForceGraph drag", () => {
     act(() => {
       nodeB.emit!("pointerdown", {
         client: { x: startX, y: startY },
-        stopPropagation: () => {},
-        preventDefault: () => {},
+        button: 0,
       });
     });
 
@@ -238,8 +237,7 @@ describe("ForceGraph drag", () => {
     act(() => {
       nodeB.emit!("pointerdown", {
         client: { x: startX, y: startY },
-        stopPropagation: () => {},
-        preventDefault: () => {},
+        button: 0,
       });
     });
 

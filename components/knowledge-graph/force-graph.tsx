@@ -25,6 +25,7 @@ import {
   computeReanchorTransform,
   GRAPH_ANIMATION_MS,
   graphPointFromClient,
+  isDragGesture,
   LABEL_ZOOM_THRESHOLD,
   NODE_BASE_RADIUS,
   NODE_HOVER_SCALE,
@@ -54,6 +55,13 @@ interface ForceGraphProps {
   // the focus, so it is told rather than left believing in a note the graph is
   // no longer showing.
   onFocusClear?: () => void;
+  // A node was clicked, which is the visitor asking for that note's Focus — or,
+  // when the node already holds it, is the click that lets it go (reported
+  // through onFocusClear like any other ending). The renderer decides which,
+  // because it is the one that knows what is focused; the page still owns the
+  // state, and the camera that answers this is the same flight a row's click
+  // gets.
+  onFocusTake?: (noteId: string) => void;
   // React 19 hands `ref` to a function component as an ordinary prop, so this
   // needs no forwardRef wrapper — which matters, because a wrapper would sit
   // outside the memo below and let every page render through.
@@ -76,12 +84,13 @@ export interface ForceGraphHandle {
 type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
 type GraphLink = KnowledgeGraphEdge & d3.SimulationLinkDatum<GraphNode> & { source: GraphNode; target: GraphNode };
 
-// The subset of FederatedPointerEvent the sprite handlers touch, so the drag
+// The subset of FederatedPointerEvent the sprite handlers touch, so the press
 // and hover handlers are typed instead of duck-cast to an inline shape.
-type NodePointerEvent = Pick<
-  FederatedPointerEvent,
-  "client" | "stopPropagation" | "preventDefault"
->;
+//
+// A press reads only where the pointer is and which button it was: it
+// deliberately has no handle on preventDefault or stopPropagation, because a
+// press is meant to be inert — see startPress.
+type NodePointerEvent = Pick<FederatedPointerEvent, "client" | "button">;
 
 // Opacity a backgrounded node's sprite and its DOM label both fade to. One
 // value, so a dot and its name cannot disagree about how dim "dimmed" is.
@@ -137,6 +146,7 @@ export const ForceGraph = memo(function ForceGraph({
   onHoverChange,
   focusedNote,
   onFocusClear,
+  onFocusTake,
   ref,
 }: ForceGraphProps) {
   const { nodes, edges } = graph;
@@ -160,6 +170,12 @@ export const ForceGraph = memo(function ForceGraph({
   useEffect(() => {
     onFocusClearRef.current = onFocusClear;
   }, [onFocusClear]);
+  // And taken by a gesture that ends outside React's cycle too — a pointerup on
+  // the document, which is no longer anywhere near the render that set it.
+  const onFocusTakeRef = useRef(onFocusTake);
+  useEffect(() => {
+    onFocusTakeRef.current = onFocusTake;
+  }, [onFocusTake]);
 
   const labelRef = useRef<HTMLDivElement>(null);
   const labelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -213,7 +229,27 @@ export const ForceGraph = memo(function ForceGraph({
   // the fresh graph is about to frame itself.
   const flownFocusRef = useRef<string | null>(null);
   const dragNodeRef = useRef<GraphNode | null>(null);
-  const dragCleanupRef = useRef<(() => void) | null>(null);
+  // The press that is down right now, if one is: the node under the pointer, and
+  // where the pointer landed — in graph coordinates, through the zoom transform
+  // the press began in. Held for the whole gesture, because a release cannot be
+  // judged a click or a drag without knowing where it came from, and cleared the
+  // moment it is judged either way.
+  //
+  // It is also what the zoom filter below reads: a press is a camera gesture's
+  // veto, and the veto has to be in place before d3 is offered the gesture.
+  const pressRef = useRef<{
+    node: GraphNode;
+    point: { x: number; y: number };
+    transform: { x: number; y: number; k: number };
+  } | null>(null);
+  // The click count the current press is part of, when it is a double-click's.
+  // A press cannot read its own count where it starts — the browser reports
+  // detail 0 on pointerdown — so it is carried across from the mousedown that
+  // follows, which is the event that does report it.
+  const pressDetailRef = useRef(0);
+  // The gesture's own detach: endGesture for a release, and its cancel for a
+  // teardown that takes the node away mid-gesture.
+  const pressCleanupRef = useRef<(() => void) | null>(null);
   const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
   // The width the graph last laid itself out against. The renderer measures its
   // wrapper once, at build, and pixi's `resizeTo` hears about window resizes and
@@ -408,46 +444,56 @@ export const ForceGraph = memo(function ForceGraph({
     onFocusClearRef.current?.();
   }, []);
 
-  const startDrag = useCallback(
+  // A press on a node. Deliberately inert: it pins nothing, arms nothing, moves
+  // no camera and heats no simulation up. What it does is remember where the
+  // pointer went down, so that the release can be judged — the drag the graph
+  // has always had if the hand travelled, and otherwise the same click the
+  // note's own row in the list answers.
+  //
+  // Nothing is cancelled or stopped here, and that is load-bearing rather than
+  // an omission. The browser reaches d3 through the compatibility mouse events
+  // that follow this one, and d3 arms its pan from the `mousedown`: cancelling
+  // the press suppresses those events entirely, which would leave the zoom
+  // filter below with no camera gesture it could ever refuse.
+  const startPress = useCallback(
     (event: NodePointerEvent, node: GraphNode) => {
-      event.stopPropagation();
-      event.preventDefault();
-      if (dragNodeRef.current) return;
+      // The left button only. Buttons are a bitmask and pointerdown reports the
+      // one that changed, so this is "an ordinary press": a right-click opens a
+      // menu rather than taking a focus, and the middle button is the browser's.
+      if (event.button !== 0) return;
+      // One press at a time — a second pointer (or a second button) landing on
+      // another node mid-gesture is not a new gesture.
+      if (pressRef.current) return;
 
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
+
+      // The transform is read once, at the press, and reused for the whole
+      // gesture: the node has to track the pointer through the view the gesture
+      // started in even if a zoom lands mid-drag, and the slop — a distance on
+      // screen — is measured through the same view.
       const rect = wrapper.getBoundingClientRect();
-      const simulation = simulationRef.current;
-      if (simulation) simulation.alphaTarget(0.3).restart();
-
-      dragNodeRef.current = node;
-      // The transform is read once, at pointerdown, and reused for the whole
-      // gesture: the node has to track the pointer through the view the drag
-      // started in, even if a zoom lands mid-drag.
       const transform = zoomTransformRef.current;
-      const grabbed = graphPointFromClient(
-        event.client.x,
-        event.client.y,
-        rect,
-        transform
-      );
-      node.fx = grabbed.x;
-      node.fy = grabbed.y;
+      pressRef.current = {
+        node,
+        point: graphPointFromClient(event.client.x, event.client.y, rect, transform),
+        transform,
+      };
 
-      const handleMove = (e: PointerEvent) => {
+      // Everything a drag does once it is one: the node leaves the simulation
+      // for the pointer, and the links reaching it are redrawn behind it.
+      const moveDragged = (point: { x: number; y: number }) => {
         const dragged = dragNodeRef.current;
-        const sim = simulationRef.current;
         if (!dragged) return;
-        const { x, y } = graphPointFromClient(e.clientX, e.clientY, rect, transform);
-        dragged.fx = x;
-        dragged.fy = y;
-        dragged.x = x;
-        dragged.y = y;
+        dragged.fx = point.x;
+        dragged.fy = point.y;
+        dragged.x = point.x;
+        dragged.y = point.y;
 
         const sprite = nodeSpritesRef.current.get(dragged.id);
         if (sprite) {
-          sprite.x = x;
-          sprite.y = y;
+          sprite.x = point.x;
+          sprite.y = point.y;
         }
         const incident = incidentLinksRef.current.get(dragged.id);
         if (incident) {
@@ -459,30 +505,72 @@ export const ForceGraph = memo(function ForceGraph({
         positionLabel();
         positionAllLabels();
 
+        const sim = simulationRef.current;
         if (sim && sim.alpha() < 0.1) sim.alphaTarget(0.3).restart();
       };
 
-      const handleUp = () => {
-        dragCleanupRef.current = null;
-        const sim = simulationRef.current;
-        if (sim) sim.alphaTarget(0);
+      const handleMove = (e: PointerEvent) => {
+        const press = pressRef.current;
+        if (!press) return;
+        const moved = graphPointFromClient(e.clientX, e.clientY, rect, press.transform);
+
+        if (!dragNodeRef.current) {
+          // Still a click: the hand has not travelled far enough from where it
+          // went down to mean anything else. Measured against the press rather
+          // than against the last move, so a slow drift of a pixel at a time
+          // still counts as the pointer having stayed put.
+          if (!isDragGesture(press.point, moved, press.transform)) return;
+          // It is a drag now, and only now does the graph come alive: a click
+          // must leave a settled layout settled.
+          dragNodeRef.current = press.node;
+          simulationRef.current?.alphaTarget(0.3).restart();
+        }
+        moveDragged(moved);
+      };
+
+      // The whole of what a release means. `clicked` says the pointer never
+      // travelled — the press is over without ever having been a drag.
+      const endGesture = (clicked: boolean) => {
+        const press = pressRef.current;
         const dragged = dragNodeRef.current;
+        pressRef.current = null;
+        dragNodeRef.current = null;
+        pressCleanupRef.current = null;
         if (dragged) {
           dragged.fx = undefined;
           dragged.fy = undefined;
+          simulationRef.current?.alphaTarget(0);
         }
-        dragNodeRef.current = null;
         document.removeEventListener("pointermove", handleMove);
         document.removeEventListener("pointerup", handleUp);
+        document.removeEventListener("pointercancel", handleCancel);
+
+        if (!clicked || !press) return;
+        // The press was a click, and the graph decides what it means, because
+        // the graph is what knows whether this note holds the focus: the
+        // focused note's own click is the click that lets it go, and every
+        // other note's takes it. The page is told either way — it owns the
+        // focus, and the camera that answers a take is the page's own flight,
+        // the same one a row's click gets.
+        if (press.node.id === drawnFocusRef.current) clearFocus();
+        else onFocusTakeRef.current?.(press.node.id);
       };
 
-      // Tracked so a rebuild/unmount mid-drag can still detach the listeners;
-      // handleUp() is idempotent for the not-dragging case.
-      dragCleanupRef.current = handleUp;
+      // A press that never travelled is a click; one that has already become a
+      // drag is released, not clicked.
+      const handleUp = () => endGesture(dragNodeRef.current === null);
+      // The browser taking the pointer away — a scroll, a context menu, the
+      // window losing it. Not a click: nothing was released over the node.
+      const handleCancel = () => endGesture(false);
+
+      // Tracked so a rebuild/unmount mid-gesture can still detach the listeners;
+      // the cancel path is idempotent for the no-longer-pressed case.
+      pressCleanupRef.current = handleCancel;
       document.addEventListener("pointermove", handleMove);
       document.addEventListener("pointerup", handleUp);
+      document.addEventListener("pointercancel", handleCancel);
     },
-    [updateLinkSprite, positionLabel, positionAllLabels]
+    [updateLinkSprite, positionLabel, positionAllLabels, clearFocus]
   );
 
   // Flies the camera to frame a note with its neighbours. Called when the page
@@ -533,7 +621,10 @@ export const ForceGraph = memo(function ForceGraph({
     viewportWidthRef.current = clientWidth;
 
     const teardownWorld = () => {
-      dragCleanupRef.current?.();
+      // A gesture in the air when the world it was pressing goes away: the
+      // listeners have to come off with it, and the node it was holding is
+      // about to stop existing.
+      pressCleanupRef.current?.();
       simulationRef.current?.stop();
       simulationRef.current = null;
       const world = worldContainerRef.current;
@@ -576,6 +667,8 @@ export const ForceGraph = memo(function ForceGraph({
       // note list marking a row the graph no longer emphasizes.
       setHovered(null);
       dragNodeRef.current = null;
+      pressRef.current = null;
+      pressDetailRef.current = 0;
       userInteractedRef.current = false;
 
       const world = new PIXI.Container();
@@ -662,7 +755,7 @@ export const ForceGraph = memo(function ForceGraph({
           setHovered(null);
         });
         sprite.on("pointerdown", (e: FederatedPointerEvent) => {
-          startDrag(e, node);
+          startPress(e, node);
         });
       }
       nodeSpritesRef.current = nodeSprites;
@@ -782,7 +875,7 @@ export const ForceGraph = memo(function ForceGraph({
       cancelled = true;
       teardownWorld();
     };
-  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startDrag, updateLinkSprite, setHovered, clearFocus, flyToFocus]);
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus, flyToFocus]);
 
   // d3-zoom drives the Pixi world container transform.
   useEffect(() => {
@@ -803,6 +896,26 @@ export const ForceGraph = memo(function ForceGraph({
     const zoom = d3
       .zoom<HTMLDivElement, unknown>()
       .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
+      // A press on a node is not a camera gesture, and while it is down nothing
+      // else is one either. d3 arms its pan from the `mousedown` the browser
+      // fires right after the pointerdown that began the press, so a press that
+      // turns out to be a click would otherwise have panned the graph by the few
+      // pixels the hand drifted — the camera moving under a visitor who only
+      // meant to select a note.
+      //
+      // The press is knowable here at all because pixi dispatches the pointer
+      // events it was given, and the compatibility mousedown follows them: at the
+      // moment this is asked, the press is already recorded. Which gesture d3 is
+      // asking about is d3's business — it consults this at the start of each of
+      // them, a wheel, a pan, a double-click, a touch — so refusing here refuses
+      // all of them.
+      .filter((event: { type: string; ctrlKey: boolean; button: number }) => {
+        if (pressRef.current !== null) return false;
+        // d3's own default, kept as it is: ctrl+wheel is a zoom because the
+        // browser's own ctrl+wheel is the page zoom, a drag is the left
+        // button's, and ctrl+click belongs to the browser.
+        return (!event.ctrlKey || event.type === "wheel") && !event.button;
+      })
       .on("zoom", (event) => {
         // A sourceEvent is the visitor's own hand — a wheel, a drag, a
         // double-click. The graph's own transitions carry none, which is what
@@ -855,6 +968,57 @@ export const ForceGraph = memo(function ForceGraph({
       zoomSelectionRef.current = null;
     };
   }, [positionLabel, positionAllLabels, clearFocus]);
+
+  // The click count, carried across a press to the double-click that press may
+  // turn out to be part of.
+  //
+  // A press cannot read its own count where it starts: the browser reports
+  // detail 0 on pointerdown, and by the time it reports anything else the press
+  // is over. What does report it is the `mousedown` that follows — the same
+  // event d3 arms its pan from — and it is recorded here only while a press is
+  // live, so a double-click on the background is never mistaken for one on a
+  // node.
+  //
+  // Both listeners are in the capture phase because d3's own handlers on this
+  // same wrapper stop immediate propagation on the way past: a bubble-phase
+  // listener here would never run at all.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const recordDetail = (event: MouseEvent) => {
+      // No press is down, so whatever a press was part of is over: clearing
+      // here is what keeps a stale count from swallowing a later double-click
+      // on the background.
+      if (pressRef.current === null) {
+        pressDetailRef.current = 0;
+        return;
+      }
+      // Exactly two, not two or more: a triple-click's extra mousedowns would
+      // otherwise leave the count standing and a later double-click eaten.
+      pressDetailRef.current = event.detail === 2 ? 2 : 0;
+    };
+
+    const consumeDblclick = (event: MouseEvent) => {
+      if (pressDetailRef.current < 2) return;
+      pressDetailRef.current = 0;
+      // A double-click on a node is two clicks on that note, and the zoom d3
+      // would read into it is not one of them. The graph zooms where the
+      // visitor double-clicked past the nodes, and focuses where they
+      // double-clicked a note — one gesture, two surfaces, each with its own
+      // meaning. Consumed before d3's own dblclick handler, which is why this
+      // is in the capture phase.
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    wrapper.addEventListener("mousedown", recordDetail, true);
+    wrapper.addEventListener("dblclick", consumeDblclick, true);
+    return () => {
+      wrapper.removeEventListener("mousedown", recordDetail, true);
+      wrapper.removeEventListener("dblclick", consumeDblclick, true);
+    };
+  }, []);
 
   // The Focus: fly the camera to frame the note with its neighbours, and hold
   // the note's emphasis for as long as the focus lasts.
