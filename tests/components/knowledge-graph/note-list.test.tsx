@@ -394,25 +394,8 @@ describe("NoteList rows take the Focus", () => {
     expect(focusedRow()).toBeUndefined();
   });
 
-  it("offers the panel's own way out of the focus", () => {
-    const { clearFocus } = renderNoteList(graph, null, "beta.md");
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear focus" }));
-
-    expect(clearFocus).toHaveBeenCalled();
-  });
-
-  it("offers no way out while nothing is focused", () => {
-    renderNoteList();
-
-    expect(
-      screen.queryByRole("button", { name: "Clear focus" })
-    ).not.toBeInTheDocument();
-  });
-
   // A focus is the page's, not the row's: narrowing the list is not dismissing
-  // anything. The panel's way out stays where it is, so the focus is still
-  // reachable from a query that hides its row.
+  // anything, so a query that hides the focused row leaves the focus alone.
   it("leaves the focus alone when the search hides its row", () => {
     const { clearFocus } = renderNoteList(graph, null, "gamma.md");
 
@@ -420,9 +403,6 @@ describe("NoteList rows take the Focus", () => {
 
     expect(rowTitles()).toEqual(["alpha.md"]);
     expect(clearFocus).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Clear focus" })
-    ).toBeInTheDocument();
   });
 });
 

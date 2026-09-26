@@ -404,16 +404,6 @@ describe("KnowledgeGraphPage note list focus", () => {
     expect(focusedRows()).toEqual([]);
   });
 
-  it("clears the focus from the panel's own affordance", async () => {
-    await renderLoadedPage();
-    clickRow("B.md");
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear focus" }));
-
-    expect(focusedNoteProp()).toBeNull();
-    expect(focusedRows()).toEqual([]);
-  });
-
   // The renderer ends a focus the visitor has taken the camera away from. The
   // page owns the focus, so the renderer reports it rather than deciding it.
   it("drops a focus the renderer reports the visitor has taken", async () => {

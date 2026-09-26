@@ -139,7 +139,6 @@ function NoteListBody({
 }: Pick<NoteListProps, "nodes"> & { onToggle?: () => void }) {
   const [query, setQuery] = useState("");
   const { hoveredNote } = useNoteHover();
-  const { focusedNote, clearFocus } = useNoteFocus();
 
   // One list per graph object: the order flips once, and typing re-filters the
   // rows already built rather than rebuilding them on every keystroke.
@@ -157,17 +156,6 @@ function NoteListBody({
       <div className="flex items-center justify-between gap-2 px-4 pt-4">
         <h2 className="font-heading text-sm font-medium">Notes</h2>
         <div className="flex items-center gap-2">
-          {/* The panel's own way out of a Focus, for a pointer that is already
-              here: Esc is the keyboard's, and the focused row is the row's. */}
-          {focusedNote !== null && (
-            <button
-              type="button"
-              onClick={clearFocus}
-              className="cursor-pointer rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Clear focus
-            </button>
-          )}
           {/* The count describes the graph, so it holds still while the list
               narrows — the list itself is the answer to the query. */}
           <span className="text-xs text-muted-foreground">{countLabel}</span>
