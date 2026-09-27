@@ -66,6 +66,10 @@ _Avoid_: tween, camera animation
 
 ### Knowledge graph
 
+**Camera**:
+The state that maps graph points to screen: zoom, pan, and the framings that change them.
+_Avoid_: GraphView, zoom state
+
 **Fit**:
 The transform that frames the whole graph inside its viewport. A rough fit frames the graph on first paint, before the layout has settled; a precise fit reframes it once it has. Both yield to the viewer as soon as they zoom or pan.
 _Avoid_: reframe, zoom-to-fit
