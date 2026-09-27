@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 
 import { resolveTopLevelNode } from "@/components/home/scene-hit"
+import { projectNodeSpan } from "@/components/three/scene-span"
 import { keyIntensity, keycapColor } from "@/lib/telemetry/heatmap-colors"
 import {
   heatAlpha,
@@ -24,7 +25,6 @@ import {
 import type { TooltipAnchor } from "@/lib/ui/tooltip-position"
 
 import { fitTopDown, type Bounds3 } from "./keyboard-camera"
-import { projectKeyAnchor } from "./keyboard-projection"
 import {
   KEY_PRESS_DEPTH_M,
   createSpring,
@@ -273,7 +273,12 @@ export function KeyboardModel({
         if (!nodeName) return null
         const node = scene.getObjectByName(nodeName)
         if (!node) return null
-        return projectKeyAnchor(node, camera, size)
+        // The key's on-screen silhouette: the tooltip sits above its top edge
+        // and flips below using its height.
+        const span = projectNodeSpan(node, camera, size)
+        return (
+          span && { centerX: span.centerX, keyTop: span.top, keyHeight: span.bottom - span.top }
+        )
       },
     }
     return () => {

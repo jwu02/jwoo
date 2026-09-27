@@ -5,6 +5,7 @@ import { useThree, type ThreeEvent } from "@react-three/fiber"
 import { useCallback, useEffect, useRef } from "react"
 import * as THREE from "three"
 
+import { projectNodeSpan } from "@/components/three/scene-span";
 import {
   MOUSE_DRACO_PATH,
   MOUSE_MODEL_URL,
@@ -16,7 +17,6 @@ import {
 import type { TooltipAnchor } from "@/lib/ui/tooltip-position"
 
 import { fitTopDown, type Bounds3 } from "./keyboard-camera"
-import { projectKeyAnchor } from "./keyboard-projection"
 
 export interface MouseCanvasApi {
   /** Project a region's node into a tooltip anchor (container-content px). */
@@ -202,7 +202,12 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
         const name = MOUSE_REGION_NODES[region][0]
         const node = scene.getObjectByName(runtimeMouseNodeName(name))
         if (!node) return null
-        return projectKeyAnchor(node, camera, size)
+        // The region's on-screen silhouette: the tooltip sits above its top edge
+        // and flips below using its height.
+        const span = projectNodeSpan(node, camera, size);
+        return (
+          span && { centerX: span.centerX, keyTop: span.top, keyHeight: span.bottom - span.top }
+        );
       },
     }
     return () => {

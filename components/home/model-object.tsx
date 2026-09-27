@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import * as THREE from "three"
 
+import { projectNodeSpan } from "@/components/three/scene-span"
+
 import { useSceneState, selectHotspot, viewEngagesGreeting } from "./home-scene-controller"
 import { registerHomeScene } from "./home-scene-resolver"
 import { resolveClickAction } from "./scene-click"
 import { HOME_GREETING, HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL } from "./scene-config"
-import { projectNodeTopToScreen, projectObjectAboveToScreen } from "./scene-label"
 import { runtimeNodeName } from "./scene-node-name"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
@@ -18,8 +19,7 @@ import { TypeWriter } from "./typewriter"
 // Screen-space margin (in px) above a hotspot's projected top edge for the hover
 // tooltip, and above the MacBook's for the greeting. Anchoring in pixels rather
 // than world units keeps both reading as "above the object" from any camera
-// angle, where a world offset drifts with parallax (see projectNodeTopToScreen).
-// Tunable in dev.
+// angle, where a world offset drifts with parallax. Tunable in dev.
 const LABEL_PIXEL_OFFSET = 8
 const LABEL_HEIGHT = 28
 const GREETING_PIXEL_OFFSET = 96
@@ -117,41 +117,50 @@ export function ModelObject() {
     [hoveredHotspot, nodeAnchor],
   )
 
-  // Screen-space placement for the greeting: project the MacBook's bbox
-  // top-center into pixels and lift it a fixed margin. Unlike a world-space
-  // offset, this re-anchors each frame from the live projection, so the text
-  // stays "above the MacBook" on screen from any camera angle.
-  const greetingPosition = useCallback(
-    (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
-      return projectNodeTopToScreen(
-        scene.getObjectByName(runtimeNodeName(HOME_GREETING.node)),
+  // Screen-space placement shared by the greeting and the hover tooltip: the
+  // node's projected ON-SCREEN silhouette, centered horizontally and lifted
+  // `pixelOffsetY` px above its topmost edge. Anchoring off the silhouette (all
+  // eight bbox corners) rather than a single world point is what keeps a label
+  // pinned to the object's top edge at any camera angle — a single-point anchor
+  // drifts off the object's visible top from overhead views like the desk camera.
+  // Re-derived from the live projection each frame, so it never drifts with
+  // parallax either.
+  const anchorAboveNode = useCallback(
+    (
+      nodeName: string,
+      camera: THREE.Camera,
+      size: { width: number; height: number },
+      pixelOffsetY: number,
+    ): [number, number] | null => {
+      const span = projectNodeSpan(
+        scene.getObjectByName(runtimeNodeName(nodeName)),
         camera,
         size,
-        GREETING_PIXEL_OFFSET,
       )
+      return span ? [span.centerX, span.top - pixelOffsetY] : null
     },
     [scene],
   )
 
-  // Screen-space placement for the hover tooltip. Unlike the greeting (which
-  // anchors the MacBook's bbox top-center), the tooltip hugs the hovered node's
-  // projected ON-SCREEN silhouette: it projects the node's bbox corners and sits
-  // just above the topmost one, centered over the object. Re-derived each frame
-  // from the live projection, this keeps the tooltip pinned to the object's top
-  // edge at any camera angle — a single world anchor (or world offset) drifts off
-  // the object's visible top from overhead views like the desk camera.
+  const greetingPosition = useCallback(
+    (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) =>
+      anchorAboveNode(HOME_GREETING.node, camera, size, GREETING_PIXEL_OFFSET) ?? [0, 0],
+    [anchorAboveNode],
+  )
+
   const labelPosition = useCallback(
     (_el: THREE.Object3D, camera: THREE.Camera, size: { width: number; height: number }) => {
-      if (!hoveredHotspot) return [0, 0]
-      return projectObjectAboveToScreen(
-        scene.getObjectByName(runtimeNodeName(hoveredHotspot.node)),
-        camera,
-        size,
-        LABEL_PIXEL_OFFSET,
-        LABEL_HEIGHT,
-      )
+      const anchor = hoveredHotspot
+        ? anchorAboveNode(hoveredHotspot.node, camera, size, LABEL_PIXEL_OFFSET)
+        : null
+      if (!anchor) return [0, 0]
+      // Clamp so the label's top edge never runs off the top of the viewport when
+      // a large object's top lands near the screen's top edge (e.g. a tall prop in
+      // an overhead desk view). The label is bottom-anchored, so
+      // anchor.y - LABEL_HEIGHT is its top edge.
+      return [anchor[0], Math.max(anchor[1], LABEL_HEIGHT + LABEL_PIXEL_OFFSET)]
     },
-    [scene, hoveredHotspot],
+    [hoveredHotspot, anchorAboveNode],
   )
 
   return (
