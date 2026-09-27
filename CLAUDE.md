@@ -10,7 +10,7 @@ Standard scripts in `package.json` (`dev`, `build`, `start`, `lint`, `format`, `
 
 ## Layout
 
-Each dashboard is one vertical slice — lib, API route, components — standing on shared kernels: `lib/db.ts` (the Mongo client, every collection getter), `lib/ranges.ts` + `lib/timezone.ts` (ranges, UTC buckets), `lib/ui/` (framework-free chart/tooltip vocabulary), `hooks/` (the polled fetch cycle). Read the tree for the file map.
+Each dashboard is one vertical slice — lib, API route, components — standing on shared kernels: `lib/db.ts` (the Mongo client, one collection accessor), `lib/ranges.ts` + `lib/timezone.ts` (ranges, UTC buckets), `lib/ui/` (framework-free chart/tooltip vocabulary), `hooks/` (the polled fetch cycle). Read the tree for the file map.
 
 Boundaries: `lib/telemetry/` and `lib/ai-usage/` import nothing from each other — shared code sits at the lib root (`tests/lib/features-do-not-import-each-other.test.ts` enforces it). three loads only inside `*-canvas.tsx` implementations (Gotchas below).
 

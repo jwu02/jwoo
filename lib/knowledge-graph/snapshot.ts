@@ -1,6 +1,10 @@
-import { getNotesCollection } from "./db";
+import { getCollection } from "@/lib/db";
 import { buildGraph } from "./graph-data";
-import type { KnowledgeGraphData, KnowledgeGraphSnapshot } from "./types";
+import type {
+  KnowledgeGraphData,
+  KnowledgeGraphSnapshot,
+  NoteDoc,
+} from "./types";
 
 // A snapshot lives for three hours from the moment it is written; the first
 // request after it expires rebuilds it from MongoDB — a lazy rotation, no cron
@@ -118,7 +122,7 @@ export async function loadSnapshot(
     };
   }
 
-  const collection = await getNotesCollection();
+  const collection = getCollection<NoteDoc>("notes");
   const docs = await collection.find({}).toArray();
   const graph: KnowledgeGraphData = buildGraph(docs);
   const cachedAt = now.toISOString();

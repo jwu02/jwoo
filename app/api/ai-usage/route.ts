@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAiUsageCollection } from "@/lib/db";
+import { getCollection } from "@/lib/db";
 import {
   fetchTotals,
   fetchByModel,
@@ -9,14 +9,8 @@ import {
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 import { isValidTimeZone } from "@/lib/timezone";
-import { Range } from "@/lib/ranges";
+import { isValidRange, RANGE_NAMES } from "@/lib/ranges";
 import { Response } from "@/lib/ai-usage/types";
-
-const VALID_RANGES: Range[] = ["24h", "30d", "1y"];
-
-function isValidRange(value: string | null): value is Range {
-  return VALID_RANGES.includes(value as Range);
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -28,13 +22,13 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   if (!isValidRange(rangeParam)) {
     return NextResponse.json(
-      { error: `Invalid range. Must be one of: ${VALID_RANGES.join(", ")}` },
+      { error: `Invalid range. Must be one of: ${RANGE_NAMES}` },
       { status: 400 }
     );
   }
 
   try {
-    const aiUsageCollection = getAiUsageCollection();
+    const aiUsageCollection = getCollection("ai_usage");
     const [
       totals,
       byModel,

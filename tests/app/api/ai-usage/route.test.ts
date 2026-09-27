@@ -4,7 +4,7 @@
 import { GET } from "@/app/api/ai-usage/route";
 
 jest.mock("@/lib/db", () => ({
-  getAiUsageCollection: jest.fn(),
+  getCollection: jest.fn(),
 }));
 
 jest.mock("@/lib/ai-usage/aggregation", () => ({
@@ -16,7 +16,7 @@ jest.mock("@/lib/ai-usage/aggregation", () => ({
   fetchTimeSeriesByModel: jest.fn(),
 }));
 
-import { getAiUsageCollection } from "@/lib/db";
+import { getCollection } from "@/lib/db";
 import {
   fetchTotals,
   fetchByModel,
@@ -30,7 +30,7 @@ const mockAiUsageCollection = {} as never;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (getAiUsageCollection as jest.Mock).mockReturnValue(mockAiUsageCollection);
+  (getCollection as jest.Mock).mockReturnValue(mockAiUsageCollection);
 });
 
 describe("GET /api/ai-usage", () => {
@@ -265,7 +265,7 @@ describe("GET /api/ai-usage", () => {
   });
 
   it("returns 500 when database connection is misconfigured", async () => {
-    (getAiUsageCollection as jest.Mock).mockImplementation(() => {
+    (getCollection as jest.Mock).mockImplementation(() => {
       throw new Error("Missing MONGO_URI environment variable");
     });
     const request = new Request("http://localhost:3000/api/ai-usage?range=24h");

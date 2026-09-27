@@ -92,17 +92,8 @@ export function alignToInterval(
     return new Date(local.getTime() - offsetMs);
   }
 
-  if (interval.unit === "week" || interval.unit === "month") {
-    local.setUTCHours(0);
-  }
-
-  if (interval.unit === "week") {
-    const day = local.getUTCDay();
-    const daysSinceMonday = day === 0 ? 6 : day - 1;
-    local.setUTCDate(local.getUTCDate() - daysSinceMonday);
-  }
-
   if (interval.unit === "month") {
+    local.setUTCHours(0);
     local.setUTCDate(1);
   }
 
@@ -153,9 +144,6 @@ function addInterval(
       break;
     case "day":
       next.setUTCDate(next.getUTCDate() + interval.binSize);
-      break;
-    case "week":
-      next.setUTCDate(next.getUTCDate() + interval.binSize * 7);
       break;
     case "month": {
       // Month boundaries in a non-UTC timezone sit on the previous month's

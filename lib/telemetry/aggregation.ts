@@ -62,7 +62,6 @@ export function buildTimeSeriesPipeline(
             date: "$createdAt",
             unit: interval.unit,
             binSize: interval.binSize,
-            ...(interval.unit === "week" ? { startOfWeek: "monday" } : {}),
             // Bucket by the viewer's local day; omitted (UTC) when not given,
             // which is $dateTrunc's default.
             ...(timeZone !== "UTC" ? { timezone: timeZone } : {}),

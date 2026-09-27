@@ -4,8 +4,7 @@
 import { GET } from "@/app/api/telemetry/route";
 
 jest.mock("@/lib/db", () => ({
-  getTelemetryCollection: jest.fn(),
-  getKeyboardHeatmapCollection: jest.fn(),
+  getCollection: jest.fn(),
 }));
 
 jest.mock("@/lib/telemetry/aggregation", () => ({
@@ -14,7 +13,7 @@ jest.mock("@/lib/telemetry/aggregation", () => ({
   fetchTimeSeries: jest.fn(),
 }));
 
-import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/db";
+import { getCollection } from "@/lib/db";
 import { fetchTotals, fetchKeyCounts, fetchTimeSeries } from "@/lib/telemetry/aggregation";
 
 const mockTelemetryCollection = {} as never;
@@ -22,8 +21,10 @@ const mockKeyboardCollection = {} as never;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (getTelemetryCollection as jest.Mock).mockReturnValue(mockTelemetryCollection);
-  (getKeyboardHeatmapCollection as jest.Mock).mockReturnValue(mockKeyboardCollection);
+  // The route names the collections it wants; hand back the matching mock.
+  (getCollection as jest.Mock).mockImplementation((name: string) =>
+    name === "telemetry" ? mockTelemetryCollection : mockKeyboardCollection
+  );
 });
 
 describe("GET /api/telemetry", () => {
@@ -141,7 +142,7 @@ describe("GET /api/telemetry", () => {
   });
 
   it("returns 500 when database connection is misconfigured", async () => {
-    (getTelemetryCollection as jest.Mock).mockImplementation(() => {
+    (getCollection as jest.Mock).mockImplementation(() => {
       throw new Error("Missing MONGO_URI environment variable");
     });
     const request = new Request("http://localhost:3000/api/telemetry?range=24h");

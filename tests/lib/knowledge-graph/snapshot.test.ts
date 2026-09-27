@@ -12,9 +12,9 @@ jest.mock("@vercel/functions", () => ({
   getCache: mockGetCache,
 }));
 
-const mockGetNotesCollection = jest.fn();
-jest.mock("@/lib/knowledge-graph/db", () => ({
-  getNotesCollection: mockGetNotesCollection,
+const mockGetCollection = jest.fn();
+jest.mock("@/lib/db", () => ({
+  getCollection: mockGetCollection,
 }));
 
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
@@ -45,7 +45,7 @@ const THREE_HOURS_SECONDS = 3 * 60 * 60;
 // Reading the notes through the collection handle the module reaches for.
 function notesReadable(docs: unknown[] = notes) {
   const toArray = jest.fn().mockResolvedValue(docs);
-  mockGetNotesCollection.mockResolvedValue({ find: () => ({ toArray }) });
+  mockGetCollection.mockReturnValue({ find: () => ({ toArray }) });
 }
 
 describe("loadSnapshot", () => {
@@ -125,7 +125,7 @@ describe("loadSnapshot", () => {
         cachedAt: WRITTEN_AT,
         remainingSeconds: THREE_HOURS_SECONDS,
       });
-      expect(mockGetNotesCollection).not.toHaveBeenCalled();
+      expect(mockGetCollection).not.toHaveBeenCalled();
       expect(fakeCache.set).not.toHaveBeenCalled();
     });
 
@@ -139,7 +139,7 @@ describe("loadSnapshot", () => {
       const snapshot = await loadSnapshot(new Date(writtenAtMs));
 
       expect(snapshot.nodes).toEqual(builtGraph.nodes);
-      expect(mockGetNotesCollection).toHaveBeenCalled();
+      expect(mockGetCollection).toHaveBeenCalled();
     });
 
     it("ignores an entry carrying no timestamp", async () => {
@@ -148,7 +148,7 @@ describe("loadSnapshot", () => {
 
       const snapshot = await loadSnapshot(new Date(writtenAtMs));
 
-      expect(mockGetNotesCollection).toHaveBeenCalled();
+      expect(mockGetCollection).toHaveBeenCalled();
       expect(snapshot.cachedAt).toBe(new Date(writtenAtMs).toISOString());
     });
 
@@ -161,7 +161,7 @@ describe("loadSnapshot", () => {
 
       await loadSnapshot(new Date(writtenAtMs));
 
-      expect(mockGetNotesCollection).toHaveBeenCalled();
+      expect(mockGetCollection).toHaveBeenCalled();
     });
   });
 
@@ -220,7 +220,10 @@ describe("loadSnapshot", () => {
     });
 
     it("propagates a failure to read the notes", async () => {
-      mockGetNotesCollection.mockRejectedValue(new Error("db down"));
+      // The accessor is synchronous: a missing URI throws on the call itself.
+      mockGetCollection.mockImplementation(() => {
+        throw new Error("db down");
+      });
       const { loadSnapshot } = await loadSnapshotModule();
 
       await expect(loadSnapshot(new Date(writtenAtMs))).rejects.toThrow("db down");

@@ -1,8 +1,15 @@
-import { getRangeStart, getBucketInterval, Range } from "@/lib/ranges";
+import {
+  getRangeStart,
+  getBucketInterval,
+  isValidRange,
+  RANGE_NAMES,
+  RANGE_OPTIONS,
+  Range,
+} from "@/lib/ranges";
 
-// The shared range mechanics: the lookback start every dashboard reads, and
-// the interval activity telemetry buckets by. AI usage's own interval sits
-// beside its feature (tests/lib/ai-usage/ranges.test.ts).
+// The shared range mechanics: the offered vocabulary, the lookback start every
+// dashboard reads, and the interval activity telemetry buckets by. AI usage's
+// own interval sits beside its feature (tests/lib/ai-usage/ranges.test.ts).
 describe("getRangeStart", () => {
   it("returns a date 24 hours in the past for 24h", () => {
     const now = new Date("2026-08-09T12:00:00.000Z");
@@ -34,4 +41,17 @@ describe("getBucketInterval", () => {
       expect(getBucketInterval(range)).toEqual(expected);
     }
   );
+});
+
+// Both API routes validate against this list, so every offered range must pass
+// the guard and the error message must name exactly the offered ones.
+describe("range vocabulary", () => {
+  it("accepts every offered range and rejects anything else", () => {
+    for (const option of RANGE_OPTIONS) {
+      expect(isValidRange(option.value)).toBe(true);
+      expect(RANGE_NAMES).toContain(option.value);
+    }
+    expect(isValidRange("7d")).toBe(false);
+    expect(isValidRange(null)).toBe(false);
+  });
 });

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { RangeSelector } from "@/components/polled/range-selector";
-import { RANGE_OPTIONS } from "@/lib/telemetry/ranges";
+import { RANGE_OPTIONS } from "@/lib/ranges";
 
 describe("RangeSelector", () => {
   it("calls onChange when a range is clicked", () => {

@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
-import { getTelemetryCollection, getKeyboardHeatmapCollection } from "@/lib/db";
+import { getCollection } from "@/lib/db";
 import {
   fetchTotals,
   fetchKeyCounts,
   fetchTimeSeries,
 } from "@/lib/telemetry/aggregation";
 import { isValidTimeZone } from "@/lib/timezone";
-import { Range } from "@/lib/ranges";
+import { isValidRange, RANGE_NAMES } from "@/lib/ranges";
 import { TelemetryResponse } from "@/lib/telemetry/types";
-
-const VALID_RANGES: Range[] = ["24h", "30d", "1y"];
-
-function isValidRange(value: string | null): value is Range {
-  return VALID_RANGES.includes(value as Range);
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -25,14 +19,16 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   if (!isValidRange(rangeParam)) {
     return NextResponse.json(
-      { error: `Invalid range. Must be one of: ${VALID_RANGES.join(", ")}` },
+      {
+        error: `Invalid range. Must be one of: ${RANGE_NAMES}`,
+      },
       { status: 400 }
     );
   }
 
   try {
-    const telemetryCollection = getTelemetryCollection();
-    const keyboardCollection = getKeyboardHeatmapCollection();
+    const telemetryCollection = getCollection("telemetry");
+    const keyboardCollection = getCollection("keyboard_heatmap");
     const [totals, keys, timeSeries] = await Promise.all([
       fetchTotals(telemetryCollection),
       fetchKeyCounts(keyboardCollection),

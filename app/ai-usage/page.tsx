@@ -6,10 +6,9 @@ import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
 import { BreakdownView, ViewToggle } from "@/components/ai-usage/view-toggle"
 import { RangeSelector } from "@/components/polled/range-selector"
-import { RANGE_OPTIONS } from "@/lib/ai-usage/ranges"
 import { ErrorBanner } from "@/components/polled/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
-import { Range } from "@/lib/ranges"
+import { Range, RANGE_OPTIONS } from "@/lib/ranges"
 import { Response } from "@/lib/ai-usage/types"
 
 export default function AiUsagePage() {
