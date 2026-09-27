@@ -10,7 +10,18 @@ import {
   useState,
   type Ref,
 } from "react";
-import * as d3 from "d3";
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type Simulation,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
 import type { FederatedPointerEvent } from "pixi.js";
 import type {
   KnowledgeGraphData,
@@ -77,8 +88,8 @@ export interface ForceGraphHandle {
   reanchorViewport(): void;
 }
 
-type GraphNode = KnowledgeGraphNode & d3.SimulationNodeDatum;
-type GraphLink = KnowledgeGraphEdge & d3.SimulationLinkDatum<GraphNode> & { source: GraphNode; target: GraphNode };
+type GraphNode = KnowledgeGraphNode & SimulationNodeDatum;
+type GraphLink = KnowledgeGraphEdge & SimulationLinkDatum<GraphNode> & { source: GraphNode; target: GraphNode };
 
 // The subset of FederatedPointerEvent the sprite handlers touch, so the press
 // and hover handlers are typed instead of duck-cast to an inline shape.
@@ -248,7 +259,7 @@ export const ForceGraph = memo(function ForceGraph({
     [graphNodes, graphEdges, emphasizedId]
   );
 
-  const simulationRef = useRef<d3.Simulation<GraphNode, undefined> | null>(null);
+  const simulationRef = useRef<Simulation<GraphNode, undefined> | null>(null);
   const nodesByIdRef = useRef<Map<string, GraphNode>>(new Map());
   const nodeRadiusRef = useRef<Map<string, number>>(new Map());
   // Radius the shared node circle texture was rasterized at; applyHover needs it
@@ -816,19 +827,18 @@ export const ForceGraph = memo(function ForceGraph({
       }
       linkSpritesRef.current = linkSprites;
 
-      const simulation = d3
-        .forceSimulation<GraphNode>(simNodes)
+      const simulation = forceSimulation<GraphNode>(simNodes)
         .force(
           "link",
-          d3.forceLink<GraphNode, GraphLink>(simLinks).id((d: GraphNode) => d.id).distance(60)
+          forceLink<GraphNode, GraphLink>(simLinks).id((d: GraphNode) => d.id).distance(60)
         )
-        .force("charge", d3.forceManyBody().strength(-120))
-        .force("center", d3.forceCenter(clientWidth / 2, clientHeight / 2))
-        .force("x", d3.forceX<GraphNode>(clientWidth / 2).strength(0.06))
-        .force("y", d3.forceY<GraphNode>(clientHeight / 2).strength(0.06))
+        .force("charge", forceManyBody().strength(-120))
+        .force("center", forceCenter(clientWidth / 2, clientHeight / 2))
+        .force("x", forceX<GraphNode>(clientWidth / 2).strength(0.06))
+        .force("y", forceY<GraphNode>(clientHeight / 2).strength(0.06))
         .force(
           "collide",
-          d3.forceCollide<GraphNode>().radius((d: GraphNode) => nodeRadiusRef.current.get(d.id) ?? NODE_BASE_RADIUS)
+          forceCollide<GraphNode>().radius((d: GraphNode) => nodeRadiusRef.current.get(d.id) ?? NODE_BASE_RADIUS)
         );
       simulationRef.current = simulation;
       // The timer d3 started with the simulation would otherwise run alongside

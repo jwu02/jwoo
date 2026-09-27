@@ -1,5 +1,5 @@
 import { act, render, waitFor } from "@testing-library/react";
-import * as d3 from "d3";
+import { forceSimulation } from "d3-force";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 import { GRAPH_ANIMATION_MS } from "@/lib/knowledge-graph/framing";
@@ -22,12 +22,12 @@ import {
 // The layout still has to be held still, so the simulation is mocked and driven
 // by hand, and the wrapper is given a real viewport: jsdom lays everything out
 // at 0×0, and a degenerate viewport pins every framing to the minimum zoom.
-jest.mock("d3", () => ({
-  ...jest.requireActual("d3"),
+jest.mock("d3-force", () => ({
+  ...jest.requireActual("d3-force"),
   forceSimulation: jest.fn(),
 }));
 
-const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
+const forceSimulationMock = forceSimulation as unknown as jest.Mock;
 
 beforeEach(() => {
   setCssVars();

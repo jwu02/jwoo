@@ -1,5 +1,6 @@
 import { act, render, waitFor } from "@testing-library/react";
-import * as d3 from "d3";
+import { forceSimulation } from "d3-force";
+import { zoomTransform } from "d3-zoom";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import {
   createSimulationMock,
@@ -30,12 +31,12 @@ import {
 // when it is made. The zoomed test wants a transform that is not the identity,
 // so it takes a real gesture instead — which fixes the transform by construction
 // too, and marks the view as the viewer's.
-jest.mock("d3", () => ({
-  ...jest.requireActual("d3"),
+jest.mock("d3-force", () => ({
+  ...jest.requireActual("d3-force"),
   forceSimulation: jest.fn(),
 }));
 
-const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
+const forceSimulationMock = forceSimulation as unknown as jest.Mock;
 
 beforeEach(() => {
   setCssVars();
@@ -127,7 +128,7 @@ describe("ForceGraph drag", () => {
     act(() => {
       wheel(wrapper, deltaForScale(2));
     });
-    const t = d3.zoomTransform(wrapper);
+    const t = zoomTransform(wrapper);
     expect(t.k).toBeCloseTo(2);
 
     const nodeB = nodeSpriteById(container, "B.md")!;

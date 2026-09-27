@@ -1,5 +1,6 @@
 import { act, render } from "@testing-library/react";
-import * as d3 from "d3";
+import { forceSimulation } from "d3-force";
+import { zoomTransform } from "d3-zoom";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { computeFitTransform } from "@/lib/knowledge-graph/framing";
 import {
@@ -16,12 +17,12 @@ import {
 // layout — the last camera move the graph makes of its own accord. Where the
 // framing comes from is the camera's own test; this is the renderer driving it,
 // and the rule that nothing reframes afterwards.
-jest.mock("d3", () => ({
-  ...jest.requireActual("d3"),
+jest.mock("d3-force", () => ({
+  ...jest.requireActual("d3-force"),
   forceSimulation: jest.fn(),
 }));
 
-const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
+const forceSimulationMock = forceSimulation as unknown as jest.Mock;
 
 beforeEach(() => {
   setCssVars();
@@ -71,7 +72,7 @@ describe("ForceGraph initial fit", () => {
     await waitForReady(container);
 
     const fitted = computeFitTransform(POSITIONS, wrapper.clientWidth, wrapper.clientHeight);
-    const t = d3.zoomTransform(wrapper);
+    const t = zoomTransform(wrapper);
     expect(t.k).toBeCloseTo(fitted.k);
     expect(t.x).toBeCloseTo(fitted.x);
     expect(t.y).toBeCloseTo(fitted.y);
@@ -82,7 +83,7 @@ describe("ForceGraph initial fit", () => {
     const { container, wrapper } = await renderGraph();
 
     await waitForReady(container);
-    const fitted = { ...d3.zoomTransform(wrapper) };
+    const fitted = { ...zoomTransform(wrapper) };
 
     const sim = forceSimulationMock.mock.results[0].value as SimMock;
     // Nothing hangs off the simulation's end any more: the run is over before
@@ -97,7 +98,7 @@ describe("ForceGraph initial fit", () => {
     );
     act(() => sim.handlers.tick?.());
 
-    const t = d3.zoomTransform(wrapper);
+    const t = zoomTransform(wrapper);
     expect(t.k).toBeCloseTo(fitted.k);
     expect(t.x).toBeCloseTo(fitted.x);
     expect(t.y).toBeCloseTo(fitted.y);

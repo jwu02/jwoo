@@ -1,5 +1,6 @@
 import { act, render, waitFor } from "@testing-library/react";
-import * as d3 from "d3";
+import { forceSimulation } from "d3-force";
+import { zoomTransform } from "d3-zoom";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { LABEL_ZOOM_THRESHOLD, nodeRadius } from "@/lib/knowledge-graph/graph-data";
 import {
@@ -14,14 +15,14 @@ import {
 } from "./harness";
 
 // The real force simulation settles over ~300 non-deterministic ticks and would
-// move node positions under the assertions, so mock only d3.forceSimulation and
+// move node positions under the assertions, so mock only forceSimulation and
 // keep the real zoom/select/zoomIdentity the component relies on.
-jest.mock("d3", () => {
-  const actual = jest.requireActual("d3");
+jest.mock("d3-force", () => {
+  const actual = jest.requireActual("d3-force");
   return { ...actual, forceSimulation: jest.fn() };
 });
 
-const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
+const forceSimulationMock = forceSimulation as unknown as jest.Mock;
 
 // Node ids are the note's own title, not a vault path: the graph API serves
 // `filename` straight from the notes collection, where it holds the
@@ -148,7 +149,7 @@ describe("ForceGraph node labels", () => {
     // Zoom out to half the threshold, which sits below it whatever the value.
     act(() => wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD / 2)));
 
-    expect(d3.zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
+    expect(zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
     expect(labelLayer(container)).toHaveClass("opacity-0");
   });
 
@@ -157,7 +158,7 @@ describe("ForceGraph node labels", () => {
 
     act(() => wheel(wrapper, -75)); // k ≈ 2.83
 
-    expect(d3.zoomTransform(wrapper).k).toBeGreaterThan(LABEL_ZOOM_THRESHOLD);
+    expect(zoomTransform(wrapper).k).toBeGreaterThan(LABEL_ZOOM_THRESHOLD);
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
     expect(labelTexts(container)).toEqual([ALPHA, BETA, GAMMA, DELTA, LONG]);
   });
@@ -176,7 +177,7 @@ describe("ForceGraph node labels", () => {
 
     // The boundary is inclusive, so landing exactly on the threshold must keep
     // the labels up rather than drop them one float-ulp short.
-    expect(d3.zoomTransform(wrapper).k).toBeCloseTo(LABEL_ZOOM_THRESHOLD);
+    expect(zoomTransform(wrapper).k).toBeCloseTo(LABEL_ZOOM_THRESHOLD);
     expect(labelLayer(container)).toHaveClass("opacity-100");
   });
 
@@ -193,7 +194,7 @@ describe("ForceGraph node labels", () => {
     act(() => wheel(wrapper, HALVE_WHEEL_DELTA)); // 2T → T
     act(() => wheel(wrapper, HALVE_WHEEL_DELTA)); // T → T/2
 
-    expect(d3.zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
+    expect(zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-0"));
   });
 

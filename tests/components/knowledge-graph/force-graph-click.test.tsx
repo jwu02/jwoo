@@ -1,6 +1,7 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { useState, type ReactElement } from "react";
-import * as d3 from "d3";
+import { forceSimulation } from "d3-force";
+import { zoomTransform } from "d3-zoom";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 import {
@@ -25,12 +26,12 @@ import {
 // driven by hand, and the wrapper is given a real viewport, because jsdom lays
 // everything out at 0×0 and a degenerate viewport pins every framing to the
 // minimum zoom.
-jest.mock("d3", () => ({
-  ...jest.requireActual("d3"),
+jest.mock("d3-force", () => ({
+  ...jest.requireActual("d3-force"),
   forceSimulation: jest.fn(),
 }));
 
-const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
+const forceSimulationMock = forceSimulation as unknown as jest.Mock;
 
 beforeEach(() => {
   setCssVars();
@@ -147,7 +148,7 @@ function FocusHarness({
   );
 }
 
-const transformOf = (wrapper: HTMLElement) => d3.zoomTransform(wrapper);
+const transformOf = (wrapper: HTMLElement) => zoomTransform(wrapper);
 
 const expectAt = (wrapper: HTMLElement, transform: { k: number; x: number; y: number }) => {
   const t = transformOf(wrapper);

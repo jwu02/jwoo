@@ -3,7 +3,7 @@ import { waitFor } from "@testing-library/react";
 // What every ForceGraph renderer test needs: a still layout it can drive by
 // hand, a wrapper with a viewport, a way to move the camera, and a walk into the
 // Pixi scene the renderer builds. None of it is per-test — so it lives here, and
-// a test file declares its own `jest.mock("d3", ...)` (hoisting is per-file)
+// a test file declares its own `jest.mock("d3-force", ...)` (hoisting is per-file)
 // and imports the rest.
 
 export const VIEWPORT = { width: 800, height: 600 };

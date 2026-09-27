@@ -1,4 +1,8 @@
-import * as d3 from "d3";
+import { select } from "d3-selection";
+// Side-effect import: d3-transition is what puts `selection.transition()` on
+// the selection prototype, and this camera eases through it.
+import "d3-transition";
+import { zoom as createZoom, zoomIdentity, type D3ZoomEvent } from "d3-zoom";
 import {
   computeFitTransform,
   computeFocusTransform,
@@ -104,7 +108,7 @@ export function createCamera(
     selection
       .transition()
       .duration(GRAPH_ANIMATION_MS)
-      .call(zoom.transform, d3.zoomIdentity.translate(target.x, target.y).scale(target.k));
+      .call(zoom.transform, zoomIdentity.translate(target.x, target.y).scale(target.k));
   };
 
   const flyTo = (noteId: string) => {
@@ -118,8 +122,7 @@ export function createCamera(
     if (target) moveTo(target);
   };
 
-  const zoom = d3
-    .zoom<HTMLElement, unknown>()
+  const zoom = createZoom<HTMLElement, unknown>()
     .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
     // A press on a node is not a camera gesture, and while it is down nothing
     // else is one either. Which gesture d3 is asking about is d3's business —
@@ -132,7 +135,7 @@ export function createCamera(
       // and ctrl+click belongs to the browser.
       return (!event.ctrlKey || event.type === "wheel") && !event.button;
     })
-    .on("zoom", (event: d3.D3ZoomEvent<HTMLElement, unknown>) => {
+    .on("zoom", (event: D3ZoomEvent<HTMLElement, unknown>) => {
       // A sourceEvent is the visitor's own hand. The graph's own transitions
       // carry none, which is what tells a flight from the gesture that ends it.
       //
@@ -158,7 +161,7 @@ export function createCamera(
       callbacks.onTransformChange?.(transform, by);
     });
 
-  const selection = d3.select(wrapper).call(zoom);
+  const selection = select(wrapper).call(zoom);
 
   // A window resize is not the graph's to compensate for — the surface follows
   // it and the camera is left where the viewer put it — but the width it leaves
@@ -205,7 +208,7 @@ export function createCamera(
         wrapper.clientWidth,
         wrapper.clientHeight
       );
-      selection.call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(k));
+      selection.call(zoom.transform, zoomIdentity.translate(x, y).scale(k));
     },
 
     setFocus(noteId) {
