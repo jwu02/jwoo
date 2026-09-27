@@ -1,4 +1,4 @@
-import { en, getResumeData, zh } from "@/lib/resume/locale-data"
+import { en, zh } from "@/lib/resume/locale-data"
 
 // The structure of a document with every leaf collapsed to null: en and zh are
 // the same resume written twice, so they must agree on keys and array lengths
@@ -48,11 +48,6 @@ describe("resume locale data", () => {
       expect(locale.personalProjects.length).toBeGreaterThan(0)
       expect(locale.selfEvaluation.length).toBeGreaterThan(0)
     }
-  })
-
-  it("getResumeData returns the requested locale", () => {
-    expect(getResumeData("en").header.name).toBe("Tony Wu")
-    expect(getResumeData("zh").header.name).toBe("吴家聪")
   })
 
   it("languages are resolved to localized labels", () => {

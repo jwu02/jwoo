@@ -9,7 +9,8 @@
 // If the browser never fires `afterprint`, drop the iframe anyway.
 const CLEANUP_FALLBACK_MS = 60_000
 
-export function printResume(sourceDocument: Document = window.document): void {
+export function printResume(): void {
+  const sourceDocument = window.document
   const iframe = sourceDocument.createElement("iframe")
   iframe.setAttribute("aria-hidden", "true")
   iframe.setAttribute("title", "Print resume")

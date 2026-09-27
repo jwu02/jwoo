@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { getResumeData } from "@/lib/resume/locale-data"
+import { en, zh } from "@/lib/resume/locale-data"
 import { printResume } from "@/lib/resume/print-resume"
 import type { Locale } from "@/lib/resume/types"
 import { LanguageToggle } from "./language-toggle"
@@ -56,7 +56,7 @@ export function ResumeView() {
     window.dispatchEvent(new Event("storage"))
   }
 
-  const data = getResumeData(locale)
+  const data = locale === "zh" ? zh : en
   const help = PRINT_HELP[locale]
 
   return (

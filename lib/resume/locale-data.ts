@@ -1,59 +1,57 @@
 import { getContacts } from "./contacts"
 import type { LanguageItem, Locale, ResumeData } from "./types"
 
-const LANGUAGE_ITEMS: { key: string; value: number }[] = [
-  { key: "english", value: 95 },
-  { key: "mandarin", value: 70 },
-  { key: "cantonese", value: 50 },
-  { key: "japanese", value: 20 },
-  { key: "french", value: 20 },
+const PROFICIENCY_LABELS = {
+  native: { en: "Native", zh: "母语" },
+  heritage: { en: "Heritage", zh: "传承语言" },
+  intermediate: { en: "Intermediate", zh: "中级" },
+}
+
+// The bar order is the array order, so the language, its labels and its
+// proficiency live together on one row.
+const LANGUAGE_ITEMS: {
+  key: string
+  value: number
+  proficiency: keyof typeof PROFICIENCY_LABELS
+  label: Record<Locale, string>
+}[] = [
+  {
+    key: "english",
+    value: 95,
+    proficiency: "native",
+    label: { en: "English", zh: "英语" },
+  },
+  {
+    key: "mandarin",
+    value: 70,
+    proficiency: "heritage",
+    label: { en: "Mandarin", zh: "普通话" },
+  },
+  {
+    key: "cantonese",
+    value: 50,
+    proficiency: "heritage",
+    label: { en: "Cantonese", zh: "粤语" },
+  },
+  {
+    key: "japanese",
+    value: 20,
+    proficiency: "intermediate",
+    label: { en: "Japanese", zh: "日语" },
+  },
+  {
+    key: "french",
+    value: 20,
+    proficiency: "intermediate",
+    label: { en: "French", zh: "法语" },
+  },
 ]
 
-const PROFICIENCY_BY_KEY: Record<string, string> = {
-  english: "native",
-  mandarin: "heritage",
-  cantonese: "heritage",
-  japanese: "intermediate",
-  french: "intermediate",
-}
-
-const LANGUAGE_LABELS: Record<Locale, Record<string, string>> = {
-  en: {
-    english: "English",
-    mandarin: "Mandarin",
-    cantonese: "Cantonese",
-    japanese: "Japanese",
-    french: "French",
-  },
-  zh: {
-    english: "英语",
-    mandarin: "普通话",
-    cantonese: "粤语",
-    japanese: "日语",
-    french: "法语",
-  },
-}
-
-const PROFICIENCY_LABELS: Record<Locale, Record<string, string>> = {
-  en: {
-    native: "Native",
-    heritage: "Heritage",
-    intermediate: "Intermediate",
-    beginner: "Beginner",
-  },
-  zh: {
-    native: "母语",
-    heritage: "传承语言",
-    intermediate: "中级",
-    beginner: "初级",
-  },
-}
-
 function buildLanguages(locale: Locale): LanguageItem[] {
-  return LANGUAGE_ITEMS.map(({ key, value }) => ({
+  return LANGUAGE_ITEMS.map(({ key, value, proficiency, label }) => ({
     key,
-    label: LANGUAGE_LABELS[locale][key],
-    proficiencyLabel: PROFICIENCY_LABELS[locale][PROFICIENCY_BY_KEY[key]],
+    label: label[locale],
+    proficiencyLabel: PROFICIENCY_LABELS[proficiency][locale],
     value,
   }))
 }
@@ -325,10 +323,4 @@ export const zh: ResumeData = {
     "具备较强的技术判断力，注重理解不同技术方案之间的权衡，根据具体需求、约束条件和应用场景评估不同方案，并选择合适的工具与架构",
     "创新且以解决问题为导向，能够识别流程改进机会，并通过创新方案提升效率与业务价值",
   ],
-}
-
-export const RESUME_DATA: Record<Locale, ResumeData> = { en, zh }
-
-export function getResumeData(locale: Locale): ResumeData {
-  return RESUME_DATA[locale]
 }
