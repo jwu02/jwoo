@@ -20,22 +20,24 @@ import type {
 import { computeNodeEmphasis } from "@/lib/knowledge-graph/emphasis";
 import {
   computeDegrees,
-  computeFocusTransform,
   computeNodeTextureRadius,
+  LABEL_ZOOM_THRESHOLD,
+  NODE_BASE_RADIUS,
+  NODE_HOVER_SCALE,
+  nodeRadius,
+} from "@/lib/knowledge-graph/graph-data";
+import {
+  computeFocusTransform,
   computeReanchorTransform,
   GRAPH_ANIMATION_MS,
   graphPointFromClient,
   isDragGesture,
-  LABEL_ZOOM_THRESHOLD,
-  NODE_BASE_RADIUS,
-  NODE_HOVER_SCALE,
   NODE_MAX_ZOOM,
   NODE_MIN_ZOOM,
-  nodeRadius,
   type FitPlan,
   type FitTrigger,
   planFit,
-} from "@/lib/knowledge-graph/graph-data";
+} from "@/lib/knowledge-graph/framing";
 import { usePixiApp } from "./use-pixi-app";
 
 interface ForceGraphProps {
