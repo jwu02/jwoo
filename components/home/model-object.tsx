@@ -12,7 +12,6 @@ import { useSceneState, selectHotspot, viewEngagesGreeting } from "./home-scene-
 import { registerHomeScene } from "./home-scene-resolver"
 import { resolveClickAction } from "./scene-click"
 import { HOME_GREETING, HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL } from "./scene-config"
-import { runtimeNodeName } from "./scene-node-name"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
 
@@ -40,15 +39,16 @@ export function ModelObject() {
     return () => registerHomeScene(null)
   }, [scene])
 
-  // Keyed by the sanitized runtime node names three assigns on load (see
-  // runtimeNodeName) so hits resolved off the live scene match the config. Only
-  // interactive hotspots are hoverable (cursor + label); non-interactive ones
-  // like the desk supply a camera view but never show a tooltip or pointer.
+  // Keyed by the sanitized runtime node names three assigns on load (GLTFLoader
+  // runs PropertyBinding.sanitizeNodeName over every node) so hits resolved off
+  // the live scene match the config. Only interactive hotspots are hoverable
+  // (cursor + label); non-interactive ones like the desk supply a camera view but
+  // never show a tooltip or pointer.
   const hotspotByNode = useMemo(
     () =>
       new Map(
         HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.interactive !== false).map(
-          (hotspot) => [runtimeNodeName(hotspot.node), hotspot],
+          (hotspot) => [THREE.PropertyBinding.sanitizeNodeName(hotspot.node), hotspot],
         ),
       ),
     [],
@@ -61,7 +61,7 @@ export function ModelObject() {
   // of where Blender put each node's origin.
   const nodeAnchor = useCallback(
     (nodeName: string): THREE.Vector3 | null => {
-      const node = scene.getObjectByName(runtimeNodeName(nodeName))
+      const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(nodeName))
       if (!node) return null
       node.updateWorldMatrix(true, true)
       const box = new THREE.Box3().setFromObject(node)
@@ -133,7 +133,7 @@ export function ModelObject() {
       pixelOffsetY: number,
     ): [number, number] | null => {
       const span = projectNodeSpan(
-        scene.getObjectByName(runtimeNodeName(nodeName)),
+        scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(nodeName)),
         camera,
         size,
       )

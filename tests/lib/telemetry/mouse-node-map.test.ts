@@ -1,9 +1,10 @@
+import { PropertyBinding } from "three";
+
 import {
   MOUSE_MODEL_URL,
   MOUSE_REGION_NODES,
   mouseRegionForName,
   resolveMouseRegion,
-  runtimeMouseNodeName,
   type MouseSceneNode,
 } from "@/lib/telemetry/mouse-node-map";
 
@@ -62,7 +63,9 @@ describe("mouse-node-map", () => {
     });
   });
 
-  it("sanitises node names the way three does (underscore is a no-op)", () => {
-    expect(runtimeMouseNodeName("Button_Left")).toBe("Button_Left");
+  it("resolves node names as GLTFLoader stores them, sanitized on load", () => {
+    // The raycast hit carries the name three assigned on load, so the mapping
+    // has to be keyed the same way.
+    expect(mouseRegionForName(PropertyBinding.sanitizeNodeName("Button_Left"))).toBe("left");
   });
 });

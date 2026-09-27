@@ -38,6 +38,10 @@ _Avoid_: HUD, chrome
 A 3D node's projected on-screen position, used to place a tooltip beside it.
 _Avoid_: projection (that is the act of computing one)
 
+**Runtime node name**:
+The name three's GLTFLoader gives a node on load: the authoring name run through `PropertyBinding.sanitizeNodeName`, which turns spaces into underscores and strips `[].:/`. Config and node maps declare authoring names, so every lookup against a loaded scene sanitizes its key to the same form before comparing — a name authored with a space or a dot would otherwise silently match nothing.
+_Avoid_: sanitized name (that is just the runtime form), node path
+
 **Hover**:
 The single per-scene hovered-id state that both the 3D pointer and the focusable a11y layer drive, so tooltip, tint and focus stay in agreement.
 _Avoid_: highlight, active key/region

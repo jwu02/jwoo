@@ -1,6 +1,5 @@
 import * as THREE from "three"
 
-import { runtimeNodeName } from "./scene-node-name"
 import type { HomeSceneHotspot } from "./scene-config"
 import {
   readWorldPosition,
@@ -43,7 +42,7 @@ export function resolveHomeHotspot(hotspot: HomeSceneHotspot): FocusRequest | nu
 function getFocusInfo(scene: THREE.Group, nodeName: string): FocusInfo {
   const cached = focusCache.get(nodeName)
   if (cached) return cached
-  const node = scene.getObjectByName(runtimeNodeName(nodeName))
+  const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(nodeName))
   if (!node) return { point: [0, 0, 0], radius: 0 }
   node.updateWorldMatrix(true, true)
   const box = new THREE.Box3().setFromObject(node)
@@ -59,7 +58,7 @@ function getFocusInfo(scene: THREE.Group, nodeName: string): FocusInfo {
 }
 
 function getCameraPose(scene: THREE.Group, cameraName: string): CameraPose | undefined {
-  const node = scene.getObjectByName(runtimeNodeName(cameraName))
+  const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(cameraName))
   if (!node) return undefined
   node.updateWorldMatrix(true, true)
   const quaternion = new THREE.Quaternion()

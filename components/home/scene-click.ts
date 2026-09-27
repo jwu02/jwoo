@@ -1,4 +1,5 @@
-import { runtimeNodeName } from "./scene-node-name"
+import { PropertyBinding } from "three"
+
 import type { HomeSceneHotspot } from "./scene-config"
 import { resolveTopLevelNode, type SceneNode } from "./scene-hit"
 
@@ -32,7 +33,7 @@ export function resolveClickAction(
   if (delta > 2) return { kind: "ignore" }
   const name = object ? resolveTopLevelNode(object, scene) : null
   if (!name) return { kind: "ignore" }
-  const hotspot = hotspots.find((h) => runtimeNodeName(h.node) === name)
+  const hotspot = hotspots.find((h) => PropertyBinding.sanitizeNodeName(h.node) === name)
   if (!hotspot) return { kind: "ignore" }
   if (hotspot.interactive === false) return { kind: "ignore" }
   return hotspot.target

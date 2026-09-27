@@ -1,10 +1,7 @@
-import {
-  HOME_GREETING,
-  HOME_INITIAL_VIEW,
-  HOME_SCENE_HOTSPOTS,
-  HOME_SCENE_MODEL,
-  HOME_VIEWS,
-} from "@/components/home/scene-config"
+import { PropertyBinding } from "three"
+
+import { HOME_GREETING, HOME_INITIAL_VIEW, HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL, HOME_VIEWS } from "@/components/home/scene-config"
+import { resolveTopLevelNode, type SceneNode } from "@/components/home/scene-hit"
 
 describe("HOME_SCENE_MODEL", () => {
   it("serves the single combined homepage model", () => {
@@ -32,6 +29,29 @@ describe("HOME_SCENE_HOTSPOTS", () => {
     ]) {
       expect(nodes).toContain(name)
     }
+  })
+
+  it("keys the hotspot map by the runtime names present in the loaded scene", () => {
+    // three's GLTFLoader runs PropertyBinding.sanitizeNodeName over every node on
+    // load, so a hover hit carries the sanitized name and the config's authoring
+    // name has to be sanitized to the same form before the two are compared.
+    const runtimeNames = new Map(
+      HOME_SCENE_HOTSPOTS.map((hotspot) => [PropertyBinding.sanitizeNodeName(hotspot.node), hotspot.id]),
+    )
+    expect(runtimeNames.get("WaterBottle")).toBe("bottle")
+    expect(runtimeNames.get("Bonsai")).toBe("bonsai")
+    expect(runtimeNames.get("AiUsage")).toBe("ai-usage")
+    expect(runtimeNames.get("MacBook")).toBe("macbook")
+    expect(runtimeNames.get("XiaomiSu7Ultra")).toBe("car")
+
+    // A hover hit on a mesh under the top-level node walks up to its runtime
+    // name, which must map back to the bottle hotspot.
+    const scene: SceneNode = { name: "Scene", parent: null }
+    const bottle = { name: "WaterBottle", parent: scene }
+    const mesh = { name: "polySurface10", parent: bottle }
+    const resolved = resolveTopLevelNode(mesh, scene)
+    expect(resolved).toBe("WaterBottle")
+    expect(resolved && runtimeNames.get(resolved)).toBe("bottle")
   })
 
   it("maps the macbook hotspot to /activity-telemetry with a label", () => {

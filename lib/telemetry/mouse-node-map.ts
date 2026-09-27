@@ -47,7 +47,7 @@ export const MOUSE_REGION_NODES: Record<MouseRegion, readonly string[]> = {
  * default (body) once it has confirmed the node is under the mouse root.
  */
 export function mouseRegionForName(name: string): MouseRegion | null {
-  switch (runtimeMouseNodeName(name)) {
+  switch (PropertyBinding.sanitizeNodeName(name)) {
     case "Button_Left":
       return "left"
     case "Button_Right":
@@ -81,9 +81,4 @@ export function resolveMouseRegion(
     current = current.parent
   }
   return null
-}
-
-/** Sanitize a node name to the form three's GLTFLoader assigns on load. */
-export function runtimeMouseNodeName(name: string): string {
-  return PropertyBinding.sanitizeNodeName(name)
 }

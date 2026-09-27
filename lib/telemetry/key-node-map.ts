@@ -129,12 +129,7 @@ export const NO_NODE_IDS: ReadonlySet<string> = new Set(["Section"])
 // Reverse map: sanitized node name → physical id (first match wins).
 const NODE_TO_PHYSICAL_ID: Map<string, string> = new Map()
 for (const [id, node] of Object.entries(PHYSICAL_KEY_NODE)) {
-  NODE_TO_PHYSICAL_ID.set(runtimeNodeName(node), id)
-}
-
-/** Sanitize a node name to the form three's GLTFLoader assigns on load. */
-export function runtimeNodeName(name: string): string {
-  return PropertyBinding.sanitizeNodeName(name)
+  NODE_TO_PHYSICAL_ID.set(PropertyBinding.sanitizeNodeName(node), id)
 }
 
 /**
@@ -144,7 +139,7 @@ export function runtimeNodeName(name: string): string {
 export function glbNodeName(id: string): string | null {
   const node = PHYSICAL_KEY_NODE[id]
   if (!node) return null
-  return runtimeNodeName(node)
+  return PropertyBinding.sanitizeNodeName(node)
 }
 
 /**

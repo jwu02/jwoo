@@ -11,7 +11,6 @@ import {
   MOUSE_MODEL_URL,
   MOUSE_REGION_NODES,
   resolveMouseRegion,
-  runtimeMouseNodeName,
   type MouseRegion,
 } from "@/lib/telemetry/mouse-node-map"
 import type { TooltipAnchor } from "@/lib/ui/tooltip-position"
@@ -115,7 +114,7 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
     for (const region of Object.keys(MOUSE_REGION_NODES) as MouseRegion[]) {
       const meshes: RegionMesh[] = []
       for (const name of MOUSE_REGION_NODES[region]) {
-        const node = scene.getObjectByName(runtimeMouseNodeName(name))
+        const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name))
         if (!node) continue
         node.traverse((object) => {
           const mesh = object as THREE.Mesh
@@ -184,7 +183,7 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
     const box = new THREE.Box3().setFromObject(scene)
     if (box.isEmpty()) return
     fitBoundsRef.current = box
-    const bodyNode = scene.getObjectByName(runtimeMouseNodeName("Body"))
+    const bodyNode = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName("Body"))
     bodyCenterRef.current = bodyNode
       ? new THREE.Box3().setFromObject(bodyNode).getCenter(new THREE.Vector3())
       : box.getCenter(new THREE.Vector3())
@@ -200,7 +199,7 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
     canvasApiRef.current = {
       getAnchor: (region: MouseRegion): TooltipAnchor | null => {
         const name = MOUSE_REGION_NODES[region][0]
-        const node = scene.getObjectByName(runtimeMouseNodeName(name))
+        const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name))
         if (!node) return null
         // The region's on-screen silhouette: the tooltip sits above its top edge
         // and flips below using its height.

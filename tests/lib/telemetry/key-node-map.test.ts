@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { PropertyBinding } from "three"
 
 import { PHYSICAL_KEYS } from "@/lib/telemetry/key-layout"
 import {
@@ -9,7 +10,6 @@ import {
   glbNodeName,
   hasNode,
   physicalIdForNode,
-  runtimeNodeName,
 } from "@/lib/telemetry/key-node-map"
 
 /** Read the JSON chunk out of a .glb (binary glTF) file. */
@@ -104,7 +104,7 @@ describe("glbNodeName / physicalIdForNode", () => {
   })
 
   it("sanitizes node names the way GLTFLoader does on load", () => {
-    expect(glbNodeName("Touch ID")).toBe(runtimeNodeName("key_touchid"))
+    expect(glbNodeName("Touch ID")).toBe(PropertyBinding.sanitizeNodeName("key_touchid"))
   })
 })
 
