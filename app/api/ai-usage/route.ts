@@ -5,7 +5,6 @@ import {
   fetchByModel,
   fetchByProject,
   fetchByHarness,
-  fetchTimeSeries,
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 import { isValidTimeZone } from "@/lib/timezone";
@@ -29,28 +28,25 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const aiUsageCollection = getCollection("ai_usage");
-    const [
-      totals,
-      byModel,
-      byProject,
-      byHarness,
-      timeSeries,
-      timeSeriesByModel,
-    ] = await Promise.all([
-      fetchTotals(aiUsageCollection),
-      fetchByModel(aiUsageCollection),
-      fetchByProject(aiUsageCollection),
-      fetchByHarness(aiUsageCollection),
-      fetchTimeSeries(aiUsageCollection, rangeParam, undefined, timeZone),
-      fetchTimeSeriesByModel(aiUsageCollection, rangeParam, undefined, timeZone),
-    ]);
+    const [totals, byModel, byProject, byHarness, timeSeriesByModel] =
+      await Promise.all([
+        fetchTotals(aiUsageCollection),
+        fetchByModel(aiUsageCollection),
+        fetchByProject(aiUsageCollection),
+        fetchByHarness(aiUsageCollection),
+        fetchTimeSeriesByModel(
+          aiUsageCollection,
+          rangeParam,
+          undefined,
+          timeZone
+        ),
+      ]);
 
     const response: Response = {
       totals,
       byModel,
       byProject,
       byHarness,
-      timeSeries,
       timeSeriesByModel,
     };
 

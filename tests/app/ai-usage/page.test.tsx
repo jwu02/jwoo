@@ -47,7 +47,6 @@ const response = {
       totalTokens: 1000,
     },
   ],
-  timeSeries: [],
   timeSeriesByModel: [],
 };
 

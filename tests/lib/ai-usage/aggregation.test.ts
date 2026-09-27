@@ -3,13 +3,11 @@ import {
   buildByModelPipeline,
   buildByProjectPipeline,
   buildByHarnessPipeline,
-  buildTimeSeriesPipeline,
   buildTimeSeriesByModelPipeline,
   fetchTotals,
   fetchByModel,
   fetchByProject,
   fetchByHarness,
-  fetchTimeSeries,
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 import { getBucketInterval } from "@/lib/ai-usage/ranges";
@@ -126,54 +124,6 @@ describe("buildByHarnessPipeline", () => {
       },
       { $sort: { costYuan: -1, _id: 1 } },
     ]);
-  });
-});
-
-describe("buildTimeSeriesPipeline", () => {
-  it("matches on recorded_at, buckets, and sums for 24h", () => {
-    const now = new Date("2026-08-18T12:00:00.000Z");
-    const pipeline = buildTimeSeriesPipeline("24h", now);
-
-    expect(pipeline[0]).toEqual({
-      $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } },
-    });
-
-    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
-    expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$recorded_at", unit: "hour", binSize: 1 },
-    });
-    expect(groupStage.$group.costYuan).toEqual({ $sum: "$cost_yuan" });
-    expect(groupStage.$group.promptTokens).toEqual({ $sum: "$prompt_tokens" });
-    expect(groupStage.$group.completionTokens).toEqual({
-      $sum: "$completion_tokens",
-    });
-    expect(groupStage.$group.totalTokens).toEqual({ $sum: "$total_tokens" });
-
-    expect(pipeline[pipeline.length - 1]).toEqual({ $sort: { _id: 1 } });
-  });
-
-  it("matches on recorded_at and uses daily truncation for 30d buckets", () => {
-    const now = new Date("2026-08-18T12:00:00.000Z");
-    const pipeline = buildTimeSeriesPipeline("30d", now);
-
-    expect(pipeline[0]).toEqual({
-      $match: { recorded_at: { $gte: new Date("2026-07-19T12:00:00.000Z") } },
-    });
-
-    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
-    expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$recorded_at", unit: "day", binSize: 1 },
-    });
-  });
-
-  it("uses monthly truncation for 1y buckets", () => {
-    const now = new Date("2026-08-18T12:00:00.000Z");
-    const pipeline = buildTimeSeriesPipeline("1y", now);
-
-    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
-    expect(groupStage.$group._id).toEqual({
-      $dateTrunc: { date: "$recorded_at", unit: "month", binSize: 1 },
-    });
   });
 });
 
@@ -386,35 +336,6 @@ describe("fetchByHarness", () => {
   });
 });
 
-describe("fetchTimeSeries", () => {
-  it("maps aggregation results into zero-filled buckets", async () => {
-    const now = new Date("2026-08-18T12:00:00.000Z");
-    const bucket = new Date("2026-08-18T10:00:00.000Z");
-    const collection = makeMockCollection([
-      {
-        _id: bucket,
-        costYuan: 0.25,
-        promptTokens: 1000,
-        completionTokens: 200,
-        totalTokens: 1200,
-      },
-    ]);
-    const result = await fetchTimeSeries(collection, "24h", now);
-
-    const found = result.find((p) => p.bucket === bucket.toISOString());
-    expect(found).toEqual({
-      bucket: bucket.toISOString(),
-      costYuan: 0.25,
-      promptTokens: 1000,
-      completionTokens: 200,
-      totalTokens: 1200,
-    });
-
-    expect(result.length).toBe(aiUsageBuckets("24h", now).length);
-    expect(result.every((p) => typeof p.totalTokens === "number")).toBe(true);
-  });
-});
-
 describe("fetchTimeSeriesByModel", () => {
   it("maps per-model aggregation results into zero-filled buckets", async () => {
     const now = new Date("2026-08-18T12:00:00.000Z");
@@ -510,23 +431,6 @@ describe("timezone-aware bucketing", () => {
     expect(buckets[0]).toBe("2025-07-31T16:00:00.000Z");
   });
 
-  it("passes the timezone to AI usage $dateTrunc (single series)", () => {
-    const pipeline = buildTimeSeriesPipeline(
-      "30d",
-      now,
-      "Asia/Shanghai"
-    );
-    const groupStage = pipeline[1] as { $group: Record<string, unknown> };
-    expect(groupStage.$group._id).toEqual({
-      $dateTrunc: {
-        date: "$recorded_at",
-        unit: "day",
-        binSize: 1,
-        timezone: "Asia/Shanghai",
-      },
-    });
-  });
-
   it("passes the timezone to AI usage $dateTrunc (per-model series)", () => {
     const pipeline = buildTimeSeriesByModelPipeline(
       "30d",
@@ -544,32 +448,6 @@ describe("timezone-aware bucketing", () => {
         },
       },
       model: "$model",
-    });
-  });
-
-  it("maps AI usage aggregation results into timezone-aligned buckets", async () => {
-    const sundayBucket = new Date("2026-08-22T16:00:00.000Z");
-    const collection = makeMockCollection([
-      {
-        _id: sundayBucket,
-        costYuan: 0.25,
-        promptTokens: 1000,
-        completionTokens: 200,
-        totalTokens: 1200,
-      },
-    ]);
-    const result = await fetchTimeSeries(
-      collection,
-      "30d",
-      now,
-      "Asia/Shanghai"
-    );
-    expect(result[result.length - 1]).toEqual({
-      bucket: sundayBucket.toISOString(),
-      costYuan: 0.25,
-      promptTokens: 1000,
-      completionTokens: 200,
-      totalTokens: 1200,
     });
   });
 

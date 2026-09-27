@@ -8,7 +8,6 @@ import {
   ByModel,
   ByProject,
   ModelTimeSeries,
-  TimeSeriesPoint,
   Totals,
 } from "./types";
 
@@ -78,36 +77,6 @@ export function buildByHarnessPipeline(): Record<string, unknown>[] {
     // The group output carries the harness value in _id, so sorting on it
     // breaks cost ties and makes the table ordering deterministic.
     { $sort: { costYuan: -1, _id: 1 } },
-  ];
-}
-
-export function buildTimeSeriesPipeline(
-  range: Range,
-  now = new Date(),
-  timeZone = "UTC"
-): Record<string, unknown>[] {
-  const start = getRangeStart(range, now);
-  const interval = getBucketInterval(range);
-
-  return [
-    { $match: { recorded_at: { $gte: start } } },
-    {
-      $group: {
-        _id: {
-          $dateTrunc: {
-            date: "$recorded_at",
-            unit: interval.unit,
-            binSize: interval.binSize,
-            ...(timeZone !== "UTC" ? { timezone: timeZone } : {}),
-          },
-        },
-        costYuan: { $sum: "$cost_yuan" },
-        promptTokens: { $sum: "$prompt_tokens" },
-        completionTokens: { $sum: "$completion_tokens" },
-        totalTokens: { $sum: "$total_tokens" },
-      },
-    },
-    { $sort: { _id: 1 } },
   ];
 }
 
@@ -225,40 +194,6 @@ export async function fetchByHarness(
     costYuan: item.costYuan,
     totalTokens: item.totalTokens,
   }));
-}
-
-export async function fetchTimeSeries(
-  collection: Collection,
-  range: Range,
-  now = new Date(),
-  timeZone = "UTC"
-): Promise<TimeSeriesPoint[]> {
-  const start = getRangeStart(range, now);
-  const interval = getBucketInterval(range);
-
-  const raw = (await collection
-    .aggregate(buildTimeSeriesPipeline(range, now, timeZone))
-    .toArray()) as Array<{
-    _id: Date;
-    costYuan: number;
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  }>;
-
-  const rawMap = new Map(raw.map((item) => [item._id.toISOString(), item]));
-
-  const buckets = generateBuckets(start, interval, now, timeZone);
-  return buckets.map((bucket) => {
-    const item = rawMap.get(bucket);
-    return {
-      bucket,
-      costYuan: item?.costYuan ?? 0,
-      promptTokens: item?.promptTokens ?? 0,
-      completionTokens: item?.completionTokens ?? 0,
-      totalTokens: item?.totalTokens ?? 0,
-    };
-  });
 }
 
 export async function fetchTimeSeriesByModel(

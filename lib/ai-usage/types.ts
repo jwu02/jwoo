@@ -28,14 +28,6 @@ export interface ByHarness {
   totalTokens: number;
 }
 
-export interface TimeSeriesPoint {
-  bucket: string; // ISO date string
-  costYuan: number;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
 export interface ModelTimeSeriesPoint {
   bucket: string; // ISO date string
   costYuan: number;
@@ -52,6 +44,5 @@ export interface Response {
   byModel: ByModel[];
   byProject: ByProject[];
   byHarness: ByHarness[];
-  timeSeries: TimeSeriesPoint[];
   timeSeriesByModel: ModelTimeSeries[];
 }
