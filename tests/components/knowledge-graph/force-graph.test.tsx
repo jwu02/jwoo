@@ -5,6 +5,15 @@ import {
   type ForceGraphHandle,
 } from "@/components/knowledge-graph/force-graph";
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
+import {
+  getContainers,
+  getPixiApp,
+  linkSpriteBySource,
+  mockViewport,
+  nodeSpriteById,
+  setCssVars,
+  VIEWPORT,
+} from "./harness";
 
 const NODES: KnowledgeGraphData["nodes"] = [
   { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
@@ -33,56 +42,7 @@ async function renderForceGraph(
   return { ...rendered, ref };
 }
 
-beforeEach(() => {
-  document.documentElement.style.setProperty("--primary", "#ff0000");
-  document.documentElement.style.setProperty("--claude-orange", "#ff8800");
-  document.documentElement.style.setProperty("--foreground", "#000000");
-  document.documentElement.style.setProperty("--background", "#ffffff");
-});
-
-interface MockNode {
-  label?: string;
-  visible?: boolean;
-  alpha?: number;
-  tint?: number;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
-  scale?: { x: number; y: number };
-  children?: MockNode[];
-  emit?(event: string, data?: unknown): void;
-  __circleRadius?: number;
-}
-
-interface MockApp {
-  stage: MockNode;
-  __textureSource?: MockNode;
-}
-
-function getPixiApp(container: HTMLElement): MockApp | undefined {
-  const canvas = container.querySelector("canvas");
-  return (canvas as unknown as { __pixiApp?: MockApp })?.__pixiApp;
-}
-
-function getContainers(container: HTMLElement) {
-  const app = getPixiApp(container);
-  const world = app?.stage.children?.[0];
-  const linksContainer = world?.children?.[0];
-  const nodesContainer = world?.children?.[1];
-  return { app, world, linksContainer, nodesContainer };
-}
-
-function nodeSpriteById(container: HTMLElement, id: string): MockNode | undefined {
-  const { nodesContainer } = getContainers(container);
-  return nodesContainer?.children?.find((s) => s.label === id);
-}
-
-function linkSpriteBySource(container: HTMLElement, sourceId: string): MockNode | undefined {
-  const { linksContainer } = getContainers(container);
-  return linksContainer?.children?.find((s) => s.label?.startsWith(`${sourceId}->`));
-}
+beforeEach(setCssVars);
 
 describe("ForceGraph", () => {
   it("renders visible nodes and edges", async () => {
@@ -379,6 +339,45 @@ describe("ForceGraph", () => {
     // Application (nulling app.stage) before the build effect's teardownWorld
     // runs, which used to dereference the nulled stage and throw.
     expect(() => unmount()).not.toThrow();
+  });
+
+  // The canvas is drawn at the viewport's size and out of the wrapper's flow, so
+  // the width it was given cannot become a width the page around it cannot go
+  // below. jsdom lays nothing out, so the class is the assertion.
+  it("keeps the canvas out of the wrapper's flow", async () => {
+    const { container } = await renderForceGraph();
+
+    expect(
+      container.querySelector("[data-testid='kg-graph-wrapper']")
+    ).toHaveClass("[&>canvas]:absolute");
+  });
+
+  // The other half of a re-anchor, which is the renderer's rather than the
+  // camera's: the surface the world is drawn into follows the viewport it is
+  // drawn in, or the graph is clipped at an edge the viewport no longer has.
+  it("grows the surface it draws into with the viewport", async () => {
+    const ref = createRef<ForceGraphHandle>();
+    const { container } = render(<ForceGraph ref={ref} graph={graph} />);
+    const wrapper = container.querySelector(
+      "[data-testid='kg-graph-wrapper']"
+    ) as HTMLElement;
+    // Before the world is built, so the width the graph lays itself out against
+    // is the one a later re-anchor measures from.
+    mockViewport(wrapper);
+    await waitFor(() => {
+      const { nodesContainer } = getContainers(container);
+      expect(nodesContainer?.children?.length).toBe(3);
+    });
+
+    mockViewport(wrapper, VIEWPORT.width + 288);
+    act(() => {
+      ref.current!.reanchorViewport();
+    });
+
+    expect(getPixiApp(container)?.__size).toEqual({
+      width: VIEWPORT.width + 288,
+      height: VIEWPORT.height,
+    });
   });
 
   // The drag test lives in force-graph-drag.test.tsx: it needs the zoom

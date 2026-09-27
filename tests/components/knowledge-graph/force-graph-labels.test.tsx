@@ -2,6 +2,15 @@ import { act, render, waitFor } from "@testing-library/react";
 import * as d3 from "d3";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import { LABEL_ZOOM_THRESHOLD, nodeRadius } from "@/lib/knowledge-graph/graph-data";
+import {
+  createSimulationMock,
+  deltaForScale,
+  mockViewport,
+  nodeSpriteById,
+  setCssVars,
+  setPositions,
+  wheel,
+} from "./harness";
 
 // The real force simulation settles over ~300 non-deterministic ticks and would
 // move node positions under the assertions, so mock only d3.forceSimulation and
@@ -12,26 +21,6 @@ jest.mock("d3", () => {
 });
 
 const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
-
-// The tests below drive zoom directly and never fire a simulation tick, so the
-// mock only has to be chainable — positions are set by hand where they matter.
-function createSimulationMock() {
-  const sim = {
-    force: jest.fn(),
-    on: jest.fn(),
-    stop: jest.fn(),
-    alphaTarget: jest.fn(),
-    restart: jest.fn(),
-  };
-  sim.force.mockImplementation(() => sim);
-  sim.on.mockImplementation(() => sim);
-  sim.alphaTarget.mockImplementation(() => sim);
-  sim.restart.mockImplementation(() => sim);
-  return sim;
-}
-
-const WIDTH = 800;
-const HEIGHT = 600;
 
 // Node ids are the note's own title, not a vault path: the graph API serves
 // `filename` straight from the notes collection, where it holds the
@@ -65,32 +54,10 @@ const EDGES = [
 const GRAPH = { nodes: NODES, edges: EDGES };
 
 beforeEach(() => {
-  document.documentElement.style.setProperty("--primary", "#ff0000");
-  document.documentElement.style.setProperty("--claude-orange", "#ff8800");
-  document.documentElement.style.setProperty("--foreground", "#000000");
-  document.documentElement.style.setProperty("--background", "#ffffff");
+  setCssVars();
   forceSimulationMock.mockReset();
-  forceSimulationMock.mockImplementation(createSimulationMock);
+  forceSimulationMock.mockImplementation(() => createSimulationMock());
 });
-
-// jsdom lays every element out at 0×0, which pins any computed zoom transform to
-// its minimum. Give the wrapper a real viewport so zoom math is meaningful.
-function mockViewport(wrapper: HTMLElement) {
-  Object.defineProperty(wrapper, "clientWidth", { value: WIDTH, configurable: true });
-  Object.defineProperty(wrapper, "clientHeight", { value: HEIGHT, configurable: true });
-  wrapper.getBoundingClientRect = () =>
-    ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: WIDTH,
-      bottom: HEIGHT,
-      width: WIDTH,
-      height: HEIGHT,
-      toJSON: () => ({}),
-    }) as DOMRect;
-}
 
 async function renderGraph() {
   const rendered = render(<ForceGraph graph={GRAPH} />);
@@ -102,33 +69,9 @@ async function renderGraph() {
   return { ...rendered, wrapper };
 }
 
-// ctrl+wheel is d3-zoom's zoom gesture. Its default wheel delta is
-// -deltaY × 0.002 × 10 (the ×10 is the ctrl pinch-zoom path), and d3 scales by
-// 2^delta, so k = 2^(-0.02 · deltaY): -50 → k = 2, -75 → k ≈ 2.83, +50 → k = 0.5.
-//
-// The tests drive zoom by naming the scale they want and deriving the delta,
-// rather than hard-coding deltas tied to one threshold value. A threshold of 2
-// happens to fall on a round delta; 1.5 and 1 do not, and hard-coded deltas
-// would silently stop testing the boundary the moment the threshold moved.
-const deltaForScale = (k: number) => -Math.log2(k) / 0.02;
-
 // Halving is a fixed +50 whatever the current scale, which is what makes it
 // usable for stepping down from a scale the test did not start at.
 const HALVE_WHEEL_DELTA = deltaForScale(0.5);
-function wheel(wrapper: HTMLElement, deltaY: number) {
-  act(() => {
-    wrapper.dispatchEvent(
-      new WheelEvent("wheel", {
-        bubbles: true,
-        cancelable: true,
-        deltaY,
-        ctrlKey: true,
-        clientX: WIDTH / 2,
-        clientY: HEIGHT / 2,
-      })
-    );
-  });
-}
 
 function labelLayer(container: HTMLElement): HTMLElement | null {
   return container.querySelector("[data-testid='kg-label-layer']");
@@ -144,34 +87,10 @@ function labelTexts(container: HTMLElement): string[] {
   );
 }
 
-function setPositions(positions: Array<{ x: number; y: number }>) {
-  const simNodes = forceSimulationMock.mock.calls[0][0] as Array<{
-    x?: number;
-    y?: number;
-  }>;
-  simNodes.forEach((node, i) => {
-    node.x = positions[i]?.x;
-    node.y = positions[i]?.y;
-  });
-}
-
 function labelXY(el: HTMLElement): { x: number; y: number } {
   const match = /translate3d\((-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(el.style.transform);
   if (!match) throw new Error(`label has no translate3d transform: "${el.style.transform}"`);
   return { x: Number(match[1]), y: Number(match[2]) };
-}
-
-function getNodesContainer(container: HTMLElement) {
-  const canvas = container.querySelector("canvas");
-  const app = (canvas as unknown as { __pixiApp?: { stage: { children?: Array<{ children?: unknown[] }> } } })
-    ?.__pixiApp;
-  return app?.stage.children?.[0]?.children?.[1] as
-    | { children?: Array<{ label?: string; emit?(event: string, data?: unknown): void }> }
-    | undefined;
-}
-
-function nodeSpriteById(container: HTMLElement, id: string) {
-  return getNodesContainer(container)?.children?.find((s) => s.label === id);
 }
 
 describe("ForceGraph node labels", () => {
@@ -223,7 +142,7 @@ describe("ForceGraph node labels", () => {
     expect(labelLayer(container)).toHaveClass("opacity-0");
 
     // Zoom out to half the threshold, which sits below it whatever the value.
-    wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD / 2));
+    act(() => wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD / 2)));
 
     expect(d3.zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
     expect(labelLayer(container)).toHaveClass("opacity-0");
@@ -232,7 +151,7 @@ describe("ForceGraph node labels", () => {
   it("reveals every label once zoomed past the threshold", async () => {
     const { container, wrapper } = await renderGraph();
 
-    wheel(wrapper, -75); // k ≈ 2.83
+    act(() => wheel(wrapper, -75)); // k ≈ 2.83
 
     expect(d3.zoomTransform(wrapper).k).toBeGreaterThan(LABEL_ZOOM_THRESHOLD);
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
@@ -245,10 +164,11 @@ describe("ForceGraph node labels", () => {
     // Step onto the boundary from above. Coming from below would prove nothing:
     // these tests never fire a simulation tick, so no transform is applied at
     // mount and the ref starts hidden at any k — only a crossing flips it.
-    wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD * 2));
+    act(() => wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD * 2)));
+
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
 
-    wheel(wrapper, HALVE_WHEEL_DELTA); // 2T → T
+    act(() => wheel(wrapper, HALVE_WHEEL_DELTA)); // 2T → T
 
     // The boundary is inclusive, so landing exactly on the threshold must keep
     // the labels up rather than drop them one float-ulp short.
@@ -259,14 +179,15 @@ describe("ForceGraph node labels", () => {
   it("hides the labels again when zoomed back out", async () => {
     const { container, wrapper } = await renderGraph();
 
-    wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD * 2));
+    act(() => wheel(wrapper, deltaForScale(LABEL_ZOOM_THRESHOLD * 2)));
+
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
 
     // Two exact halvings land on T/2. Stepping down by halving rather than by a
     // round-trip delta keeps the result independent of which side of the
     // boundary float rounding happens to fall on.
-    wheel(wrapper, HALVE_WHEEL_DELTA); // 2T → T
-    wheel(wrapper, HALVE_WHEEL_DELTA); // T → T/2
+    act(() => wheel(wrapper, HALVE_WHEEL_DELTA)); // 2T → T
+    act(() => wheel(wrapper, HALVE_WHEEL_DELTA)); // T → T/2
 
     expect(d3.zoomTransform(wrapper).k).toBeLessThan(LABEL_ZOOM_THRESHOLD);
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-0"));
@@ -275,13 +196,13 @@ describe("ForceGraph node labels", () => {
   it("positions each label beneath its own node", async () => {
     const { container, wrapper } = await renderGraph();
 
-    setPositions([
+    setPositions(forceSimulationMock, [
       { x: 100, y: 100 },
       { x: 300, y: 100 },
       { x: 100, y: 300 },
       { x: 300, y: 300 },
     ]);
-    wheel(wrapper, -75);
+    act(() => wheel(wrapper, -75));
 
     const alpha = labelFor(container, ALPHA)!;
     const beta = labelFor(container, BETA)!;
@@ -326,7 +247,8 @@ describe("ForceGraph node labels", () => {
   it("hides the hover tooltip while the labels are shown", async () => {
     const { container, wrapper } = await renderGraph();
 
-    wheel(wrapper, -75);
+    act(() => wheel(wrapper, -75));
+
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
 
     const alpha = nodeSpriteById(container, ALPHA)!;
@@ -344,7 +266,8 @@ describe("ForceGraph node labels", () => {
   it("emphasises the hovered node's label and fades unrelated ones", async () => {
     const { container, wrapper } = await renderGraph();
 
-    wheel(wrapper, -75);
+    act(() => wheel(wrapper, -75));
+
     await waitFor(() => expect(labelLayer(container)).toHaveClass("opacity-100"));
 
     const beta = nodeSpriteById(container, BETA)!;

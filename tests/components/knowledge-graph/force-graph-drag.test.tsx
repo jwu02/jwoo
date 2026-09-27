@@ -1,6 +1,17 @@
 import { act, render, waitFor } from "@testing-library/react";
 import * as d3 from "d3";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
+import {
+  createSimulationMock,
+  deltaForScale,
+  getContainers,
+  linkSpriteBySource,
+  mockViewport,
+  nodeSpriteById,
+  setCssVars,
+  setPositions,
+  wheel,
+} from "./harness";
 
 // Dragging is asserted in graph coordinates, which the handler derives from
 // screen coordinates through the transform it captured at pointerdown. Two
@@ -28,67 +39,12 @@ jest.mock("d3", () => ({
 
 const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
 
-interface MockNode {
-  label?: string;
-  visible?: boolean;
-  x?: number;
-  y?: number;
-  width?: number;
-  scale?: { x: number; y: number };
-  children?: MockNode[];
-  emit?(event: string, data?: unknown): void;
-}
-
-interface MockApp {
-  stage: MockNode;
-}
-
-function getPixiApp(container: HTMLElement): MockApp | undefined {
-  const canvas = container.querySelector("canvas");
-  return (canvas as unknown as { __pixiApp?: MockApp })?.__pixiApp;
-}
-
-function getContainers(container: HTMLElement) {
-  const app = getPixiApp(container);
-  const world = app?.stage.children?.[0];
-  const linksContainer = world?.children?.[0];
-  const nodesContainer = world?.children?.[1];
-  return { app, world, linksContainer, nodesContainer };
-}
-
-function nodeSpriteById(container: HTMLElement, id: string): MockNode | undefined {
-  const { nodesContainer } = getContainers(container);
-  return nodesContainer?.children?.find((s) => s.label === id);
-}
-
-function linkSpriteBySource(container: HTMLElement, sourceId: string): MockNode | undefined {
-  const { linksContainer } = getContainers(container);
-  return linksContainer?.children?.find((s) => s.label?.startsWith(`${sourceId}->`));
-}
-
 beforeEach(() => {
-  document.documentElement.style.setProperty("--primary", "#ff0000");
-  document.documentElement.style.setProperty("--claude-orange", "#ff8800");
-  document.documentElement.style.setProperty("--foreground", "#000000");
-  document.documentElement.style.setProperty("--background", "#ffffff");
+  setCssVars();
   forceSimulationMock.mockReset();
-  forceSimulationMock.mockImplementation(() => {
-    const sim = {
-      force: jest.fn(),
-      on: jest.fn(),
-      stop: jest.fn(),
-      alphaTarget: jest.fn(),
-      restart: jest.fn(),
-      // Not yet cool, so the drag does not ask the simulation to reheat — the
-      // heating branch belongs to the simulation, which is not running here.
-      alpha: jest.fn(() => 0.5),
-    };
-    sim.force.mockImplementation(() => sim);
-    sim.on.mockImplementation(() => sim);
-    sim.alphaTarget.mockImplementation(() => sim);
-    sim.restart.mockImplementation(() => sim);
-    return sim;
-  });
+  // Not yet cool, so the drag does not ask the simulation to reheat — the
+  // heating branch belongs to the simulation, which is not running here.
+  forceSimulationMock.mockImplementation(() => createSimulationMock());
 });
 
 const NODES = [
@@ -105,63 +61,6 @@ const EDGES = [
 // component's memo compares, so the tests pass it the same way the page does.
 const GRAPH = { nodes: NODES, edges: EDGES };
 
-const WIDTH = 800;
-const HEIGHT = 600;
-
-// jsdom lays every element out at 0×0, which pins any computed zoom transform
-// to its minimum. Give the wrapper a real viewport so the zoom math is
-// meaningful, and keep the rect at the origin so a graph point and the client
-// point it came from differ only by the transform.
-function mockViewport(wrapper: HTMLElement) {
-  Object.defineProperty(wrapper, "clientWidth", { value: WIDTH, configurable: true });
-  Object.defineProperty(wrapper, "clientHeight", { value: HEIGHT, configurable: true });
-  wrapper.getBoundingClientRect = () =>
-    ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: WIDTH,
-      bottom: HEIGHT,
-      width: WIDTH,
-      height: HEIGHT,
-      toJSON: () => ({}),
-    }) as DOMRect;
-}
-
-// ctrl+wheel is d3-zoom's zoom gesture, and it scales by 2^delta where delta is
-// -deltaY × 0.002 × 10 — so this converts the scale a test wants into the delta
-// that reaches it, rather than hard-coding a delta to one particular transform.
-const deltaForScale = (k: number) => -Math.log2(k) / 0.02;
-
-function wheel(wrapper: HTMLElement, deltaY: number) {
-  act(() => {
-    wrapper.dispatchEvent(
-      new WheelEvent("wheel", {
-        bubbles: true,
-        cancelable: true,
-        deltaY,
-        ctrlKey: true,
-        clientX: WIDTH / 2,
-        clientY: HEIGHT / 2,
-      })
-    );
-  });
-}
-
-// No tick runs, so the incident links are drawn from the positions the nodes
-// carry here rather than from the sprites the tick loop would have placed.
-function setPositions(positions: Array<{ x: number; y: number }>) {
-  const simNodes = forceSimulationMock.mock.calls[0][0] as Array<{
-    x?: number;
-    y?: number;
-  }>;
-  simNodes.forEach((node, i) => {
-    node.x = positions[i]?.x;
-    node.y = positions[i]?.y;
-  });
-}
-
 describe("ForceGraph drag", () => {
   it("moves the dragged node and its incident links immediately during a drag", async () => {
     const { container } = render(<ForceGraph graph={GRAPH} />);
@@ -170,7 +69,9 @@ describe("ForceGraph drag", () => {
       const { nodesContainer } = getContainers(container);
       expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
     });
-    setPositions([
+    // No tick runs, so the incident links are drawn from the positions the
+    // nodes carry here rather than from the sprites the tick loop would place.
+    setPositions(forceSimulationMock, [
       { x: 0, y: 0 },
       { x: 100, y: 100 },
       { x: 200, y: 200 },
@@ -224,7 +125,9 @@ describe("ForceGraph drag", () => {
 
     // A real gesture, so the transform is genuinely non-identity: zooming about
     // the centre leaves k at 2 and a pan of half the viewport behind it.
-    wheel(wrapper, deltaForScale(2));
+    act(() => {
+      wheel(wrapper, deltaForScale(2));
+    });
     const t = d3.zoomTransform(wrapper);
     expect(t.k).toBeCloseTo(2);
 

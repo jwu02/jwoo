@@ -3,6 +3,15 @@ import { useState, type ReactElement } from "react";
 import * as d3 from "d3";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
+import {
+  createSimulationMock,
+  getContainers,
+  mockViewport,
+  nodeSpriteById,
+  setCssVars,
+  setPositions,
+  type SimMock,
+} from "./harness";
 
 // A press on a node that never becomes a drag is a click on that note, and a
 // click on a note is what a row in the list already does: take the Focus — or,
@@ -22,40 +31,13 @@ jest.mock("d3", () => ({
 
 const forceSimulationMock = d3.forceSimulation as unknown as jest.Mock;
 
-interface SimMock {
-  force: jest.Mock;
-  on: jest.Mock;
-  stop: jest.Mock;
-  alphaTarget: jest.Mock;
-  restart: jest.Mock;
-  alpha: jest.Mock;
-}
-
-function createSimulationMock(): SimMock {
-  const sim = {
-    force: jest.fn(),
-    on: jest.fn(),
-    stop: jest.fn(),
-    alphaTarget: jest.fn(),
-    restart: jest.fn(),
-    // Cool, so a drag would ask for a reheat and a click must not: the reheating
-    // branch is otherwise invisible to a test whose simulation is not running.
-    alpha: jest.fn(() => 0.05),
-  };
-  sim.force.mockImplementation(() => sim);
-  sim.on.mockImplementation(() => sim);
-  sim.alphaTarget.mockImplementation(() => sim);
-  sim.restart.mockImplementation(() => sim);
-  return sim;
-}
-
 beforeEach(() => {
-  document.documentElement.style.setProperty("--primary", "#ff0000");
-  document.documentElement.style.setProperty("--claude-orange", "#ff8800");
-  document.documentElement.style.setProperty("--foreground", "#000000");
-  document.documentElement.style.setProperty("--background", "#ffffff");
+  setCssVars();
   forceSimulationMock.mockReset();
-  forceSimulationMock.mockImplementation(createSimulationMock);
+  // A cooled layout, so a drag would ask for a reheat and a click must not: the
+  // reheating branch is otherwise invisible to a test whose simulation is not
+  // running.
+  forceSimulationMock.mockImplementation(() => createSimulationMock(0.05));
 });
 
 const NODES: KnowledgeGraphData["nodes"] = [
@@ -68,9 +50,6 @@ const EDGES: KnowledgeGraphData["edges"] = [
   { source: "B.md", target: "C.md" },
 ];
 const GRAPH = { nodes: NODES, edges: EDGES };
-
-const WIDTH = 800;
-const HEIGHT = 600;
 
 // The chain the focus tests lay out, so a click on C lands on a framing they
 // already assert.
@@ -85,33 +64,6 @@ const FOCUS_C = { k: 1.44, x: -32, y: -132 };
 // about a particular node.
 const POINT = { x: 100, y: 100 };
 
-interface MockNode {
-  label?: string;
-  alpha?: number;
-  scale?: { x: number; y: number };
-  children?: MockNode[];
-  emit?(event: string, data?: unknown): void;
-}
-
-interface MockApp {
-  stage: MockNode;
-}
-
-function getPixiApp(container: HTMLElement): MockApp | undefined {
-  const canvas = container.querySelector("canvas");
-  return (canvas as unknown as { __pixiApp?: MockApp })?.__pixiApp;
-}
-
-function getContainers(container: HTMLElement) {
-  const app = getPixiApp(container);
-  const world = app?.stage.children?.[0];
-  return { world, nodesContainer: world?.children?.[1] };
-}
-
-function nodeSpriteById(container: HTMLElement, id: string): MockNode | undefined {
-  return getContainers(container).nodesContainer?.children?.find((s) => s.label === id);
-}
-
 // The node as the simulation holds it, which is what a drag writes to.
 function simNodeById(id: string) {
   const simNodes = forceSimulationMock.mock.calls[0][0] as Array<{
@@ -122,36 +74,6 @@ function simNodeById(id: string) {
     fy?: number;
   }>;
   return simNodes.find((node) => node.id === id)!;
-}
-
-function mockViewport(wrapper: HTMLElement) {
-  Object.defineProperty(wrapper, "clientWidth", { value: WIDTH, configurable: true });
-  Object.defineProperty(wrapper, "clientHeight", { value: HEIGHT, configurable: true });
-  // The rect at the origin, so a client point and the graph point it maps to
-  // differ only by the zoom transform.
-  wrapper.getBoundingClientRect = () =>
-    ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: WIDTH,
-      bottom: HEIGHT,
-      width: WIDTH,
-      height: HEIGHT,
-      toJSON: () => ({}),
-    }) as DOMRect;
-}
-
-function setPositions(positions = POSITIONS) {
-  const simNodes = forceSimulationMock.mock.calls[0][0] as Array<{
-    x?: number;
-    y?: number;
-  }>;
-  simNodes.forEach((node, i) => {
-    node.x = positions[i]?.x;
-    node.y = positions[i]?.y;
-  });
 }
 
 // The canvas is what a pointer is really over, and d3's listeners are on the
@@ -285,7 +207,7 @@ describe("ForceGraph node click", () => {
   it("takes the Focus, and flies the camera, when a node is clicked", async () => {
     const onTake = jest.fn();
     const { container, wrapper } = await mounted(<FocusHarness onTake={onTake} />);
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     click(container, "C.md");
 
@@ -301,7 +223,7 @@ describe("ForceGraph node click", () => {
   it("moves no camera of its own", async () => {
     const onTake = jest.fn();
     const { container, wrapper } = await renderGraph({ onFocusTake: onTake });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     click(container, "C.md");
 
@@ -311,7 +233,7 @@ describe("ForceGraph node click", () => {
 
   it("does not heat the simulation up", async () => {
     const { container } = await renderGraph();
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
     const sim = forceSimulationMock.mock.results[0].value as SimMock;
 
     click(container, "C.md");
@@ -328,7 +250,7 @@ describe("ForceGraph node click", () => {
       onFocusClear: onClear,
       onFocusTake: onTake,
     });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
     // The focus is already held when the click arrives — taken from the list,
     // or by an earlier click on the node — so this click is the one that ends
     // it.
@@ -347,7 +269,7 @@ describe("ForceGraph node click", () => {
   // clears it.
   it("keeps the camera where it is when a click ends the Focus", async () => {
     const { container, rerender, wrapper } = await renderGraph();
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
     focusOn(rerender, "C.md");
     await waitFor(() => expectAt(wrapper, FOCUS_C), { timeout: 3000 });
 
@@ -361,7 +283,7 @@ describe("ForceGraph press against the drag", () => {
   it("still drags once the press has travelled past the slop", async () => {
     const onTake = jest.fn();
     const { container } = await renderGraph({ onFocusTake: onTake });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
     const sim = forceSimulationMock.mock.results[0].value as SimMock;
 
     press(container, "B.md", { x: 100, y: 100 });
@@ -383,7 +305,7 @@ describe("ForceGraph press against the drag", () => {
   it("leaves the node where it was when the press never travelled", async () => {
     const onTake = jest.fn();
     const { container } = await renderGraph({ onFocusTake: onTake });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     press(container, "B.md", { x: 100, y: 100 });
     // Three pixels: under the slop, so the hand has not meant a drag.
@@ -398,7 +320,7 @@ describe("ForceGraph press against the drag", () => {
   it("ignores a press that is not the left button", async () => {
     const onTake = jest.fn();
     const { container } = await renderGraph({ onFocusTake: onTake });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     // A right-click opens a menu; it does not focus a note.
     press(container, "C.md", POINT, 2);
@@ -412,7 +334,7 @@ describe("ForceGraph press against the drag", () => {
   it("abandons a press the browser cancels, without clicking", async () => {
     const onTake = jest.fn();
     const { container, wrapper } = await renderGraph({ onFocusTake: onTake });
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     press(container, "C.md");
     act(() => {
@@ -449,7 +371,7 @@ describe("ForceGraph press against the zoom", () => {
 
   it("does not pan the camera on the same drift over a pressed node", async () => {
     const { container, wrapper } = await renderGraph();
-    setPositions();
+    setPositions(forceSimulationMock, POSITIONS);
 
     press(container, "B.md", POINT);
     act(() => {
