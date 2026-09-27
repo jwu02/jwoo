@@ -1,9 +1,14 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { ViewToggle } from "@/components/ai-usage/view-toggle";
+import { RangeSelector } from "@/components/polled/range-selector";
+import { VIEW_OPTIONS } from "@/components/ai-usage/view-toggle";
 
-describe("ViewToggle", () => {
+// The breakdown view toggle is the shared pill group rendered with the view
+// options, so these cover the options themselves rather than the selector.
+describe("VIEW_OPTIONS", () => {
   it("renders a button for each view", () => {
-    render(<ViewToggle value="model" onChange={() => {}} />);
+    render(
+      <RangeSelector value="model" onChange={() => {}} options={VIEW_OPTIONS} />
+    );
     expect(screen.getByRole("button", { name: "Model" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Harness" })).toBeInTheDocument();
@@ -11,7 +16,7 @@ describe("ViewToggle", () => {
 
   it("marks the active view as pressed", () => {
     const { rerender } = render(
-      <ViewToggle value="model" onChange={() => {}} />
+      <RangeSelector value="model" onChange={() => {}} options={VIEW_OPTIONS} />
     );
     expect(screen.getByRole("button", { name: "Model" })).toHaveAttribute(
       "aria-pressed",
@@ -26,7 +31,13 @@ describe("ViewToggle", () => {
       "false"
     );
 
-    rerender(<ViewToggle value="harness" onChange={() => {}} />);
+    rerender(
+      <RangeSelector
+        value="harness"
+        onChange={() => {}}
+        options={VIEW_OPTIONS}
+      />
+    );
     expect(screen.getByRole("button", { name: "Harness" })).toHaveAttribute(
       "aria-pressed",
       "true"
@@ -35,7 +46,9 @@ describe("ViewToggle", () => {
 
   it("fires onChange with the clicked view", () => {
     const onChange = jest.fn();
-    render(<ViewToggle value="model" onChange={onChange} />);
+    render(
+      <RangeSelector value="model" onChange={onChange} options={VIEW_OPTIONS} />
+    );
     fireEvent.click(screen.getByRole("button", { name: "Harness" }));
     expect(onChange).toHaveBeenCalledWith("harness");
   });

@@ -19,15 +19,11 @@ const PROJECT_GROUPS: Record<string, string> = {
   "personal-website": "personal-website",
 };
 
-function findProjectGroup(cwd: string): string | null {
-  const normalized = cwd.toLowerCase();
+/** The breakdown's project name for a session's working directory. */
+export function projectForCwd(cwd: string | null): string {
+  const normalized = (cwd ?? "").toLowerCase();
   for (const [substring, name] of Object.entries(PROJECT_GROUPS)) {
     if (normalized.includes(substring.toLowerCase())) return name;
   }
-  return null;
-}
-
-/** The breakdown's project name for a session's working directory. */
-export function projectForCwd(cwd: string | null): string {
-  return findProjectGroup(cwd ?? "") ?? OTHERS_PROJECT;
+  return OTHERS_PROJECT;
 }

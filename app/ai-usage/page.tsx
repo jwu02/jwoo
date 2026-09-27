@@ -4,12 +4,56 @@ import { useState } from "react"
 import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
-import { BreakdownView, ViewToggle } from "@/components/ai-usage/view-toggle"
+import { BreakdownView, VIEW_OPTIONS } from "@/components/ai-usage/view-toggle"
 import { RangeSelector } from "@/components/polled/range-selector"
 import { ErrorBanner } from "@/components/polled/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
 import { Range, RANGE_OPTIONS } from "@/lib/ranges"
 import { Response } from "@/lib/ai-usage/types"
+
+// The three breakdown views read three API lists that differ only in what they
+// call their label field, so each view knows its own column header and how to
+// flatten its list into the table's rows.
+const BREAKDOWNS: Record<
+  BreakdownView,
+  {
+    header: string
+    rows: (data: Response) => {
+      id: string
+      label: string
+      costYuan: number
+      totalTokens: number
+    }[]
+  }
+> = {
+  model: {
+    header: "Model",
+    rows: (data) =>
+      data.byModel.map(({ model, ...totals }) => ({
+        id: model,
+        label: model,
+        ...totals,
+      })),
+  },
+  project: {
+    header: "Project",
+    rows: (data) =>
+      data.byProject.map(({ project, ...totals }) => ({
+        id: project,
+        label: project,
+        ...totals,
+      })),
+  },
+  harness: {
+    header: "Harness",
+    rows: (data) =>
+      data.byHarness.map(({ harness, ...totals }) => ({
+        id: harness,
+        label: harness,
+        ...totals,
+      })),
+  },
+}
 
 export default function AiUsagePage() {
   const [range, setRange] = useState<Range>("24h")
@@ -74,38 +118,15 @@ export default function AiUsagePage() {
                   <h2 className="text-lg font-semibold tracking-tight">
                     Usage breakdown
                   </h2>
-                  <ViewToggle value={view} onChange={setView} />
+                  <RangeSelector
+                    value={view}
+                    onChange={setView}
+                    options={VIEW_OPTIONS}
+                  />
                 </div>
                 <UsageBreakdown
-                  rows={
-                    view === "model"
-                      ? data.byModel.map((model) => ({
-                          id: model.model,
-                          label: model.model,
-                          costYuan: model.costYuan,
-                          totalTokens: model.totalTokens,
-                        }))
-                      : view === "project"
-                        ? data.byProject.map((project) => ({
-                            id: project.project,
-                            label: project.project,
-                            costYuan: project.costYuan,
-                            totalTokens: project.totalTokens,
-                          }))
-                        : data.byHarness.map((harness) => ({
-                            id: harness.harness,
-                            label: harness.harness,
-                            costYuan: harness.costYuan,
-                            totalTokens: harness.totalTokens,
-                          }))
-                  }
-                  labelHeader={
-                    view === "model"
-                      ? "Model"
-                      : view === "project"
-                        ? "Project"
-                        : "Harness"
-                  }
+                  rows={BREAKDOWNS[view].rows(data)}
+                  labelHeader={BREAKDOWNS[view].header}
                 />
               </div>
             </>

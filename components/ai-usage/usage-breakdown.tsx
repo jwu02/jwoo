@@ -4,14 +4,10 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { formatNumber } from "@/lib/ui/chart-format";
-import { formatTokens } from "@/lib/ai-usage/format";
-import {
-  aiUsageColorMap,
-  aiUsageColorVar,
-} from "@/lib/ai-usage/colors";
+import { formatNumber, formatCompactNumber } from "@/lib/ui/chart-format";
+import { aiUsageColorMap, aiUsageColorVar } from "@/lib/ai-usage/colors";
 
-export interface UsageBreakdownRow {
+interface UsageBreakdownRow {
   /** Stable unique key for the row. */
   id: string;
   label: string;
@@ -132,7 +128,11 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
                 <StatCell
                   ariaLabel={`${row.label} tokens share`}
                   rawValue={row.totalTokens}
-                  display={formatTokens(row.totalTokens)}
+                  // One fixed decimal, matching the chart tooltip: the generic
+                  // compact formatter trims the fraction ("2M"), which reads as
+                  // a different kind of number beside it and leaves the column
+                  // ragged.
+                  display={formatCompactNumber(row.totalTokens, 1)}
                   total={totals.tokens}
                   color={color}
                 />

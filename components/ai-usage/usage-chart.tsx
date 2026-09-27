@@ -21,14 +21,13 @@ import {
   formatCompactNumber,
   formatNumber,
 } from "@/lib/ui/chart-format";
-import { formatTokens } from "@/lib/ai-usage/format";
 import { aiUsageColorMap, aiUsageColorVar } from "@/lib/ai-usage/colors";
 
 interface UsageChartProps {
   data: ModelTimeSeries[];
   range: Range;
-  /** Model names in table order; bar colors follow this order. */
-  modelOrder?: string[];
+  /** Model names in table order; series order and bar colors follow it. */
+  modelOrder: string[];
 }
 
 interface Series {
@@ -58,6 +57,13 @@ function formatCostValue(value: number): string {
   return formatNumber(value, 2);
 }
 
+// Token counts read at a fixed one decimal, matching the breakdown table's
+// Total Tokens column: the generic compact formatter trims the fraction ("2M"),
+// which reads as a different kind of number beside a "2.5M" row.
+function formatTokenValue(value: number): string {
+  return formatCompactNumber(value, 1);
+}
+
 // Cost y-axis labels: yuan values are small, so keep decimals and skip the M/K
 // compaction (which would round 0.01 to "0" via toFixed(1)).
 export function formatCostAxisLabel(value: number): string {
@@ -76,25 +82,20 @@ export function formatMillionsAxisLabel(value: number): string {
 // Flattens per-model time series into chart rows that Recharts can draw
 // stacked bars from. Each row carries one `tokens:<model>` and one
 // `cost:<model>` value, so both charts can share the same bucket list while
-// the series configs select different keys. When `modelOrder` is given (the
-// by-model table's order), series follow it so bar colors match the table
-// rows; otherwise the input (API) order is kept, which is cost descending
-// within the selected range.
+// the series configs select different keys. Series follow `modelOrder` (the
+// by-model table's order) so bar colors match the table rows.
 export function buildModelChartData(
   timeSeriesByModel: ModelTimeSeries[],
-  modelOrder: string[] = []
+  modelOrder: string[]
 ): { rows: ChartRow[]; series: ModelSeriesConfig[] } {
-  const ordered =
-    modelOrder.length === 0
-      ? timeSeriesByModel
-      : [...timeSeriesByModel].sort((a, b) => {
-          const indexA = modelOrder.indexOf(a.model);
-          const indexB = modelOrder.indexOf(b.model);
-          if (indexA === -1 && indexB === -1) return a.model.localeCompare(b.model);
-          if (indexA === -1) return 1;
-          if (indexB === -1) return -1;
-          return indexA - indexB;
-        });
+  const ordered = [...timeSeriesByModel].sort((a, b) => {
+    const indexA = modelOrder.indexOf(a.model);
+    const indexB = modelOrder.indexOf(b.model);
+    if (indexA === -1 && indexB === -1) return a.model.localeCompare(b.model);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
 
   const series = ordered.map((entry) => ({
     model: entry.model,
@@ -124,19 +125,15 @@ export function buildModelChartData(
 // kimi) get a distinct stepped shade from `colorMap`; everything else falls
 // back to the --chart-N slot at its position in the by-model table (modelOrder),
 // so chart bars and table rows share one color per model even when a range only
-// shows a subset of the models. The series position is used when the model
-// isn't in the table (e.g. no modelOrder given).
+// shows a subset of the models.
 function chartColorForModel(
   model: string,
   modelOrder: string[],
-  seriesIndex: number,
   colorMap: Map<string, string>
 ): string {
   const fromMap = colorMap.get(model);
   if (fromMap) return fromMap;
-  const tableIndex = modelOrder.indexOf(model);
-  const index = tableIndex >= 0 ? tableIndex : seriesIndex;
-  return aiUsageColorVar(model, index);
+  return aiUsageColorVar(model, modelOrder.indexOf(model));
 }
 
 function UsageChartTooltip({
@@ -240,14 +237,14 @@ function MiniStackedBarChart({
   series,
   range,
   hidden,
-  yTickFormatter = formatCompactNumber,
+  yTickFormatter,
 }: {
   data: ChartRow[];
   series: Series[];
   range: Range;
   /** Model names hidden via the legend; applies to both charts. */
   hidden: Set<string>;
-  yTickFormatter?: (value: number) => string;
+  yTickFormatter: (value: number) => string;
 }) {
   const ticks = useMemo(
     () => getTicksForRange(data.map((point) => point.bucket), range),
@@ -255,82 +252,74 @@ function MiniStackedBarChart({
   );
 
   return (
-    <div>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
-            barCategoryGap={2}
-          >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis
-              dataKey="bucket"
-              ticks={ticks}
-              tickFormatter={(value: string) => formatTick(value, range)}
-              tick={{ fontSize: 12, fill: "var(--foreground)" }}
-              stroke="var(--foreground)"
-            />
-            {/* width="auto" measures the tick labels instead of reserving the
+    <div className="h-48">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
+          barCategoryGap={2}
+        >
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <XAxis
+            dataKey="bucket"
+            ticks={ticks}
+            tickFormatter={(value: string) => formatTick(value, range)}
+            tick={{ fontSize: 12, fill: "var(--foreground)" }}
+            stroke="var(--foreground)"
+          />
+          {/* width="auto" measures the tick labels instead of reserving the
                 default 60px, so the plot fills the surface — which matters most
                 on narrow screens, where 60px is a quarter of the width. */}
-            <YAxis
-              width="auto"
-              tickFormatter={(value: number) => yTickFormatter(value)}
-              tick={{ fontSize: 12, fill: "var(--foreground)" }}
-              stroke="var(--foreground)"
+          <YAxis
+            width="auto"
+            tickFormatter={(value: number) => yTickFormatter(value)}
+            tick={{ fontSize: 12, fill: "var(--foreground)" }}
+            stroke="var(--foreground)"
+          />
+          <Tooltip
+            content={<UsageChartTooltip range={range} series={series} />}
+            // Recharts portals the tooltip into its own chart's wrapper, which
+            // is `position: relative` with no z-index. Two stacked charts then
+            // paint in document order, so a tooltip taller than the 12rem box
+            // (see `h-48` above) is clamped to the chart's top edge, spills
+            // over the chart below it, and gets covered by that chart's bars.
+            // The wrapper is not a stacking context, so a positive z-index on
+            // the tooltip lifts it back out of that paint order.
+            wrapperStyle={{ zIndex: 1 }}
+          />
+          {series.map((entry) => (
+            <Bar
+              key={entry.dataKey}
+              dataKey={entry.dataKey}
+              name={entry.name}
+              stackId="models"
+              fill={entry.color}
+              // No stroke and no radius: a border reads as an outline, and a
+              // rounded top segment tapers narrower than the one below it.
+              // Square, stroke-less fills keep every segment uniform.
+              maxBarSize={24}
+              // Recharts drops hidden bars from the stack computation, so the
+              // remaining segments close the gap instead of floating.
+              hide={hidden.has(entry.name)}
             />
-            <Tooltip
-              content={<UsageChartTooltip range={range} series={series} />}
-              // Recharts portals the tooltip into its own chart's wrapper, which
-              // is `position: relative` with no z-index. Two stacked charts then
-              // paint in document order, so a tooltip taller than the 12rem box
-              // (see `h-48` above) is clamped to the chart's top edge, spills
-              // over the chart below it, and gets covered by that chart's bars.
-              // The wrapper is not a stacking context, so a positive z-index on
-              // the tooltip lifts it back out of that paint order.
-              wrapperStyle={{ zIndex: 1 }}
-            />
-            {series.map((entry) => (
-              <Bar
-                key={entry.dataKey}
-                dataKey={entry.dataKey}
-                name={entry.name}
-                stackId="models"
-                fill={entry.color}
-                // No stroke and no radius: a border reads as an outline, and a
-                // rounded top segment tapers narrower than the one below it.
-                // Square, stroke-less fills keep every segment uniform.
-                maxBarSize={24}
-                // Recharts drops hidden bars from the stack computation, so the
-                // remaining segments close the gap instead of floating.
-                hide={hidden.has(entry.name)}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
 
-export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
+export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
   const { rows, series } = useMemo(
     () => buildModelChartData(data, modelOrder),
     [data, modelOrder]
   );
 
-  // Assign a distinct shade per known-provider model. Uses the table order
-  // (modelOrder) when present — the same set the breakdown table colors — so
-  // chart bars, legend swatches and table rows agree on one color per model.
-  // Unknown models simply stay out of the map and fall back to --chart-N.
-  const colorMap = useMemo(
-    () =>
-      aiUsageColorMap(
-        modelOrder.length > 0 ? modelOrder : data.map((entry) => entry.model)
-      ),
-    [data, modelOrder]
-  );
+  // Assign a distinct shade per known-provider model, over the same set the
+  // breakdown table colors, so chart bars, legend swatches and table rows agree
+  // on one color per model. Unknown models stay out of the map and fall back to
+  // --chart-N.
+  const colorMap = useMemo(() => aiUsageColorMap(modelOrder), [modelOrder]);
 
   // Keyed by model name so one legend toggle hides the model in both the cost
   // and tokens charts (they share the same models, hence one legend).
@@ -348,17 +337,17 @@ export function UsageChart({ data, range, modelOrder = [] }: UsageChartProps) {
     });
   };
 
-  const tokenSeries: Series[] = series.map((entry, index) => ({
+  const tokenSeries: Series[] = series.map((entry) => ({
     dataKey: entry.tokensKey,
     name: entry.model,
-    color: chartColorForModel(entry.model, modelOrder, index, colorMap),
-    formatValue: formatTokens,
+    color: chartColorForModel(entry.model, modelOrder, colorMap),
+    formatValue: formatTokenValue,
   }));
 
-  const costSeries: Series[] = series.map((entry, index) => ({
+  const costSeries: Series[] = series.map((entry) => ({
     dataKey: entry.costKey,
     name: entry.model,
-    color: chartColorForModel(entry.model, modelOrder, index, colorMap),
+    color: chartColorForModel(entry.model, modelOrder, colorMap),
     prefix: "¥",
     formatValue: formatCostValue,
   }));

@@ -28,7 +28,7 @@ export interface ByHarness {
   totalTokens: number;
 }
 
-export interface ModelTimeSeriesPoint {
+interface ModelTimeSeriesPoint {
   bucket: string; // ISO date string
   costYuan: number;
   totalTokens: number;

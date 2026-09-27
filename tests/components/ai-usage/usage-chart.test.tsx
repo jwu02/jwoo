@@ -8,6 +8,25 @@ import {
 } from "@/components/ai-usage/usage-chart";
 import { ModelTimeSeries } from "@/lib/ai-usage/types";
 
+// UsageChart takes the by-model table order from its caller. A test with no
+// opinion about it derives the order from the data it renders, which is where
+// the real page gets it from too.
+function Chart({
+  data,
+  modelOrder,
+  ...props
+}: Omit<React.ComponentProps<typeof UsageChart>, "modelOrder"> & {
+  modelOrder?: string[];
+}) {
+  return (
+    <UsageChart
+      data={data}
+      modelOrder={modelOrder ?? data.map((entry) => entry.model)}
+      {...props}
+    />
+  );
+}
+
 jest.mock("recharts", () => {
   const actual = jest.requireActual("recharts");
   return {
@@ -201,7 +220,10 @@ describe("formatMillionsAxisLabel", () => {
 
 describe("buildModelChartData", () => {
   it("builds wide rows with per-model token and cost keys", () => {
-    const { rows, series } = buildModelChartData(buildModelData());
+    const { rows, series } = buildModelChartData(buildModelData(), [
+      "model-b",
+      "model-a",
+    ]);
 
     expect(series).toEqual([
       { model: "model-b", tokensKey: "tokens:model-b", costKey: "cost:model-b" },
@@ -222,7 +244,10 @@ describe("buildModelChartData", () => {
     const [modelB, modelA] = buildModelData();
     modelA.points = modelA.points.slice(1); // drop model-a's first bucket
 
-    const { rows } = buildModelChartData([modelB, modelA]);
+    const { rows } = buildModelChartData(
+      [modelB, modelA],
+      ["model-b", "model-a"]
+    );
 
     expect(rows).toHaveLength(4);
     expect(rows[0]).toMatchObject({
@@ -233,7 +258,7 @@ describe("buildModelChartData", () => {
   });
 
   it("returns empty rows and series when there are no models", () => {
-    const { rows, series } = buildModelChartData([]);
+    const { rows, series } = buildModelChartData([], []);
     expect(rows).toEqual([]);
     expect(series).toEqual([]);
   });
@@ -252,7 +277,7 @@ describe("buildModelChartData", () => {
 describe("UsageChart", () => {
   it("renders one stacked bar segment per model on each chart", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -273,7 +298,7 @@ describe("UsageChart", () => {
 
   it("stacks each bucket's segments instead of placing them side by side", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -309,7 +334,7 @@ describe("UsageChart", () => {
 
   it("labels the tokens chart in millions and keeps ticks unit-free", () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
 
     const tickLabels = Array.from(
@@ -327,7 +352,7 @@ describe("UsageChart", () => {
   });
 
   it("prefixes per-model cost values with the yuan sign in the tooltip", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(0);
     expect(
@@ -339,7 +364,7 @@ describe("UsageChart", () => {
   });
 
   it("shows cost tooltip values at two decimals", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(0);
     expect(items.length).toBeGreaterThan(0);
@@ -360,7 +385,7 @@ describe("UsageChart", () => {
   });
 
   it("right-aligns model names and values into two columns", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
     fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
@@ -385,7 +410,7 @@ describe("UsageChart", () => {
   });
 
   it("shows a total row that sums the displayed model values", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
     fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
@@ -414,7 +439,7 @@ describe("UsageChart", () => {
   });
 
   it("omits the separator and total when only one model is active", async () => {
-    render(<UsageChart data={buildModelData().slice(0, 1)} range="24h" />);
+    render(<Chart data={buildModelData().slice(0, 1)} range="24h" />);
 
     const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
     fireEvent.mouseMove(wrapper, { clientX: 400, clientY: 200 });
@@ -436,7 +461,7 @@ describe("UsageChart", () => {
   });
 
   it("styles the cost tooltip yuan sign as muted foreground", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     // Hover the cost chart (the first of the two stacked charts).
     const wrapper = document.querySelectorAll(".recharts-wrapper")[0];
@@ -460,7 +485,7 @@ describe("UsageChart", () => {
   });
 
   it("raises the cost tooltip above the tokens chart that follows it", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     await readTooltipItems(0);
     const tooltip = Array.from(
@@ -483,7 +508,7 @@ describe("UsageChart", () => {
   });
 
   it("shortens each model's token value in the tooltip to M/K", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(1);
     // Token tooltips use the same M/K compaction as the y-axis rather than
@@ -494,7 +519,7 @@ describe("UsageChart", () => {
   });
 
   it("shows token tooltip values at one decimal, whole counts included", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const items = await readTooltipItems(1);
     expect(items.length).toBeGreaterThan(0);
@@ -507,7 +532,7 @@ describe("UsageChart", () => {
   });
 
   it("orders tooltip entries from highest to lowest value", async () => {
-    render(<UsageChart data={buildMixedActivityData()} range="24h" />);
+    render(<Chart data={buildMixedActivityData()} range="24h" />);
 
     const items = await readTooltipItems(0);
     const modelAIndex = items.findIndex((item) => item?.startsWith("model-a"));
@@ -522,7 +547,7 @@ describe("UsageChart", () => {
   });
 
   it("hides models with zero activity from the tooltip", async () => {
-    render(<UsageChart data={buildMixedActivityData()} range="24h" />);
+    render(<Chart data={buildMixedActivityData()} range="24h" />);
 
     const items = await readTooltipItems(0);
     expect(items.some((item) => item?.startsWith("model-a"))).toBe(true);
@@ -532,7 +557,7 @@ describe("UsageChart", () => {
 
   it("shows a legend naming each model when multiple models are present", () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
 
     const legendText = container.textContent ?? "";
@@ -542,7 +567,7 @@ describe("UsageChart", () => {
 
   it("renders a single legend, below both charts", () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
 
     // Exactly one legend for the two stacked charts, not one per chart.
@@ -560,7 +585,7 @@ describe("UsageChart", () => {
 
   it("lists models in table order when modelOrder is provided", () => {
     const { container } = render(
-      <UsageChart
+      <Chart
         data={buildModelData()}
         range="24h"
         modelOrder={["model-a", "model-b"]}
@@ -576,7 +601,7 @@ describe("UsageChart", () => {
 
   it("draws no outline around bar segments", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -593,7 +618,7 @@ describe("UsageChart", () => {
 
   it("keeps every segment a square rectangle so stacked widths match", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -615,7 +640,7 @@ describe("UsageChart", () => {
     // first. model-b's bar segments and legend swatch must use its table
     // color (--chart-2), not the first-available --chart-1.
     const { container } = render(
-      <UsageChart
+      <Chart
         data={buildModelData().slice(0, 1)}
         range="24h"
         modelOrder={["model-a", "model-b"]}
@@ -635,7 +660,7 @@ describe("UsageChart", () => {
 
   it("renders a single stacked bar per chart and a legend naming the one model", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData().slice(0, 1)} range="24h" />
+      <Chart data={buildModelData().slice(0, 1)} range="24h" />
     );
     await settleBarAnimation();
 
@@ -653,7 +678,7 @@ describe("UsageChart", () => {
   });
 
   it("keeps decimal cost ticks instead of rounding every tick to 0", () => {
-    render(<UsageChart data={buildTinyCostData()} range="24h" />);
+    render(<Chart data={buildTinyCostData()} range="24h" />);
 
     const tickLabels = Array.from(
       document.querySelectorAll(".recharts-cartesian-axis-tick-value")
@@ -667,7 +692,7 @@ describe("UsageChart", () => {
   });
 
   it("renders an interactive legend button per model", () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     expect(
       screen.getByRole("button", { name: /Hide model-b/i })
@@ -679,7 +704,7 @@ describe("UsageChart", () => {
 
   it("hides a model in both charts when its legend button is clicked", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -700,7 +725,7 @@ describe("UsageChart", () => {
 
   it("shows a hidden model when its legend button is clicked again", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 
@@ -714,7 +739,7 @@ describe("UsageChart", () => {
   });
 
   it("renders hidden legend items with reduced opacity and muted text", () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     fireEvent.click(screen.getByRole("button", { name: /Hide model-a/i }));
 
@@ -724,7 +749,7 @@ describe("UsageChart", () => {
   });
 
   it("sets aria-pressed true for hidden models and false for visible ones", () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     const visibleButton = screen.getByRole("button", { name: /Hide model-b/i });
     expect(visibleButton).toHaveAttribute("aria-pressed", "false");
@@ -737,12 +762,12 @@ describe("UsageChart", () => {
 
   it("keeps hidden models hidden when the range changes", () => {
     const { rerender } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Hide model-a/i }));
 
-    rerender(<UsageChart data={buildModelData()} range="30d" />);
+    rerender(<Chart data={buildModelData()} range="30d" />);
 
     expect(
       screen.getByRole("button", { name: /Show model-a/i })
@@ -750,7 +775,7 @@ describe("UsageChart", () => {
   });
 
   it("excludes hidden models from the tooltip", async () => {
-    render(<UsageChart data={buildModelData()} range="24h" />);
+    render(<Chart data={buildModelData()} range="24h" />);
 
     fireEvent.click(screen.getByRole("button", { name: /Hide model-b/i }));
 
@@ -761,7 +786,7 @@ describe("UsageChart", () => {
 
   it("grounds remaining segments when a hidden model leaves the stack", async () => {
     const { container } = render(
-      <UsageChart data={buildModelData()} range="24h" />
+      <Chart data={buildModelData()} range="24h" />
     );
     await settleBarAnimation();
 

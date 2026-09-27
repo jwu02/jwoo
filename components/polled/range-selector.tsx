@@ -1,18 +1,19 @@
-import { Range } from "@/lib/ranges";
 import { pillButtonClass, pillGroupClass } from "@/lib/ui/pill-toggle";
 
-export interface RangeOption<T extends Range> {
+export interface RangeOption<T extends string> {
   value: T;
   label: string;
 }
 
-interface RangeSelectorProps<T extends Range> {
+interface RangeSelectorProps<T extends string> {
   value: T;
-  onChange: (range: T) => void;
+  onChange: (value: T) => void;
   options: RangeOption<T>[];
 }
 
-export function RangeSelector<T extends Range>({
+/** A pill group for any small set of mutually exclusive string values —
+ *  time ranges on the polling dashboards, breakdown views on AI usage. */
+export function RangeSelector<T extends string>({
   value,
   onChange,
   options,
