@@ -1,7 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NoteList } from "@/components/knowledge-graph/note-list";
-import { NoteHoverProvider } from "@/components/knowledge-graph/note-hover";
-import { NoteFocusProvider } from "@/components/knowledge-graph/note-focus";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 
 const node = (id: string, createdAt: string): KnowledgeGraphNode => ({
@@ -18,7 +16,8 @@ const graph = [
 // Stands in for the renderer, which is where hover lives: the list drives it
 // and reads back what it is told, exactly as the page wires the two together.
 // Focus is the page's, and arrives as state the list reports on rather than
-// keeps — so these tests hand it in and watch which call comes back.
+// keeps — so these tests hand it in and watch which call comes back. Both are
+// props here, as they are on the page.
 function renderNoteList(
   nodes: KnowledgeGraphNode[] = graph,
   hoveredNote: string | null = null,
@@ -29,14 +28,11 @@ function renderNoteList(
   const focusNote = jest.fn();
   const clearFocus = jest.fn();
   const onToggle = jest.fn();
+  const wiring = { hoveredNote, setHoveredNote, focusedNote, focusNote, clearFocus };
   const view = render(
-    <NoteHoverProvider value={{ hoveredNote, setHoveredNote }}>
-      <NoteFocusProvider value={{ focusedNote, focusNote, clearFocus }}>
-        <NoteList nodes={nodes} open={open} onToggle={onToggle} />
-      </NoteFocusProvider>
-    </NoteHoverProvider>
+    <NoteList nodes={nodes} open={open} onToggle={onToggle} {...wiring} />
   );
-  return { ...view, setHoveredNote, focusNote, clearFocus, onToggle };
+  return { ...view, ...wiring, onToggle };
 }
 
 // The panel as a desktop that has collapsed it leaves it: the same list, with
@@ -304,17 +300,12 @@ describe("NoteList rows drive the graph's hover", () => {
   // nor blur on an unmount — so the emphasis has to be given up by the row
   // that is going away, or the graph keeps emphasizing a note with no row.
   it("gives up the hover when the hovered row is filtered away", () => {
-    const { setHoveredNote, focusNote, clearFocus, rerender } = renderNoteList(
-      graph,
-      "gamma.md"
-    );
+    const { hoveredNote, setHoveredNote, focusedNote, focusNote, clearFocus, rerender } =
+      renderNoteList(graph, "gamma.md");
+    const wiring = { hoveredNote, setHoveredNote, focusedNote, focusNote, clearFocus };
 
     rerender(
-      <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
-        <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
-          <NoteList nodes={[graph[0]]} open onToggle={jest.fn()} />
-        </NoteFocusProvider>
-      </NoteHoverProvider>
+      <NoteList nodes={[graph[0]]} open onToggle={jest.fn()} {...wiring} />
     );
 
     expect(setHoveredNote).toHaveBeenCalledWith(null);
@@ -323,17 +314,17 @@ describe("NoteList rows drive the graph's hover", () => {
   // The rows beside it go in the same commit, and each of those owes the graph
   // nothing — only the note actually being hovered may clear the hover.
   it("leaves the hover alone when a different row goes away", () => {
-    const { setHoveredNote, focusNote, clearFocus, rerender } = renderNoteList(
-      graph,
-      "gamma.md"
-    );
+    const { hoveredNote, setHoveredNote, focusedNote, focusNote, clearFocus, rerender } =
+      renderNoteList(graph, "gamma.md");
+    const wiring = { hoveredNote, setHoveredNote, focusedNote, focusNote, clearFocus };
 
     rerender(
-      <NoteHoverProvider value={{ hoveredNote: "gamma.md", setHoveredNote }}>
-        <NoteFocusProvider value={{ focusedNote: null, focusNote, clearFocus }}>
-          <NoteList nodes={graph.filter((n) => n.id !== "alpha.md")} open onToggle={jest.fn()} />
-        </NoteFocusProvider>
-      </NoteHoverProvider>
+      <NoteList
+        nodes={graph.filter((n) => n.id !== "alpha.md")}
+        open
+        onToggle={jest.fn()}
+        {...wiring}
+      />
     );
 
     expect(setHoveredNote).not.toHaveBeenCalled();

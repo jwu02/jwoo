@@ -37,16 +37,9 @@ export function filterNotes(rows: readonly NoteRow[], query: string): NoteRow[] 
 //
 // A null id matches nothing, which is what leaves every row unemphasized and
 // unmarked while no note is hovered or focused.
-function standsFor(row: NoteRow, noteId: string | null): boolean {
+//
+// One predicate for both: which note an id names is the same question whether
+// the id came from a hover or from the Focus.
+export function standsForNote(row: NoteRow, noteId: string | null): boolean {
   return noteId !== null && row.title === noteId;
-}
-
-// Whether a row stands for the note currently under the pointer.
-export function isHoveredNote(row: NoteRow, hoveredId: string | null): boolean {
-  return standsFor(row, hoveredId);
-}
-
-// Whether a row stands for the note holding the Focus.
-export function isFocusedNote(row: NoteRow, focusedId: string | null): boolean {
-  return standsFor(row, focusedId);
 }

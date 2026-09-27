@@ -174,6 +174,16 @@ function press(container: HTMLElement, id: string, point = POINT, button = 0) {
   });
 }
 
+// The pointer arriving on a node, which is what pixi reports before any press
+// on it: the graph reads the gesture's surface — a node or the background —
+// from the hover, so a test driving a gesture over a node has to put the
+// pointer there first.
+function hover(container: HTMLElement, id: string) {
+  act(() => {
+    nodeSpriteById(container, id)!.emit!("pointerover", { stopPropagation() {} });
+  });
+}
+
 function moveTo(point: { x: number; y: number }) {
   act(() => {
     document.dispatchEvent(pointer("pointermove", point));
@@ -393,11 +403,13 @@ describe("ForceGraph press against the zoom", () => {
 });
 
 describe("ForceGraph double-click on a node", () => {
-  // The browser's own sequence for a double-click: two presses, each with the
-  // mousedown that carries its click count, closed out by the dblclick. The
-  // count is the only way to tell this apart from two separate clicks, because
-  // a press cannot read it where it starts.
+  // The browser's own sequence for a double-click: the pointer arrives on the
+  // node, two presses and releases land on it, and the dblclick closes it out.
+  // What the graph reads the double-click's surface from is that arrival: the
+  // pointer over a node is what tells a double-click on a note from one on the
+  // background.
   function doubleClick(container: HTMLElement, id: string, point = POINT) {
+    hover(container, id);
     for (const detail of [1, 2]) {
       press(container, id, point);
       act(() => {

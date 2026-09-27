@@ -5,8 +5,7 @@ import { BookTextIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-re
 import {
   buildNoteList,
   filterNotes,
-  isFocusedNote,
-  isHoveredNote,
+  standsForNote,
   type NoteRow,
 } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
@@ -18,10 +17,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useNoteHover } from "./note-hover";
-import { useNoteFocus } from "./note-focus";
 
-interface NoteListProps {
+// The graph's hover and the page's Focus, as the list is handed them. Both are
+// the page's — hover the renderer's, Focus the page's own state — so they
+// arrive as props and are threaded down to the rows, rather than kept in a
+// context whose only consumer is one level below the page.
+interface NoteListWiring {
+  // The note the renderer last reported hovered, and the way back: the
+  // renderer's own imperative setter, which a row calls on every pointer move.
+  hoveredNote: string | null;
+  setHoveredNote: (noteId: string | null) => void;
+  // The note holding the Focus, and the page's two ways to change it.
+  focusedNote: string | null;
+  focusNote: (noteId: string) => void;
+  clearFocus: () => void;
+}
+
+interface NoteListProps extends NoteListWiring {
   nodes: readonly KnowledgeGraphNode[];
   // Whether the panel is sharing the graph's row. The page owns it: the graph's
   // viewport is a different width without it, and only the page can tell the
@@ -52,11 +64,17 @@ interface NoteListProps {
 // activation itself is a button's, so Enter and Space come with it — the row
 // still carries the hover, because a pointer entering it has not left it when
 // it crosses onto the button.
-function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
-  const { hoveredNote, setHoveredNote } = useNoteHover();
-  const { focusedNote, focusNote, clearFocus } = useNoteFocus();
+function NoteListRow({
+  row,
+  hoveredNote,
+  setHoveredNote,
+  focusedNote,
+  focusNote,
+  clearFocus,
+}: { row: NoteRow } & NoteListWiring) {
   const { title } = row;
-  const focused = isFocusedNote(row, focusedNote);
+  const hovered = standsForNote(row, hoveredNote);
+  const focused = standsForNote(row, focusedNote);
 
   // The focused row is its own way out: clicking it again lets the focus go,
   // the way a second click on a selected thing usually does.
@@ -136,9 +154,9 @@ function NoteListRow({ row, hovered }: { row: NoteRow; hovered: boolean }) {
 function NoteListBody({
   nodes,
   onToggle,
-}: Pick<NoteListProps, "nodes"> & { onToggle?: () => void }) {
+  ...wiring
+}: Pick<NoteListProps, "nodes"> & NoteListWiring & { onToggle?: () => void }) {
   const [query, setQuery] = useState("");
-  const { hoveredNote } = useNoteHover();
 
   // One list per graph object: the order flips once, and typing re-filters the
   // rows already built rather than rebuilding them on every keystroke.
@@ -214,11 +232,7 @@ function NoteListBody({
               viewer's reading position while the graph moves under the
               pointer. */}
           {visible.map((row) => (
-            <NoteListRow
-              key={row.title}
-              row={row}
-              hovered={isHoveredNote(row, hoveredNote)}
-            />
+            <NoteListRow key={row.title} row={row} {...wiring} />
           ))}
         </ul>
       )}
@@ -229,7 +243,7 @@ function NoteListBody({
 // The note list: every note newest first, searchable by title. Beside the graph
 // on desktop, where the page can collapse it; behind a toggle over it below the
 // desktop breakpoint, where the graph keeps the full width.
-export function NoteList({ nodes, open, onToggle }: NoteListProps) {
+export function NoteList({ nodes, open, onToggle, ...wiring }: NoteListProps) {
   return (
     <>
       {/* Off the row entirely rather than hidden inside it: the graph beside it
@@ -245,7 +259,7 @@ export function NoteList({ nodes, open, onToggle }: NoteListProps) {
           aria-label="Note list"
           className="hidden min-h-0 w-72 shrink-0 border-l border-border bg-card/40 md:flex"
         >
-          <NoteListBody nodes={nodes} onToggle={onToggle} />
+          <NoteListBody nodes={nodes} onToggle={onToggle} {...wiring} />
         </aside>
       )}
 
@@ -290,7 +304,7 @@ export function NoteList({ nodes, open, onToggle }: NoteListProps) {
           <SheetHeader className="sr-only">
             <SheetTitle>Notes</SheetTitle>
           </SheetHeader>
-          <NoteListBody nodes={nodes} />
+          <NoteListBody nodes={nodes} {...wiring} />
         </SheetContent>
       </Sheet>
     </>

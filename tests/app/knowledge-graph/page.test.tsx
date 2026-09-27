@@ -84,18 +84,33 @@ jest.mock("@/components/knowledge-graph/force-graph", () => ({
   },
 }));
 
+// A snapshot as the API serves one: the graph plus its provenance. Every
+// payload a test hands back carries both, because that is what the page is
+// typed against.
 const mockData = {
   nodes: [
     { id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" },
     { id: "B.md", createdAt: "2024-01-02T00:00:00.000Z" },
   ],
   edges: [{ source: "A.md", target: "B.md" }],
+  cachedAt: "2026-09-14T06:02:00.000Z",
+  remainingSeconds: 30 * 60,
 };
 
 function fetchMock(data: unknown) {
   return jest.fn(() =>
-    Promise.resolve({ ok: true, json: () => Promise.resolve(data) })
+    Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(data) })
   ) as jest.Mock;
+}
+
+// A failed request in the shape the route answers in, so the message the page
+// shows is the API's own.
+function failResponse() {
+  return {
+    ok: false,
+    status: 500,
+    json: () => Promise.resolve({ error: "Failed to load knowledge graph" }),
+  };
 }
 
 // The jsdom test environment does not provide `fetch`, so default to a mock
@@ -166,7 +181,11 @@ describe("KnowledgeGraphPage", () => {
     });
 
     expect(screen.getByTestId("kg-graph")).toHaveAttribute("data-nodes", "2");
-    expect(global.fetch).toHaveBeenCalledWith("/api/knowledge-graph");
+    // The shared polled hook owns the request, so it carries its own signal.
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/knowledge-graph",
+      expect.anything()
+    );
   });
 
   it("shows a loading state initially", () => {
@@ -203,7 +222,7 @@ describe("KnowledgeGraphPage", () => {
 
   it("shows an error banner when the fetch fails", async () => {
     global.fetch = jest.fn(() =>
-      Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+      Promise.resolve(failResponse())
     ) as jest.Mock;
 
     renderPage();
@@ -216,6 +235,7 @@ describe("KnowledgeGraphPage", () => {
 
   it("renders a single-node graph without NaN", async () => {
     global.fetch = fetchMock({
+      ...mockData,
       nodes: [{ id: "A.md", createdAt: "2024-01-01T00:00:00.000Z" }],
       edges: [],
     });
@@ -279,7 +299,7 @@ describe("KnowledgeGraphPage note list", () => {
   // place is taken by the page's own empty state.
   it("renders no panel when the load fails outright", async () => {
     global.fetch = jest.fn(() =>
-      Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+      Promise.resolve(failResponse())
     ) as jest.Mock;
 
     renderPage();
@@ -562,13 +582,8 @@ describe("KnowledgeGraphPage note list panel", () => {
 describe("KnowledgeGraphPage cache countdown", () => {
   const NOW = new Date("2026-09-14T06:32:00.000Z");
 
-  // Counts down from 30 minutes; every test here starts from the same instant
-  // so the tick it asserts on is deterministic.
-  const payloadWithCache = {
-    ...mockData,
-    cachedAt: "2026-09-14T06:02:00.000Z",
-    remainingSeconds: 30 * 60,
-  };
+  // The default payload counts down from 30 minutes, and every test here
+  // starts from the same instant, so the tick it asserts on is deterministic.
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -586,7 +601,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   }
 
   it("reports when the snapshot was cached and how long it has left", async () => {
-    global.fetch = fetchMock(payloadWithCache);
+    global.fetch = fetchMock(mockData);
 
     renderPage();
     await flush();
@@ -599,7 +614,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   });
 
   it("holds the displayed minute until it has been spent", async () => {
-    global.fetch = fetchMock(payloadWithCache);
+    global.fetch = fetchMock(mockData);
 
     renderPage();
     await flush();
@@ -616,7 +631,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   // reads to the minute: re-rendering on every tick would reconcile every node
   // label in the graph sixty times per visible change.
   it("leaves the graph alone while the displayed minute holds", async () => {
-    global.fetch = fetchMock(payloadWithCache);
+    global.fetch = fetchMock(mockData);
 
     renderPage();
     await flush();
@@ -672,7 +687,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
   // A snapshot that expires while the tab is hidden comes back to a clock that
   // jumped: the refresh is already overdue and should fire on the next tick.
   it("refetches when a skipped interval leaves the countdown overdue", async () => {
-    global.fetch = fetchMock(payloadWithCache);
+    global.fetch = fetchMock(mockData);
 
     renderPage();
     await flush();
@@ -695,7 +710,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
         ok: true,
         json: () => Promise.resolve({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 1 }),
       })
-      .mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
+      .mockResolvedValue(failResponse());
 
     renderPage();
     await flush();
@@ -718,7 +733,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
         json: () =>
           Promise.resolve({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 45 }),
       })
-      .mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
+      .mockResolvedValue(failResponse());
 
     renderPage();
     await flush();
@@ -736,7 +751,7 @@ describe("KnowledgeGraphPage cache countdown", () => {
         ok: true,
         json: () => Promise.resolve({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 1 }),
       })
-      .mockResolvedValueOnce({ ok: false, json: () => Promise.resolve({}) });
+      .mockResolvedValueOnce(failResponse());
 
     renderPage();
     await flush();
@@ -750,17 +765,4 @@ describe("KnowledgeGraphPage cache countdown", () => {
     ).toBeInTheDocument();
   });
 
-  // An older server, or a cached response from before the fields existed,
-  // leaves nothing to count down — the graph should render without the notice
-  // rather than counting from NaN.
-  it("renders no notice when the payload carries no cache info", async () => {
-    global.fetch = fetchMock(mockData);
-
-    renderPage();
-    await flush();
-
-    expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
-    expect(screen.queryByText("Server-side Cache")).not.toBeInTheDocument();
-    expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
-  });
 });

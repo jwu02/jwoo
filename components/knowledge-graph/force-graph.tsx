@@ -279,15 +279,9 @@ export const ForceGraph = memo(function ForceGraph({
     point: { x: number; y: number };
     transform: { x: number; y: number; k: number };
   } | null>(null);
-  // The click count the current press is part of, when it is a double-click's.
-  // A press cannot read its own count where it starts — the browser reports
-  // detail 0 on pointerdown — so it is carried across from the mousedown that
-  // follows, which is the event that does report it.
-  const pressDetailRef = useRef(0);
   // The gesture's own detach: endGesture for a release, and its cancel for a
   // teardown that takes the node away mid-gesture.
   const pressCleanupRef = useRef<(() => void) | null>(null);
-  const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
   // The camera, and the Pixi app the camera's viewport change has to resize
   // before it moves. Both are read by ref because both outlive any one render:
   // the camera is created once per mount and fires from outside React's cycle,
@@ -299,8 +293,13 @@ export const ForceGraph = memo(function ForceGraph({
   // Screen position for a node's label, in wrapper coordinates. Labels live in
   // DOM space rather than inside the zoomed Pixi world, so the text stays a
   // fixed 12px however far the graph is zoomed.
+  //
+  // The transform is the camera's own, read live rather than mirrored into a
+  // ref here: there is one copy of it, and it is the one the world is drawn
+  // through. The identity stands in for the frame before the camera exists —
+  // nothing is positioned before then.
   const labelScreenPosition = useCallback((node: GraphNode) => {
-    const transform = zoomTransformRef.current;
+    const transform = cameraRef.current?.transform ?? { x: 0, y: 0, k: 1 };
     const radius = nodeRadiusRef.current.get(node.id) ?? NODE_BASE_RADIUS;
     return {
       x: (node.x ?? 0) * transform.k + transform.x,
@@ -483,7 +482,7 @@ export const ForceGraph = memo(function ForceGraph({
       // started in even if a zoom lands mid-drag, and the slop — a distance on
       // screen — is measured through the same view.
       const rect = wrapper.getBoundingClientRect();
-      const transform = zoomTransformRef.current;
+      const transform = cameraRef.current?.transform ?? { x: 0, y: 0, k: 1 };
       pressRef.current = {
         node,
         point: graphPointFromClient(event.client.x, event.client.y, rect, transform),
@@ -602,10 +601,6 @@ export const ForceGraph = memo(function ForceGraph({
 
     const camera = createCamera(wrapper, {
       onTransformChange: (transform, by) => {
-        // Written before anything reads it: the label layer is positioned
-        // through this same transform, in this same event.
-        zoomTransformRef.current = transform;
-
         // The world is what the camera moves, but it is Pixi's to draw — the
         // camera knows the transform, not the scene wearing it.
         const world = worldContainerRef.current;
@@ -715,7 +710,6 @@ export const ForceGraph = memo(function ForceGraph({
       // camera's veto has to go with it too — a veto left standing refuses
       // every gesture there is.
       cameraRef.current?.setPressed(false);
-      pressDetailRef.current = 0;
 
       const world = new PIXI.Container();
       worldContainerRef.current = world;
@@ -773,7 +767,6 @@ export const ForceGraph = memo(function ForceGraph({
       const restStates = computeNodeEmphasis(simNodes, graphEdges, null);
 
       const nodeSprites = new Map<string, import("pixi.js").Sprite>();
-      const nodeSpriteArr: import("pixi.js").Sprite[] = [];
       const nodeRadii = new Map<string, number>();
       for (const node of simNodes) {
         const degree = degrees.get(node.id) ?? 0;
@@ -792,7 +785,6 @@ export const ForceGraph = memo(function ForceGraph({
         sprite.alpha = 1;
         nodesContainer.addChild(sprite);
         nodeSprites.set(node.id, sprite);
-        nodeSpriteArr.push(sprite);
 
         sprite.on("pointerover", (e: FederatedPointerEvent) => {
           e.stopPropagation();
@@ -812,7 +804,6 @@ export const ForceGraph = memo(function ForceGraph({
       nodeRadiusRef.current = nodeRadii;
 
       const linkSprites = new Map<GraphLink, import("pixi.js").Sprite>();
-      const linkSpriteArr: import("pixi.js").Sprite[] = [];
       for (const link of simLinks) {
         const sprite = new PIXI.Sprite(PIXI.Texture.WHITE);
         sprite.label = `${link.source.id}->${link.target.id}`;
@@ -822,7 +813,6 @@ export const ForceGraph = memo(function ForceGraph({
         sprite.alpha = 0.15;
         linksContainer.addChild(sprite);
         linkSprites.set(link, sprite);
-        linkSpriteArr.push(sprite);
       }
       linkSpritesRef.current = linkSprites;
 
@@ -846,18 +836,18 @@ export const ForceGraph = memo(function ForceGraph({
       // restarts the simulation when it wants the forces again.
       simulation.stop();
 
-      // Draws the layout where the simulation has it. Sprites are kept in
-      // arrays aligned 1:1 with the sim data, so the hot per-tick path is plain
-      // index lookups instead of string-keyed Map gets.
+      // Draws the layout where the simulation has it. The sprite maps are the
+      // only record of what was drawn: they were built in the sim data's own
+      // order, and each sprite is keyed by the node or link it stands for.
       const renderLayout = () => {
-        for (let i = 0; i < simNodes.length; i++) {
-          const sprite = nodeSpriteArr[i];
-          sprite.x = simNodes[i].x ?? 0;
-          sprite.y = simNodes[i].y ?? 0;
+        for (const [id, sprite] of nodeSprites) {
+          const node = nodesById.get(id);
+          if (!node) continue;
+          sprite.x = node.x ?? 0;
+          sprite.y = node.y ?? 0;
         }
-        for (let i = 0; i < simLinks.length; i++) {
-          const link = simLinks[i];
-          updateLinkSprite(linkSpriteArr[i], link.source, link.target);
+        for (const [link, sprite] of linkSprites) {
+          updateLinkSprite(sprite, link.source, link.target);
         }
         positionLabel();
         positionAllLabels();
@@ -888,55 +878,31 @@ export const ForceGraph = memo(function ForceGraph({
     };
   }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus]);
 
-  // The click count, carried across a press to the double-click that press may
-  // turn out to be part of.
+  // A double-click on a node is the two clicks on that note that made it, and
+  // the zoom d3 would read into it is not one of them. The graph zooms where
+  // the visitor double-clicked past the nodes, and focuses where they
+  // double-clicked a note — one gesture, two surfaces, each with its own
+  // meaning.
   //
-  // A press cannot read its own count where it starts: the browser reports
-  // detail 0 on pointerdown, and by the time it reports anything else the press
-  // is over. What does report it is the `mousedown` that follows — the same
-  // event d3 arms its pan from — and it is recorded here only while a press is
-  // live, so a double-click on the background is never mistaken for one on a
-  // node.
+  // Over a node is what tells the two apart, and the hover is already the
+  // answer to that: a pointer that has not left the node it entered is a
+  // pointer over that node, whatever the click count says.
   //
-  // Both listeners are in the capture phase because d3's own handlers on this
-  // same wrapper stop immediate propagation on the way past: a bubble-phase
-  // listener here would never run at all.
+  // Capture phase because d3's own dblclick handler is on this same wrapper and
+  // stops immediate propagation on the way past: a bubble-phase listener here
+  // would never run at all.
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const recordDetail = (event: MouseEvent) => {
-      // No press is down, so whatever a press was part of is over: clearing
-      // here is what keeps a stale count from swallowing a later double-click
-      // on the background.
-      if (pressRef.current === null) {
-        pressDetailRef.current = 0;
-        return;
-      }
-      // Exactly two, not two or more: a triple-click's extra mousedowns would
-      // otherwise leave the count standing and a later double-click eaten.
-      pressDetailRef.current = event.detail === 2 ? 2 : 0;
-    };
-
     const consumeDblclick = (event: MouseEvent) => {
-      if (pressDetailRef.current < 2) return;
-      pressDetailRef.current = 0;
-      // A double-click on a node is two clicks on that note, and the zoom d3
-      // would read into it is not one of them. The graph zooms where the
-      // visitor double-clicked past the nodes, and focuses where they
-      // double-clicked a note — one gesture, two surfaces, each with its own
-      // meaning. Consumed before d3's own dblclick handler, which is why this
-      // is in the capture phase.
+      if (hoveredIdRef.current === null) return;
       event.preventDefault();
       event.stopPropagation();
     };
 
-    wrapper.addEventListener("mousedown", recordDetail, true);
     wrapper.addEventListener("dblclick", consumeDblclick, true);
-    return () => {
-      wrapper.removeEventListener("mousedown", recordDetail, true);
-      wrapper.removeEventListener("dblclick", consumeDblclick, true);
-    };
+    return () => wrapper.removeEventListener("dblclick", consumeDblclick, true);
   }, []);
 
   // The Focus: fly the camera to frame the note with its neighbours, and hold

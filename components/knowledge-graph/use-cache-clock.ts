@@ -8,7 +8,7 @@ import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 const COUNTDOWN_TICK_MS = 1000;
 
 // What the page shows: the snapshot's provenance, ticking down.
-export interface CacheCountdown {
+interface CacheCountdown {
   // When the snapshot was written, ISO. Rendered in the viewer's timezone.
   cachedAt: string;
   // Seconds left, recomputed from wall-clock elapsed time rather than counted
@@ -23,18 +23,6 @@ export interface CacheCountdown {
 interface Observed {
   snapshot: KnowledgeGraphSnapshot;
   remainingSeconds: number;
-}
-
-// A snapshot with provenance is one worth counting down; one without is simply
-// shown, with no notice — an older server, or a response cached from before the
-// fields existed, leaves nothing to count from.
-function hasProvenance(
-  snapshot: KnowledgeGraphSnapshot
-): snapshot is KnowledgeGraphSnapshot & { remainingSeconds: number } {
-  return (
-    typeof snapshot.cachedAt === "string" &&
-    typeof snapshot.remainingSeconds === "number"
-  );
 }
 
 // The minute a countdown reads as, clamped at zero so a snapshot that has run
@@ -63,7 +51,7 @@ export function useCacheClock(
   // leaves the old snapshot in place, so its interval runs on — which is what
   // lets a countdown reach its own zero beside a stale graph.
   useEffect(() => {
-    if (snapshot === null || !hasProvenance(snapshot)) return;
+    if (snapshot === null) return;
 
     // Every reading is recomputed from wall-clock elapsed time rather than a
     // counter decremented once per tick — a backgrounded tab has its timers
@@ -101,7 +89,7 @@ export function useCacheClock(
     return () => clearInterval(interval);
   }, [snapshot]);
 
-  if (snapshot === null || !hasProvenance(snapshot)) return null;
+  if (snapshot === null) return null;
 
   // Before the first tick nothing has been observed, and nothing needs to be:
   // no time has passed, so the server's own reading is still exact.

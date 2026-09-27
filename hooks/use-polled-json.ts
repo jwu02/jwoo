@@ -34,8 +34,13 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 }
 
 export interface PolledJsonOptions {
-  /** How often to poll, in milliseconds. */
-  intervalMs?: number;
+  /**
+   * How often to poll, in milliseconds. Null is the one-shot opt-out: the url
+   * is loaded once, on the same deferred first load, and never again — for a
+   * page whose data has no cadence of its own and whose own trigger is what
+   * asks for more.
+   */
+  intervalMs?: number | null;
 }
 
 export interface PolledJson<T> {
@@ -105,10 +110,11 @@ export function usePolledJson<T>(
   useEffect(() => {
     // Deferred so the first load lands after mount rather than during it.
     const timeout = setTimeout(() => load(), 0);
-    const interval = setInterval(() => load(true), intervalMs);
+    const interval =
+      intervalMs === null ? null : setInterval(() => load(true), intervalMs);
     return () => {
       clearTimeout(timeout);
-      clearInterval(interval);
+      if (interval !== null) clearInterval(interval);
       abortRef.current?.abort();
     };
   }, [load, intervalMs]);

@@ -1,8 +1,7 @@
 import {
   buildNoteList,
   filterNotes,
-  isFocusedNote,
-  isHoveredNote,
+  standsForNote,
 } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
 
@@ -109,41 +108,25 @@ describe("filterNotes", () => {
   });
 });
 
-describe("isHoveredNote", () => {
-  it("marks the row whose title is the hovered node's id", () => {
-    expect(isHoveredNote({ title: "beta.md" }, "beta.md")).toBe(true);
+// One predicate answers for both ids a row can be marked by — the hovered
+// note's and the focused one's — because "this row stands for that id" is the
+// same question either way.
+describe("standsForNote", () => {
+  it("marks the row whose title is the id", () => {
+    expect(standsForNote({ title: "beta.md" }, "beta.md")).toBe(true);
   });
 
   it("leaves the other rows unmarked", () => {
-    expect(isHoveredNote({ title: "beta.md" }, "gamma.md")).toBe(false);
+    expect(standsForNote({ title: "beta.md" }, "gamma.md")).toBe(false);
   });
 
-  // The search is case-insensitive; this is not. A title is an id, and a node
-  // hover is an identity claim about one note.
+  // The search is case-insensitive; this is not. A title is an id, and a hover
+  // or a Focus is an identity claim about one note.
   it("matches the title exactly", () => {
-    expect(isHoveredNote({ title: "beta.md" }, "BETA.md")).toBe(false);
+    expect(standsForNote({ title: "beta.md" }, "BETA.md")).toBe(false);
   });
 
-  it("marks nothing while no node is hovered", () => {
-    expect(isHoveredNote({ title: "beta.md" }, null)).toBe(false);
-  });
-});
-
-describe("isFocusedNote", () => {
-  it("marks the row whose title is the focused note's id", () => {
-    expect(isFocusedNote({ title: "beta.md" }, "beta.md")).toBe(true);
-  });
-
-  it("leaves the other rows unmarked", () => {
-    expect(isFocusedNote({ title: "beta.md" }, "gamma.md")).toBe(false);
-  });
-
-  // A focus names one note, so unlike the search it matches the title exactly.
-  it("matches the title exactly", () => {
-    expect(isFocusedNote({ title: "beta.md" }, "BETA.md")).toBe(false);
-  });
-
-  it("marks nothing while no note is focused", () => {
-    expect(isFocusedNote({ title: "beta.md" }, null)).toBe(false);
+  it("marks nothing while no note is named", () => {
+    expect(standsForNote({ title: "beta.md" }, null)).toBe(false);
   });
 });

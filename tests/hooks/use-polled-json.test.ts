@@ -162,6 +162,41 @@ describe("usePolledJson", () => {
     expect(requestedUrls()).toHaveLength(2);
   });
 
+  // Null is the one-shot opt-out: a page whose data has no cadence of its own
+  // loads once, and its own trigger — not a clock — is what asks for more.
+  it("loads once and never polls when the interval is null", async () => {
+    const { result } = renderHook(() =>
+      usePolledJson<Payload>(URL_A, { intervalMs: null })
+    );
+    await tick(0);
+    expect(result.current.data).toEqual({ value: 1 });
+
+    await tick(POLL_INTERVAL_MS * 10);
+
+    expect(requestedUrls()).toEqual([URL_A]);
+    expect(result.current.data).toEqual({ value: 1 });
+  });
+
+  // ...and the trigger still works: refusing the interval refuses the clock,
+  // not the hook.
+  it("still refreshes on demand when the interval is null", async () => {
+    const { result } = renderHook(() =>
+      usePolledJson<Payload>(URL_A, { intervalMs: null })
+    );
+    await tick(0);
+
+    fetchMock.mockResolvedValueOnce(ok({ value: 2 }));
+    await act(async () => {
+      result.current.refresh();
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+    expect(result.current.data).toEqual({ value: 2 });
+
+    await tick(POLL_INTERVAL_MS * 2);
+
+    expect(requestedUrls()).toEqual([URL_A, URL_A]);
+  });
+
   // The whole point of a poll: it replaces what is on screen, so it must not
   // put the page back into its loading state.
   it("swaps the data in place on a poll without ever showing loading", async () => {

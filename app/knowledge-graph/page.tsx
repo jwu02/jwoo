@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ForceGraph,
   type ForceGraphHandle,
 } from "@/components/knowledge-graph/force-graph";
 import { NoteList } from "@/components/knowledge-graph/note-list";
-import { NoteHoverProvider } from "@/components/knowledge-graph/note-hover";
-import { NoteFocusProvider } from "@/components/knowledge-graph/note-focus";
 import { CacheNotice } from "@/components/knowledge-graph/cache-notice";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
+import { usePolledJson } from "@/hooks/use-polled-json";
 import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 
 // The one place the page's height is written down, because every state has to
@@ -30,36 +29,18 @@ import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 const PAGE_HEIGHT = "h-[calc(100vh-3.5rem)] md:h-[100vh]";
 
 export default function KnowledgeGraphPage() {
-  const [data, setData] = useState<KnowledgeGraphSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const inFlightRef = useRef(false);
+  // A one-shot: the url is loaded once rather than polled, because a snapshot's
+  // life is measured in hours. The countdown below is the only thing that ever
+  // asks for a fresh one, and it asks through `refresh`.
+  const {
+    data,
+    loading,
+    error,
+    refresh: load,
+  } = usePolledJson<KnowledgeGraphSnapshot>("/api/knowledge-graph", {
+    intervalMs: null,
+  });
 
-  const load = useCallback(async () => {
-    // A refresh landing while the previous one is still open would race it and
-    // let the older response win.
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    try {
-      const response = await fetch("/api/knowledge-graph");
-      if (!response.ok) throw new Error("Failed to load knowledge graph");
-      setData(await response.json());
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      inFlightRef.current = false;
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => load(), 0);
-    return () => clearTimeout(timeoutId);
-  }, [load]);
-
-  // The countdown is the only thing that asks for a fresh snapshot; the page
-  // does not poll, because a snapshot's life is measured in hours.
   const countdown = useCacheClock(data, load);
 
   // Which note's node is emphasized. Hover lives in the renderer; this is only
@@ -80,15 +61,10 @@ export default function KnowledgeGraphPage() {
   // Every change to the panel is a change to the graph's viewport, so each one
   // is compensated: zoom unchanged, the graph point the viewer had at the
   // centre put back at the centre, so showing or hiding the list never reframes
-  // or clips what they were looking at. The first run is the mount itself,
-  // where nothing has moved and the graph has framed itself against the row it
-  // already has.
-  const laidOutRef = useRef(false);
+  // or clips what they were looking at. The mount run needs no guard of its
+  // own: the camera ignores a re-anchor that finds nothing built, or a viewport
+  // the graph is already drawn against.
   useEffect(() => {
-    if (!laidOutRef.current) {
-      laidOutRef.current = true;
-      return;
-    }
     graphRef.current?.reanchorViewport();
   }, [notesOpen]);
 
@@ -97,11 +73,6 @@ export default function KnowledgeGraphPage() {
   const driveHover = useCallback((noteId: string | null) => {
     graphRef.current?.setHoveredNote(noteId);
   }, []);
-
-  const noteHover = useMemo(
-    () => ({ hoveredNote, setHoveredNote: driveHover }),
-    [hoveredNote, driveHover]
-  );
 
   // Which note holds the Focus. It lives here rather than in a row because it
   // outlives the rows: the camera is left framing the note long after the
@@ -119,11 +90,6 @@ export default function KnowledgeGraphPage() {
 
   const focusNote = useCallback((noteId: string) => setFocusedNote(noteId), []);
   const clearFocus = useCallback(() => setFocusedNote(null), []);
-
-  const noteFocus = useMemo(
-    () => ({ focusedNote, focusNote, clearFocus }),
-    [focusedNote, focusNote, clearFocus]
-  );
 
   // Escape lets go of the focus — unless the search field has already answered
   // it, which it marks by cancelling the key: clearing the query is the nearer
@@ -169,40 +135,44 @@ export default function KnowledgeGraphPage() {
     // wrapper, and `resizeTo` only hears about window resizes (pixi 8 has no
     // ResizeObserver on the container), so a row that gave way to a banner
     // would clip the graph rather than resize it.
-    <NoteHoverProvider value={noteHover}>
-      <NoteFocusProvider value={noteFocus}>
-        <div className="relative flex h-full shrink-0 overflow-hidden">
-          <ForceGraph
-            ref={graphRef}
-            graph={graph}
-            onHoverChange={setReportedHover}
-            focusedNote={focusedNote}
-            onFocusClear={clearFocus}
-            onFocusTake={focusNote}
-            onReady={onGraphReady}
-          />
-          <NoteList
-            nodes={graph.nodes}
-            open={notesOpen}
-            onToggle={toggleNotes}
-          />
-          {/* Inside the row, not above it: the notice belongs to the graph's own
-              corner, and a row-relative box puts it there without the page having
-              to know how wide the sidebar or the note panel are. */}
-          {countdown && <CacheNotice {...countdown} />}
-          {/* The snapshot arriving is not the graph arriving: the layout is run
-              to rest and framed before any of it is drawn, so the page covers
-              that moment with its loading state. An overlay rather than a
-              branch, because the renderer is what says when it is drawn — a
-              graph that is not mounted cannot report that. */}
-          {!drawn && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-background">
-              Loading knowledge graph…
-            </div>
-          )}
+    <div className="relative flex h-full shrink-0 overflow-hidden">
+      <ForceGraph
+        ref={graphRef}
+        graph={graph}
+        onHoverChange={setReportedHover}
+        focusedNote={focusedNote}
+        onFocusClear={clearFocus}
+        onFocusTake={focusNote}
+        onReady={onGraphReady}
+      />
+      {/* The list is handed the graph's hover and the page's Focus as props
+          rather than through a context: it is the only consumer, one level
+          down, and the page is the one that owns both. */}
+      <NoteList
+        nodes={graph.nodes}
+        open={notesOpen}
+        onToggle={toggleNotes}
+        hoveredNote={hoveredNote}
+        setHoveredNote={driveHover}
+        focusedNote={focusedNote}
+        focusNote={focusNote}
+        clearFocus={clearFocus}
+      />
+      {/* Inside the row, not above it: the notice belongs to the graph's own
+          corner, and a row-relative box puts it there without the page having
+          to know how wide the sidebar or the note panel are. */}
+      {countdown && <CacheNotice {...countdown} />}
+      {/* The snapshot arriving is not the graph arriving: the layout is run
+          to rest and framed before any of it is drawn, so the page covers
+          that moment with its loading state. An overlay rather than a
+          branch, because the renderer is what says when it is drawn — a
+          graph that is not mounted cannot report that. */}
+      {!drawn && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background">
+          Loading knowledge graph…
         </div>
-      </NoteFocusProvider>
-    </NoteHoverProvider>
+      )}
+    </div>
   ) : error && !data ? (
     // Only fatal when there is nothing to show. Once a graph is on screen, a
     // failed refresh reports itself alongside the stale graph instead.

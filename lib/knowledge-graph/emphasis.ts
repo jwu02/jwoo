@@ -4,12 +4,12 @@ import type { KnowledgeGraphEdge, KnowledgeGraphNode } from "./types";
 // A node's base appearance, independent of hover. Only leaves are drawn
 // distinct from the base tint, so "hub" is the catch-all rather than a claim
 // about degree: an isolated node is a hub.
-export type NodeRole = "leaf" | "hub";
+type NodeRole = "leaf" | "hub";
 
 // What hover does to a node. `idle` is every node while nothing is hovered.
-export type HoverState = "idle" | "hovered" | "neighbor" | "dimmed";
+type HoverState = "idle" | "hovered" | "neighbor" | "dimmed";
 
-export interface NodeEmphasis {
+interface NodeEmphasis {
   role: NodeRole;
   hover: HoverState;
 }

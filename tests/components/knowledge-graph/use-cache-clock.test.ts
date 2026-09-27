@@ -118,16 +118,8 @@ describe("useCacheClock", () => {
     expect(result.current?.remainingSeconds).toBe(1800);
   });
 
-  // An older server, or a cached response from before the fields existed,
-  // leaves nothing to count from — and nothing to count from must not reach the
-  // notice as NaN.
-  it("counts nothing when the snapshot carries no cache info", () => {
-    const { result } = renderHook(() =>
-      useCacheClock(
-        { nodes: [], edges: [] } as unknown as KnowledgeGraphSnapshot,
-        onExpire
-      )
-    );
+  it("counts nothing before there is a snapshot", () => {
+    const { result } = renderHook(() => useCacheClock(null, onExpire));
 
     expect(result.current).toBeNull();
   });

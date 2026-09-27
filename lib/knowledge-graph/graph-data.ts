@@ -88,9 +88,9 @@ export function computeNodeTextureRadius(
   nodes: Array<{ id: string }>,
   degrees: Map<string, number>
 ): number {
-  let maxNodeRadius = NODE_BASE_RADIUS;
-  for (const node of nodes) {
-    maxNodeRadius = Math.max(maxNodeRadius, nodeRadius(degrees.get(node.id) ?? 0));
-  }
+  const maxNodeRadius = Math.max(
+    NODE_BASE_RADIUS,
+    ...nodes.map((node) => nodeRadius(degrees.get(node.id) ?? 0))
+  );
   return Math.ceil(maxNodeRadius * NODE_MAX_ZOOM * NODE_HOVER_SCALE);
 }

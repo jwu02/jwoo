@@ -27,16 +27,12 @@ function fitPoints(
   const positioned = nodes.filter((n) => n.x !== undefined && n.y !== undefined);
   if (positioned.length === 0) return { k: 1, x: 0, y: 0 };
 
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const n of positioned) {
-    minX = Math.min(minX, n.x!);
-    maxX = Math.max(maxX, n.x!);
-    minY = Math.min(minY, n.y!);
-    maxY = Math.max(maxY, n.y!);
-  }
+  const xs = positioned.map((n) => n.x!);
+  const ys = positioned.map((n) => n.y!);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
 
   const contentW = maxX - minX;
   const contentH = maxY - minY;
@@ -80,7 +76,7 @@ export function computeFitTransform(
 // which frames a note in nothing but its immediate company. Easing back from
 // the fit is what keeps the notes around it on screen: seeing the clicked note
 // as part of its graph is the point of focusing it.
-export const FOCUS_ZOOM_OUT = 0.6;
+const FOCUS_ZOOM_OUT = 0.6;
 
 // The framing the camera flies to when a note takes the Focus: the note and its
 // neighbours, padded and clamped like any other framing, then eased back from
@@ -184,10 +180,12 @@ export const PRESS_SLOP_PX = 4;
 export function isDragGesture(
   press: { x: number; y: number },
   moved: { x: number; y: number },
-  transform: { k: number },
-  slop = PRESS_SLOP_PX
+  transform: { k: number }
 ): boolean {
-  return Math.hypot(moved.x - press.x, moved.y - press.y) * transform.k > slop;
+  return (
+    Math.hypot(moved.x - press.x, moved.y - press.y) * transform.k >
+    PRESS_SLOP_PX
+  );
 }
 
 // How long a camera move the graph makes on its own takes: the focus flight,
