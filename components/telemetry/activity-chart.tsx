@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   TooltipContentProps,
 } from "recharts";
+import { ChartTooltipCard } from "@/components/chart-tooltip";
 import { Range } from "@/lib/ranges";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
 import { getTicksForRange } from "@/lib/ui/chart-ticks";
@@ -34,19 +35,7 @@ function ActivityChartTooltip({
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div
-      className="rounded-md border px-3 py-2 text-sm shadow-sm"
-      style={{
-        backgroundColor: "var(--popover)",
-        borderColor: "var(--border)",
-      }}
-    >
-      <p
-        className="mb-1 border-b border-border pb-1 font-medium"
-        style={{ color: "var(--foreground)" }}
-      >
-        {formatTooltip(String(label), range)}
-      </p>
+    <ChartTooltipCard title={formatTooltip(String(label), range)}>
       <ul className="space-y-1">
         {payload.map((entry, index) => (
           <li key={index} className="flex items-center justify-between gap-4">
@@ -68,7 +57,7 @@ function ActivityChartTooltip({
           </li>
         ))}
       </ul>
-    </div>
+    </ChartTooltipCard>
   );
 }
 

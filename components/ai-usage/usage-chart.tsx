@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   TooltipContentProps,
 } from "recharts";
+import { ChartTooltipCard } from "@/components/chart-tooltip";
 import { Range } from "@/lib/ranges";
 import { ModelTimeSeries } from "@/lib/ai-usage/types";
 import { getTicksForRange } from "@/lib/ui/chart-ticks";
@@ -173,23 +174,7 @@ function UsageChartTooltip({
   const totalFormatted = showTotal ? formatTotal(total) : "";
 
   return (
-    <div
-      className="rounded-md border px-3 py-2 text-sm shadow-sm"
-      style={{
-        backgroundColor: "var(--popover)",
-        borderColor: "var(--border)",
-      }}
-    >
-      {/* The header divider is itself a separator, so it only belongs when
-          there is a breakdown beneath it. */}
-      <p
-        className={`${
-          entries.length > 0 ? "mb-1 border-b border-border pb-1" : ""
-        } font-medium`}
-        style={{ color: "var(--foreground)" }}
-      >
-        {formatTooltip(String(label), range)}
-      </p>
+    <ChartTooltipCard title={formatTooltip(String(label), range)}>
       {entries.length > 0 && (
         <ul className="space-y-1">
           {entries.map(({ entry, value }, index) => {
@@ -246,7 +231,7 @@ function UsageChartTooltip({
           </div>
         </>
       )}
-    </div>
+    </ChartTooltipCard>
   );
 }
 

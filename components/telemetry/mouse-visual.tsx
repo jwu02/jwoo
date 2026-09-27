@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react";
 
 import { SceneA11yLayer, SceneTooltip, useSceneHover } from "@/components/three/scene-hover";
 import type { MouseRegion } from "@/lib/telemetry/mouse-node-map";
+import { formatNumber } from "@/lib/ui/chart-format";
 
 import { MouseScene } from "./mouse-scene"
 import type { MouseCanvasApi } from "./mouse-model"
@@ -12,11 +13,6 @@ interface MouseVisualProps {
   leftClicks: number;
   rightClicks: number;
   movementMeters: number;
-}
-
-function formatNumber(value: number): string {
-  // Round to a whole integer so fractional movement distances render cleanly.
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
 
 // Tooltip copy per region, shown on hover. Wheel is untracked (mirrors the old

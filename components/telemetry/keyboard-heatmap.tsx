@@ -5,6 +5,7 @@ import { useMemo, useRef } from "react"
 import { SceneA11yLayer, SceneTooltip, useSceneHover } from "@/components/three/scene-hover"
 import { PHYSICAL_KEYS, buildKeyCountMap } from "@/lib/telemetry/key-layout"
 import { KeyCounts } from "@/lib/telemetry/types"
+import { formatNumber } from "@/lib/ui/chart-format"
 
 import { KeyboardScene } from "./keyboard-scene"
 import type { KeyboardCanvasApi } from "./keyboard-model"
@@ -14,10 +15,6 @@ interface KeyboardHeatmapProps {
   /** Whether the continuous heatmap overlay is shown. Owned by the page — the
    *  toggle renders above the scene card, not inside it. */
   showOverlay: boolean
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value)
 }
 
 // A keycap count drives a continuous heatmap overlay on top of the keyboard; the

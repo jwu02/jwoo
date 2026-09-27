@@ -56,7 +56,7 @@ export function useSceneHover<T extends string>(
       anchor,
       tooltip.offsetWidth,
       tooltip.offsetHeight,
-      { clientWidth: container.clientWidth, scrollLeft: 0 },
+      { clientWidth: container.clientWidth },
     )
     tooltip.style.left = `${pos.left}px`
     tooltip.style.top = `${pos.top}px`

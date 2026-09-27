@@ -14,21 +14,12 @@ export function formatNumber(value: number, decimals = 0): string {
 // on a whole number keeps its ".0" ("2M" → "2.0M") and every value in one
 // surface reads at the same precision.
 export function formatCompactNumber(value: number, decimals?: number): string {
-  const format = (scaled: number) =>
-    decimals === undefined ? trimNumber(scaled) : scaled.toFixed(decimals);
-
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) {
-    return `${format(value / 1_000_000)}M`;
-  }
-  if (abs >= 1_000) {
-    return `${format(value / 1_000)}K`;
-  }
-  return format(value);
-}
-
-function trimNumber(value: number): string {
-  return Number(value.toFixed(1)).toString();
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    ...(decimals === undefined
+      ? null
+      : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+  }).format(value);
 }
 
 export function formatTick(bucket: string, range: Range): string {

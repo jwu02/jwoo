@@ -1,14 +1,8 @@
 import { TelemetryTotals } from "@/lib/telemetry/types";
+import { formatNumber } from "@/lib/ui/chart-format";
 
 interface SummaryCardsProps {
   totals: TelemetryTotals;
-}
-
-function formatNumber(value: number, decimals = 0): string {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
 }
 
 export function SummaryCards({ totals }: SummaryCardsProps) {
