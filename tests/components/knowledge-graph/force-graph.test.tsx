@@ -381,8 +381,9 @@ describe("ForceGraph", () => {
   });
 
   // The drag test lives in force-graph-drag.test.tsx: it needs the zoom
-  // transform held at the identity, which means driving the simulation by hand
-  // rather than letting the real one fit the view mid-assertion.
+  // transform to be a known one, which means driving the simulation by hand and
+  // waiting for the fit the renderer makes of its own accord — the real one
+  // would move the graph under the assertion.
 });
 
 // A chain — A—B—C — so a hover has all three emphases to show at once: the

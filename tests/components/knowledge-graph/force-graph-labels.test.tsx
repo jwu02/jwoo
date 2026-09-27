@@ -9,6 +9,7 @@ import {
   nodeSpriteById,
   setCssVars,
   setPositions,
+  waitForReady,
   wheel,
 } from "./harness";
 
@@ -66,6 +67,9 @@ async function renderGraph() {
   ) as HTMLElement;
   mockViewport(wrapper);
   await waitFor(() => expect(forceSimulationMock).toHaveBeenCalled());
+  // The layout is run to rest and fitted before anything is drawn, and no node
+  // has a position yet — so the fit is the identity these tests zoom from.
+  await waitForReady(rendered.container);
   return { ...rendered, wrapper };
 }
 

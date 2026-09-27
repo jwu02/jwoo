@@ -8,7 +8,6 @@ import {
   computeFitTransform,
   computeFocusTransform,
   computeReanchorTransform,
-  computeRoughInitialTransform,
 } from "@/lib/knowledge-graph/framing";
 import type { KnowledgeGraphEdge } from "@/lib/knowledge-graph/types";
 
@@ -84,52 +83,34 @@ afterEach(() => {
 });
 
 describe("createCamera fits", () => {
-  it("snaps to the rough first frame on the first tick", () => {
+  it("fits the whole graph as the layout is first drawn", () => {
     const { camera } = setup();
     const nodes = chain();
     camera.setLayout(nodes, EDGES);
 
-    camera.layoutTicked();
+    camera.layoutReady();
 
-    // The rough frame is a snap — applied in the tick's own turn, not eased into
-    // across the frames after it. The layout is about to move, so a precise fit
-    // would be wasted; only the settled one is animated.
-    expectAt(camera.transform, computeRoughInitialTransform(nodes, WIDTH, HEIGHT));
+    // A snap, not a move to watch: the fit and the layout it frames are drawn
+    // in the same turn, so there is no unframed frame for an animation to
+    // cover — and the layout is at rest, so the frame is the final one.
+    expectAt(camera.transform, computeFitTransform(nodes, WIDTH, HEIGHT));
   });
 
-  it("animates the settled fit to the layout at rest", async () => {
-    const { camera } = setup();
-    const nodes = chain();
-    camera.setLayout(nodes, EDGES);
-    camera.layoutTicked();
-    const rough = { ...camera.transform };
-
-    camera.layoutSettled();
-
-    // Still on the rough frame: the settled fit is a move the viewer watches,
-    // not one they find already made.
-    expectAt(camera.transform, rough);
-    await waitFor(() => expectAt(camera.transform, computeFitTransform(nodes, WIDTH, HEIGHT)));
-  });
-
-  // The layout takes its time to settle, and the note panel can be collapsed
-  // while it does: the graph is a panel wider by the time the fit lands, and it
-  // is the framing of the box it is in by then — a fit computed against the box
+  // The note panel can be collapsed before the layout is ready, and it is the
+  // framing of the box the graph is in by then — a fit computed against the box
   // the graph was built in would frame the whole graph off-centre.
-  it("frames the viewport the graph is in now, not the one it was built in", async () => {
+  it("frames the viewport the graph is in now, not the one it was built in", () => {
     const { camera, wrapper } = setup();
     const nodes = chain();
     camera.setLayout(nodes, EDGES);
 
     setWidth(wrapper, WIDTH + PANEL);
-    camera.layoutSettled();
+    camera.layoutReady();
 
-    await waitFor(() =>
-      expectAt(camera.transform, computeFitTransform(nodes, WIDTH + PANEL, HEIGHT))
-    );
+    expectAt(camera.transform, computeFitTransform(nodes, WIDTH + PANEL, HEIGHT));
   });
 
-  it("yields both fits once the viewer has moved the camera", async () => {
+  it("yields to a viewer who has moved the camera", async () => {
     const { camera, wrapper } = setup();
     camera.setLayout(chain(), EDGES);
 
@@ -137,26 +118,28 @@ describe("createCamera fits", () => {
     const gesture = { ...camera.transform };
     expect(gesture.k).toBeCloseTo(2);
 
-    camera.layoutTicked();
-    camera.layoutSettled();
+    camera.layoutReady();
 
-    // The graph is where the viewer put it, and both fits leave it there: the
-    // rough one is a snap, so a fit that ran would have landed by now.
+    // The graph is where the viewer put it: the fit is a snap, so one that ran
+    // would have landed by now.
     await pastAnimation();
     expectAt(camera.transform, gesture);
   });
 
-  it("holds off the rough frame while a note has the focus", async () => {
+  it("holds off the fit while a note has the focus", async () => {
     const { camera } = setup();
     const nodes = chain();
     camera.setLayout(nodes, EDGES);
     camera.setFocus("C.md");
     await waitFor(() => expectAt(camera.transform, focusFraming(nodes)));
-    const framed = { ...camera.transform };
 
-    camera.layoutTicked();
+    camera.layoutReady();
 
-    expectAt(camera.transform, framed);
+    // The focus is the framing the visitor asked for, and it outranks the
+    // graph's own.
+    await pastAnimation();
+    expectAt(camera.transform, focusFraming(nodes));
+    expect(focusFraming(nodes)).not.toEqual(computeFitTransform(nodes, WIDTH, HEIGHT));
   });
 });
 
@@ -210,27 +193,27 @@ describe("createCamera focus", () => {
     expectAt(camera.transform, framed);
   });
 
-  it("re-frames the focused note when the layout settles under it", async () => {
+  it("re-frames the focused note against a layout that arrives under it", async () => {
     const { camera } = setup();
     const nodes = chain();
     camera.setLayout(nodes, EDGES);
     camera.setFocus("C.md");
     await waitFor(() => expectAt(camera.transform, focusFraming(nodes)));
 
-    // The forces were still moving: the chain comes to rest somewhere else, so
-    // the framing the flight was computed from now points at nothing.
-    nodes[0].x = -2000;
-    nodes[0].y = -2000;
-    nodes[1].x = 1000;
-    nodes[1].y = 1000;
-    nodes[2].x = 1200;
-    nodes[2].y = 1200;
-
-    camera.layoutSettled();
+    // The flight was computed from a layout that is no longer the one on
+    // screen — a rebuild has laid the chain out somewhere else, so the framing
+    // it was flown to now points at nothing.
+    const moved = [
+      { id: "A.md", x: -2000, y: -2000 },
+      { id: "B.md", x: 1000, y: 1000 },
+      { id: "C.md", x: 1200, y: 1200 },
+    ];
+    camera.setLayout(moved, EDGES);
+    camera.layoutReady();
 
     // The focus outranks the fit either way: C is re-framed where it now is,
     // rather than the whole graph being framed around it.
-    await waitFor(() => expectAt(camera.transform, focusFraming(nodes)));
+    await waitFor(() => expectAt(camera.transform, focusFraming(moved)));
   });
 
   it("leaves the camera where it is when the focus is dismissed", async () => {
@@ -269,12 +252,11 @@ describe("createCamera gestures", () => {
     const gesture = { ...camera.transform };
     expect(gesture.k).toBeCloseTo(2);
 
-    // ...and the camera is theirs for good: the settle that follows plans no fit
-    // of its own, because nothing may go on claiming a note they have panned
-    // away from.
+    // ...and the camera is theirs for good: the fit that follows is not made,
+    // because nothing may go on claiming a note they have panned away from.
     await pastAnimation();
     expectAt(camera.transform, gesture);
-    camera.layoutSettled();
+    camera.layoutReady();
     await pastAnimation();
     expectAt(camera.transform, gesture);
   });

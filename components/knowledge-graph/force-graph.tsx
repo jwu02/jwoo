@@ -54,6 +54,10 @@ interface ForceGraphProps {
   // state, and the camera that answers this is the same flight a row's click
   // gets.
   onFocusTake?: (noteId: string) => void;
+  // The graph is drawn and framed: the layout has been run to rest, the camera
+  // has fitted it, and there is a picture rather than a blank box. The page
+  // shows its loading state until it is told so.
+  onReady?: () => void;
   // React 19 hands `ref` to a function component as an ordinary prop, so this
   // needs no forwardRef wrapper — which matters, because a wrapper would sit
   // outside the memo below and let every page render through.
@@ -87,6 +91,43 @@ type NodePointerEvent = Pick<FederatedPointerEvent, "client" | "button">;
 // Opacity a backgrounded node's sprite and its DOM label both fade to. One
 // value, so a dot and its name cannot disagree about how dim "dimmed" is.
 const DIMMED_ALPHA = 0.15;
+
+// The steps the layout is run for before it is ever drawn — d3's own cooling at
+// its default decay (alpha 1 toward alphaMin 0.001 by ~0.0228 a step), so the
+// layout on screen is the one the timer would have arrived at, arrived at with
+// nothing watching. Fixed rather than run until alpha falls below alphaMin,
+// because that is the same number every time and a loop on alpha would spin
+// forever on a simulation that reports a resting alpha it never moves off.
+const SETTLE_STEPS = 300;
+// How much of each frame those steps may take. A few hundred bare ticks are
+// tens of milliseconds on a small graph and nearer a second on a large one, so
+// the run is sliced by time rather than by a step count — the page stays
+// responsive and the wait scales with the graph instead of with the frame rate.
+const SETTLE_FRAME_BUDGET_MS = 8;
+
+// Runs a fresh simulation to rest by hand. `simulation.tick()` steps the forces
+// without firing the tick handler, so the run costs no sprite writes and no
+// label positioning — the one render of the resting layout happens after it,
+// and nothing of the run is ever drawn.
+function settleLayout(
+  simulation: { tick(): unknown },
+  cancelled: () => boolean
+): Promise<void> {
+  return new Promise((resolve) => {
+    let stepped = 0;
+    const step = () => {
+      if (cancelled()) return resolve();
+      const until = performance.now() + SETTLE_FRAME_BUDGET_MS;
+      do {
+        simulation.tick();
+        stepped += 1;
+      } while (stepped < SETTLE_STEPS && performance.now() < until);
+      if (stepped >= SETTLE_STEPS) resolve();
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
 
 function cssVarToPixiColor(varName: string, PIXI: typeof import("pixi.js")): number {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -139,6 +180,7 @@ export const ForceGraph = memo(function ForceGraph({
   focusedNote,
   onFocusClear,
   onFocusTake,
+  onReady,
   ref,
 }: ForceGraphProps) {
   const { nodes, edges } = graph;
@@ -168,6 +210,12 @@ export const ForceGraph = memo(function ForceGraph({
   useEffect(() => {
     onFocusTakeRef.current = onFocusTake;
   }, [onFocusTake]);
+  // And the readiness report comes from the build, which is async and reaches
+  // it long after the render that set it.
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   const labelRef = useRef<HTMLDivElement>(null);
   const labelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -274,8 +322,8 @@ export const ForceGraph = memo(function ForceGraph({
   }, [labelScreenPosition]);
 
   // Positions the whole label layer. Skipped while zoomed out, so the hot
-  // per-tick path stays O(1) — the simulation runs ~300 ticks on load, long
-  // before anyone has zoomed in far enough for the labels to matter.
+  // per-tick path stays O(1) — the layout is run to rest before it is drawn and
+  // opens framed to fit, which is well short of the zoom the labels appear at.
   const positionAllLabels = useCallback(() => {
     if (!showAllLabelsRef.current) return;
     const nodesById = nodesByIdRef.current;
@@ -672,6 +720,10 @@ export const ForceGraph = memo(function ForceGraph({
       const world = new PIXI.Container();
       worldContainerRef.current = world;
       app.stage.addChild(world);
+      // The layout is about to be run to rest in here, and the world is already
+      // in the scene: shown only once that run is over, so nothing is drawn at
+      // the seed positions the run is moving away from.
+      world.visible = false;
 
       const linksContainer = new PIXI.Container();
       const nodesContainer = new PIXI.Container();
@@ -789,10 +841,15 @@ export const ForceGraph = memo(function ForceGraph({
           d3.forceCollide<GraphNode>().radius((d: GraphNode) => nodeRadiusRef.current.get(d.id) ?? NODE_BASE_RADIUS)
         );
       simulationRef.current = simulation;
+      // The timer d3 started with the simulation would otherwise run alongside
+      // the run below, drawing the whole layout on every frame of it. A drag
+      // restarts the simulation when it wants the forces again.
+      simulation.stop();
 
-      simulation.on("tick", () => {
-        // Sprites are kept in arrays aligned 1:1 with the sim data, so the hot
-        // per-tick path is plain index lookups instead of string-keyed Map gets.
+      // Draws the layout where the simulation has it. Sprites are kept in
+      // arrays aligned 1:1 with the sim data, so the hot per-tick path is plain
+      // index lookups instead of string-keyed Map gets.
+      const renderLayout = () => {
         for (let i = 0; i < simNodes.length; i++) {
           const sprite = nodeSpriteArr[i];
           sprite.x = simNodes[i].x ?? 0;
@@ -804,18 +861,23 @@ export const ForceGraph = memo(function ForceGraph({
         }
         positionLabel();
         positionAllLabels();
+      };
 
-        // The graph is first seen here, so this tick is what asks the camera
-        // for the rough frame. What that frame is, and whether it moves, is the
-        // camera's business.
-        cameraRef.current?.layoutTicked();
-      });
+      // A drag reheats the layout and the graph redraws where it moved to. The
+      // camera is deliberately not told: it framed the layout once, and a graph
+      // the forces are nudging is not a camera the viewer is moving.
+      simulation.on("tick", renderLayout);
 
-      // "end" fires when alpha drops below alphaMin, so positions are final and
-      // the settle can frame the layout the viewer is left with.
-      simulation.on("end", () => {
-        cameraRef.current?.layoutSettled();
-      });
+      await settleLayout(simulation, () => cancelled);
+      if (cancelled) return;
+
+      renderLayout();
+      // The one framing the camera makes of its own accord, in the same turn as
+      // the first draw of the layout it frames — so the graph is never seen
+      // outside its frame, and never moves after it.
+      cameraRef.current?.layoutReady();
+      world.visible = true;
+      onReadyRef.current?.();
     };
 
     build();

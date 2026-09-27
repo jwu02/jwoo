@@ -10,6 +10,7 @@ import {
   nodeSpriteById,
   setCssVars,
   setPositions,
+  waitForReady,
   type SimMock,
 } from "./harness";
 
@@ -91,6 +92,9 @@ async function mounted(ui: ReactElement) {
       NODES.length
     );
   });
+  // The graph is fitted as it is first drawn, and no node has a position yet —
+  // so the camera the clicks below are judged against is the identity.
+  await waitForReady(rendered.container);
   return { ...rendered, wrapper };
 }
 

@@ -11,6 +11,7 @@ import {
   nodeSpriteById,
   setCssVars,
   setPositions,
+  waitForReady,
   wheel,
 } from "./harness";
 
@@ -64,6 +65,9 @@ async function renderGraph(data: KnowledgeGraphData = GRAPH) {
       data.nodes.length
     );
   });
+  // The fit the graph makes of itself lands before anything is drawn, so a
+  // focus taken below is the only camera move the test has to know about.
+  await waitForReady(rendered.container);
   return { ...rendered, wrapper };
 }
 

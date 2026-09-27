@@ -1,3 +1,5 @@
+import { waitFor } from "@testing-library/react";
+
 // What every ForceGraph renderer test needs: a still layout it can drive by
 // hand, a wrapper with a viewport, a way to move the camera, and a walk into the
 // Pixi scene the renderer builds. None of it is per-test — so it lives here, and
@@ -19,12 +21,12 @@ export interface SimMock {
   force: jest.Mock;
   on: jest.Mock;
   stop: jest.Mock;
+  tick: jest.Mock;
   alphaTarget: jest.Mock;
   restart: jest.Mock;
   alpha: jest.Mock;
-  // TODO: unused since the fit and re-anchor tests became camera unit tests,
-  // which drive layoutTicked/layoutSettled directly. Delete the field and the
-  // recording `on` below once no renderer test needs to fire a tick.
+  // The handlers the renderer hung on the simulation, so a test can fire the
+  // tick a drag's reheat would produce.
   handlers: Record<string, () => void>;
 }
 
@@ -32,16 +34,18 @@ export interface SimMock {
 // ~300 non-deterministic ticks, which is too slow to assert against and would
 // move the nodes under the assertion anyway.
 //
-// Its tick and end handlers are recorded, so a test can fire the events the
-// camera's fits hang off. `alpha` reports how warm the layout looks, because
-// whether a drag asks for a reheat is a branch on it — the default is a layout
-// that has not cooled, which is the one a drag leaves alone.
+// `tick` is a no-op — the renderer runs the layout to rest by hand before it
+// draws anything, but the positions a test asserts against are the ones it sets
+// itself. `alpha` reports how warm the layout looks, because whether a drag
+// asks for a reheat is a branch on it — the default is a layout that has not
+// cooled, which is the one a drag leaves alone.
 export function createSimulationMock(alpha = 0.5): SimMock {
   const handlers: Record<string, () => void> = {};
   const sim = {
     force: jest.fn(),
     on: jest.fn(),
     stop: jest.fn(),
+    tick: jest.fn(),
     alphaTarget: jest.fn(),
     restart: jest.fn(),
     alpha: jest.fn(() => alpha),
@@ -50,6 +54,7 @@ export function createSimulationMock(alpha = 0.5): SimMock {
   sim.force.mockImplementation(() => sim);
   sim.alphaTarget.mockImplementation(() => sim);
   sim.restart.mockImplementation(() => sim);
+  sim.tick.mockImplementation(() => sim);
   sim.on.mockImplementation((event: string, cb: () => void) => {
     handlers[event] = cb;
     return sim;
@@ -159,6 +164,15 @@ export function getContainers(container: HTMLElement) {
   const linksContainer = world?.children?.[0];
   const nodesContainer = world?.children?.[1];
   return { app, world, linksContainer, nodesContainer };
+}
+
+// The renderer runs the layout to rest, frames it and only then shows the world
+// it built — the layout on screen is the one that was fitted. Anything asserting
+// on the camera, or on node positions in graph coordinates, waits for that.
+// Cheap in tests: the simulation is a hand-driven mock, so the run finishes in
+// the first frame it gets rather than over the ~15 a real graph takes.
+export async function waitForReady(container: HTMLElement) {
+  await waitFor(() => expect(getContainers(container).world?.visible).toBe(true));
 }
 
 export function nodeSpriteById(container: HTMLElement, id: string): MockNode | undefined {

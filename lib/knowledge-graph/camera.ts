@@ -1,13 +1,11 @@
 import * as d3 from "d3";
 import {
+  computeFitTransform,
   computeFocusTransform,
   computeReanchorTransform,
   GRAPH_ANIMATION_MS,
   NODE_MAX_ZOOM,
   NODE_MIN_ZOOM,
-  planFit,
-  type FitPlan,
-  type FitTrigger,
 } from "./framing";
 import type { KnowledgeGraphEdge } from "./types";
 
@@ -34,7 +32,7 @@ export interface CameraCallbacks {
 }
 
 // A node the camera can frame: an id to find it by, and the position the
-// simulation has given it so far. The array is the simulation's own, held by
+// simulation has given it. The array is the simulation's own, held by
 // reference, so the camera is always framing the layout as it stands.
 type CameraNode = { id: string; x?: number; y?: number };
 
@@ -53,15 +51,13 @@ export interface Camera {
   // The viewer's claim on the camera does not survive it — a new graph is a new
   // question about where the camera should be — but a held focus does.
   setLayout(nodes: CameraNode[], edges: KnowledgeGraphEdge[]): void;
-  // The layout has moved. Only the first one of these frames anything: the
-  // seeded positions are all there is to see until the layout settles.
-  layoutTicked(): void;
-  // The layout has come to rest: re-frame a held focus against the positions
-  // that now mean something, or fit the whole graph.
-  layoutSettled(): void;
+  // The snapshot's layout is at rest and about to be drawn: the one moment the
+  // camera frames the graph of its own accord. Nothing later moves it — from
+  // here the viewer's hand and a focus are the only things that do.
+  layoutReady(): void;
   // The note the page has taken the Focus, or null when it is over. A note
   // already flown to is not a new flight — a rebuild hands over new arrays for
-  // the same focus, and the settle that follows re-frames it.
+  // the same focus, and the layout that follows re-frames it.
   setFocus(noteId: string | null): void;
   // The viewport changed shape under the graph — the note panel opened or
   // collapsed — so the viewer's centre is put back where they left it.
@@ -87,9 +83,8 @@ export function createCamera(
   // the next snapshot: a fit yields to a viewer who has moved the camera, but
   // the viewer whose graph was just replaced has not moved this one.
   let userInteracted = false;
-  let firstTickFramed = false;
-  // The focus the camera has been given, which is what tells the fits to hold
-  // off and what a settled layout re-frames.
+  // The focus the camera has been given, which is what the fit holds off for
+  // and what a fresh layout is re-framed against.
   let focus: string | null = null;
   // The focus the camera was last flown to. A rebuild hands over new arrays for
   // the same focus, and that is not a new focus: the flight has been made, and
@@ -100,34 +95,6 @@ export function createCamera(
   // owes the viewer only the width that changed under the toggle that asked
   // for it.
   let viewportWidth = 0;
-
-  const applyFit = (plan: FitPlan) => {
-    const { k, x, y } = plan.transform;
-    const target = d3.zoomIdentity.translate(x, y).scale(k);
-    if (plan.mode === "snap") {
-      selection.call(zoom.transform, target);
-    } else {
-      selection.transition().duration(plan.durationMs).call(zoom.transform, target);
-    }
-  };
-
-  const fit = (trigger: FitTrigger) => {
-    const plan = planFit(trigger, {
-      userInteracted,
-      // A note holding the focus is the visitor's claim on the camera, made
-      // later and more specifically than the fit's: the framing they asked for
-      // is the one that stands.
-      focused: focus !== null,
-      nodes,
-      // The viewport the graph is in now, which the fit is the framing of. Read
-      // live rather than taken from the build: a panel that came or went while
-      // the layout was still settling leaves the graph a different box to be
-      // framed inside.
-      viewportWidth: wrapper.clientWidth,
-      viewportHeight: wrapper.clientHeight,
-    });
-    if (plan) applyFit(plan);
-  };
 
   // Takes the camera and eases it to a framing of the graph's own making. The
   // interrupt is not optional: d3 keeps one transition per element, so a fit
@@ -209,26 +176,36 @@ export function createCamera(
       nodes = nextNodes;
       edges = nextEdges;
       userInteracted = false;
-      firstTickFramed = false;
       viewportWidth = wrapper.clientWidth;
     },
 
-    layoutTicked() {
-      if (firstTickFramed) return;
-      firstTickFramed = true;
-      fit("first-tick");
-    },
-
-    layoutSettled() {
-      // A focus was framed against a layout that has since moved — an early
-      // click, or a fresh snapshot's own layout — so the flight is made again
-      // rather than a fit taking the camera off the note. The focus outranks
-      // the fit either way: planFit plans nothing while one is held.
+    layoutReady() {
+      // A focus was framed against a layout that is no longer the one on
+      // screen — a rebuild's, or an early click's while it was still being
+      // laid out — so the flight is made again against the positions that now
+      // mean something. The focus is the visitor's claim on the camera, made
+      // later and more specifically than the fit's: the framing they asked for
+      // is the one that stands, so no fit is computed under it.
       if (focus !== null) {
         flyTo(focus);
         return;
       }
-      fit("settled");
+      // The graph is where the viewer put it: a fit may not move it out from
+      // under them. A gesture can land while the layout is still being run, and
+      // the frame that arrives after it would be the graph moving itself.
+      if (userInteracted) return;
+
+      // Snapped, not eased into: this is the frame the graph is first seen in,
+      // drawn in the same turn as the layout it frames, so there is no unframed
+      // flash to cover. The viewport is read live rather than taken from the
+      // build, because the panel beside the graph may have come or gone while
+      // the layout was being run.
+      const { k, x, y } = computeFitTransform(
+        nodes,
+        wrapper.clientWidth,
+        wrapper.clientHeight
+      );
+      selection.call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(k));
     },
 
     setFocus(noteId) {

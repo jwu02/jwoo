@@ -2,13 +2,9 @@ import {
   computeFitTransform,
   computeFocusTransform,
   computeReanchorTransform,
-  computeRoughInitialTransform,
-  GRAPH_ANIMATION_MS,
   graphPointFromClient,
   isDragGesture,
-  planFit,
   PRESS_SLOP_PX,
-  type FitTrigger,
 } from "@/lib/knowledge-graph/framing";
 
 describe("computeFitTransform", () => {
@@ -177,72 +173,6 @@ describe("computeFocusTransform", () => {
   });
 });
 
-describe("computeRoughInitialTransform", () => {
-  const width = 800;
-  const height = 600;
-
-  it("centers the seeded centroid and leaves generous margin", () => {
-    // Spread occupies 0.3 × 600 = 180px of the smaller dimension:
-    // 180 / (2 · √(300²+300²)) ≈ 0.2121.
-    const nodes = [
-      { x: -300, y: -300 },
-      { x: 300, y: 300 },
-    ];
-
-    const t = computeRoughInitialTransform(nodes, width, height);
-    expect(t.k).toBeCloseTo(0.2121, 3);
-    expect(t.x).toBe(400);
-    expect(t.y).toBe(300);
-  });
-
-  it("translates to an off-center centroid", () => {
-    const nodes = [
-      { x: 100, y: 100 },
-      { x: 500, y: 500 },
-    ];
-
-    // Centroid (300,300), maxRadius √(200²+200²) ≈ 282.84 → k ≈ 0.3182.
-    const t = computeRoughInitialTransform(nodes, width, height);
-    expect(t.k).toBeCloseTo(0.3182, 3);
-    expect(t.x).toBeCloseTo(400 - t.k * 300, 3);
-    expect(t.y).toBeCloseTo(300 - t.k * 300, 3);
-  });
-
-  it("clamps tiny graphs to natural scale", () => {
-    const nodes = [
-      { x: -5, y: -5 },
-      { x: 5, y: 5 },
-    ];
-
-    expect(computeRoughInitialTransform(nodes, width, height)).toEqual({
-      k: 1,
-      x: 400,
-      y: 300,
-    });
-  });
-
-  it("clamps enormous graphs to the minimum zoom", () => {
-    const nodes = [
-      { x: -500_000, y: -500_000 },
-      { x: 500_000, y: 500_000 },
-    ];
-
-    expect(computeRoughInitialTransform(nodes, width, height)).toEqual({
-      k: 0.1,
-      x: 400,
-      y: 300,
-    });
-  });
-
-  it("centers a lone node at natural scale", () => {
-    expect(computeRoughInitialTransform([{ x: 100, y: 100 }], width, height)).toEqual({
-      k: 1,
-      x: 300,
-      y: 200,
-    });
-  });
-});
-
 describe("computeReanchorTransform", () => {
   const transform = { k: 2, x: -400, y: -300 };
 
@@ -367,87 +297,5 @@ describe("isDragGesture", () => {
   it("takes its slop from the constant by default", () => {
     expect(isDragGesture(press, { x: 100 + PRESS_SLOP_PX, y: 100 }, atZoom(1))).toBe(false);
     expect(isDragGesture(press, { x: 100 + PRESS_SLOP_PX + 1, y: 100 }, atZoom(1))).toBe(true);
-  });
-});
-
-describe("planFit", () => {
-  const width = 800;
-  const height = 600;
-  const nodes = [
-    { x: -300, y: -300 },
-    { x: 300, y: 300 },
-  ];
-
-  const context = (userInteracted = false, focused = false) => ({
-    userInteracted,
-    focused,
-    nodes,
-    viewportWidth: width,
-    viewportHeight: height,
-  });
-
-  it("snaps to the rough framing on the first tick", () => {
-    // The forces are about to move the nodes, so the first frame is the seeded
-    // centroid rather than an extent that does not exist yet.
-    expect(planFit("first-tick", context())).toEqual({
-      mode: "snap",
-      transform: computeRoughInitialTransform(nodes, width, height),
-    });
-  });
-
-  it("animates the precise fit once the layout settles", () => {
-    expect(planFit("settled", context())).toEqual({
-      mode: "animate",
-      transform: computeFitTransform(nodes, width, height),
-      durationMs: GRAPH_ANIMATION_MS,
-    });
-  });
-
-  it("plans nothing once the viewer has taken over the view", () => {
-    // Neither fit may move a graph the viewer has zoomed or panned themselves.
-    expect(planFit("first-tick", context(true))).toBeNull();
-    expect(planFit("settled", context(true))).toBeNull();
-  });
-
-  // A focus is the visitor's claim on the camera too, and a stronger one than
-  // the fit's: it is a note they picked out, so a fit that framed the whole
-  // graph would take the camera off the thing they asked to see. The renderer
-  // re-frames the focus itself once the layout settles under it.
-  it("plans nothing while a note holds the focus", () => {
-    expect(planFit("first-tick", context(false, true))).toBeNull();
-    expect(planFit("settled", context(false, true))).toBeNull();
-  });
-
-  it("gives the settled fit a duration a transition can actually run", () => {
-    // A zero-length transition is not a snap: d3 defers it by a frame, so a
-    // duration of 0 would visibly stall the fit rather than skip it.
-    const plan = planFit("settled", context());
-    expect(plan?.mode).toBe("animate");
-    expect(plan?.mode === "animate" ? plan.durationMs : 0).toBeGreaterThan(0);
-  });
-
-  it("answers each trigger from its own framing, not from the other's", () => {
-    // The triggers differ in what they frame, not only in how it moves: the
-    // seeded circle and the resting layout are different sizes.
-    const first = planFit("first-tick", context());
-    const settled = planFit("settled", context());
-
-    expect(first?.transform).not.toEqual(settled?.transform);
-    expect(settled?.transform).toEqual(
-      computeFitTransform(nodes, width, height)
-    );
-  });
-
-  it("returns no transform for a graph with nothing positioned yet", () => {
-    // The transforms themselves already answer an empty graph at natural scale,
-    // and the plan must pass that through rather than inventing a fit.
-    const trigger: FitTrigger = "settled";
-    const empty = { ...context(), nodes: [] };
-
-    expect(planFit(trigger, empty)).toEqual({
-      mode: "animate",
-      transform: { k: 1, x: 0, y: 0 },
-      durationMs: GRAPH_ANIMATION_MS,
-    });
   });
 });

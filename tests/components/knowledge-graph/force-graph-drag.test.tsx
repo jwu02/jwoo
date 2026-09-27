@@ -10,6 +10,7 @@ import {
   nodeSpriteById,
   setCssVars,
   setPositions,
+  waitForReady,
   wheel,
 } from "./harness";
 
@@ -20,18 +21,15 @@ import {
 // the pan both have to be undone. The mapping itself is unit-tested in lib;
 // these check that the component feeds it the live transform.
 //
-// The real simulation will not leave that transform alone: it frames the graph
-// on its first tick and re-frames it when it settles, and in jsdom, where the
-// wrapper measures 0×0, both fits clamp to the minimum zoom of 0.1. Whether one
-// has landed by the time the pointer moves is purely a matter of timing, so the
-// identity assertion used to ride on the drag winning a race against the first
-// tick — and lose it whenever the suite ran under enough parallel load.
+// The graph is fitted once, as its layout is first drawn, so the transform the
+// drag is judged against is the fit's — and it is fixed the moment the graph is
+// drawn, which is what waitForReady waits for. Nothing moves the camera after
+// that: the layout the fit framed is already at rest, and a drag does not fit.
 //
-// So drive the simulation by hand, as the auto-fit tests do, and fire neither
-// handler: the transform stays the identity it starts as, and the coordinates
-// become exact. The zoomed test wants the opposite, so it takes a real gesture
-// instead — which fixes the transform by construction, and marks the view as
-// the viewer's, so no fit can move it underneath the drag either.
+// In these tests the fit is the identity, because no node has a position yet
+// when it is made. The zoomed test wants a transform that is not the identity,
+// so it takes a real gesture instead — which fixes the transform by construction
+// too, and marks the view as the viewer's.
 jest.mock("d3", () => ({
   ...jest.requireActual("d3"),
   forceSimulation: jest.fn(),
@@ -69,6 +67,7 @@ describe("ForceGraph drag", () => {
       const { nodesContainer } = getContainers(container);
       expect(nodesContainer?.children?.filter((s) => s.visible).length).toBe(3);
     });
+    await waitForReady(container);
     // No tick runs, so the incident links are drawn from the positions the
     // nodes carry here rather than from the sprites the tick loop would place.
     setPositions(forceSimulationMock, [

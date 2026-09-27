@@ -144,6 +144,16 @@ export default function KnowledgeGraphPage() {
   // state below rather than reaching the scene with nothing in it.
   const graph = !loading && data && data.nodes.length > 0 ? data : null;
 
+  // Asked for by the renderer when its layout has been run to rest, framed and
+  // shown. Which snapshot it drew, rather than a flag, because the question is
+  // about one snapshot's graph: a rebuilt graph is a blank box again the moment
+  // it is torn down, and only the renderer can say when there is a picture in
+  // it — so it says which one. Its identity changes with the snapshot, which is
+  // the one prop change the memoized renderer has to rebuild for anyway.
+  const [drawnSnapshot, setDrawnSnapshot] = useState<KnowledgeGraphSnapshot | null>(null);
+  const onGraphReady = useCallback(() => setDrawnSnapshot(graph), [graph]);
+  const drawn = graph !== null && drawnSnapshot === graph;
+
   const body = loading ? (
     <div className="flex min-h-0 flex-1 items-center justify-center">
       Loading knowledge graph…
@@ -169,6 +179,7 @@ export default function KnowledgeGraphPage() {
             focusedNote={focusedNote}
             onFocusClear={clearFocus}
             onFocusTake={focusNote}
+            onReady={onGraphReady}
           />
           <NoteList
             nodes={graph.nodes}
@@ -179,6 +190,16 @@ export default function KnowledgeGraphPage() {
               corner, and a row-relative box puts it there without the page having
               to know how wide the sidebar or the note panel are. */}
           {countdown && <CacheNotice {...countdown} />}
+          {/* The snapshot arriving is not the graph arriving: the layout is run
+              to rest and framed before any of it is drawn, so the page covers
+              that moment with its loading state. An overlay rather than a
+              branch, because the renderer is what says when it is drawn — a
+              graph that is not mounted cannot report that. */}
+          {!drawn && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-background">
+              Loading knowledge graph…
+            </div>
+          )}
         </div>
       </NoteFocusProvider>
     </NoteHoverProvider>

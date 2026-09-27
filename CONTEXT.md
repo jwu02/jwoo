@@ -71,8 +71,8 @@ The state that maps graph points to screen: zoom, pan, and the framings that cha
 _Avoid_: GraphView, zoom state
 
 **Fit**:
-The transform that frames the whole graph inside its viewport. A rough fit frames the graph on first paint, before the layout has settled; a precise fit reframes it once it has. Both yield to the viewer as soon as they zoom or pan.
-_Avoid_: reframe, zoom-to-fit
+The transform that frames the whole graph inside its viewport. Taken exactly once, at first paint, on a graph painted already settled — the camera never reframes on its own afterwards.
+_Avoid_: reframe, zoom-to-fit, rough fit, precise fit
 
 **Focus**:
 The persistent selection of one note: the camera flies to frame the note's neighborhood — the note and its neighbors — instead of the whole graph. While it lasts the row stays marked and the node keeps its hovered emphasis. It is taken by clicking a note's row or by clicking its node, and those two are one gesture in two surfaces: a click on the note that already holds it — in either surface — lets it go. It also ends on Esc (an Escape in the search field clears the query first) and on the panel's clear affordance — and it ends where it stands, the camera never returning to where it was. A viewer-driven camera move cancels the flight and clears the focus; a snapshot that no longer holds the note clears it quietly.

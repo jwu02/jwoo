@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import KnowledgeGraphPage from "@/app/knowledge-graph/page";
 
@@ -31,6 +32,10 @@ const mockGraph = {
   graphProps: [] as unknown[],
   focusProps: [] as (string | null)[],
   takeCamera: null as (() => void) | null,
+  // The renderer's readiness report, as the stub fires it. `holdReady` is for
+  // the test that looks at the page while the graph is still being laid out.
+  ready: null as (() => void) | null,
+  holdReady: false,
 };
 
 jest.mock("@/components/knowledge-graph/force-graph", () => ({
@@ -39,12 +44,14 @@ jest.mock("@/components/knowledge-graph/force-graph", () => ({
     onHoverChange,
     focusedNote,
     onFocusClear,
+    onReady,
     ref,
   }: {
     graph: { nodes: unknown[]; edges: unknown[] };
     onHoverChange?: (id: string | null) => void;
     focusedNote?: string | null;
     onFocusClear?: () => void;
+    onReady?: () => void;
     ref?: unknown;
   }) => {
     mockGraphRenders.count += 1;
@@ -52,6 +59,12 @@ jest.mock("@/components/knowledge-graph/force-graph", () => ({
     mockGraph.focusProps.push(focusedNote ?? null);
     mockGraph.takeCamera = onFocusClear ?? null;
     mockGraph.graphProps.push(graph);
+    mockGraph.ready = onReady ?? null;
+    // The real renderer reports this once the layout has been run to rest and
+    // framed, which is a frame or two after it is mounted.
+    useEffect(() => {
+      if (!mockGraph.holdReady) onReady?.();
+    }, [onReady]);
     const handle = {
       setHoveredNote: mockGraph.setHoveredNote,
       reanchorViewport: mockGraph.reanchorViewport,
@@ -101,6 +114,8 @@ afterEach(() => {
   mockGraph.graphProps.length = 0;
   mockGraph.focusProps.length = 0;
   mockGraph.takeCamera = null;
+  mockGraph.ready = null;
+  mockGraph.holdReady = false;
 });
 
 // The panel is the only search field the page renders: the mobile sheet is
@@ -157,6 +172,23 @@ describe("KnowledgeGraphPage", () => {
   it("shows a loading state initially", () => {
     renderPage();
     expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
+  });
+
+  it("covers the graph until the renderer has drawn it", async () => {
+    // The snapshot arriving is not the graph arriving: the layout is run to
+    // rest and framed before any of it is drawn, so the page keeps its loading
+    // state over that moment — over the renderer rather than instead of it,
+    // because the renderer is what reports that it is drawn.
+    mockGraph.holdReady = true;
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("kg-graph")).toBeInTheDocument());
+    expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
+
+    act(() => mockGraph.ready!());
+
+    expect(screen.queryByText(/Loading knowledge graph/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
   });
 
   it("renders an empty state when there are no notes", async () => {
@@ -263,7 +295,9 @@ describe("KnowledgeGraphPage note list", () => {
   it("leaves the graph alone while the search is typed into", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByTestId("kg-graph")).toBeInTheDocument();
+      // Drawn: the readiness report is the page's last render of its own here,
+      // so what follows is the search's to cause or not.
+      expect(screen.queryByText(/Loading knowledge graph/i)).not.toBeInTheDocument();
     });
     const renders = mockGraphRenders.count;
 
@@ -606,6 +640,33 @@ describe("KnowledgeGraphPage cache countdown", () => {
     await flush(3000);
 
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("covers the graph again while a rebuilt snapshot is laid out", async () => {
+    // A fresh object per response, the way a real refresh arrives: the identity
+    // of the snapshot is what tells the page its graph is a different one.
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({ ...mockData, cachedAt: NOW.toISOString(), remainingSeconds: 2 }),
+      })
+    ) as jest.Mock;
+
+    renderPage();
+    await flush();
+    expect(screen.queryByText(/Loading knowledge graph/i)).not.toBeInTheDocument();
+
+    // The window runs out and the graph is fetched again: the one on screen is
+    // torn down for a blank box the moment it is rebuilt, and only the renderer
+    // can say when there is a picture in the new one.
+    mockGraph.holdReady = true;
+    await flush(3000);
+    expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
+
+    act(() => mockGraph.ready!());
+
+    expect(screen.queryByText(/Loading knowledge graph/i)).not.toBeInTheDocument();
   });
 
   // A snapshot that expires while the tab is hidden comes back to a clock that

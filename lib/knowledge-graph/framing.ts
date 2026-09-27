@@ -148,44 +148,6 @@ export function computeReanchorTransform(
   };
 }
 
-// A deliberately loose initial framing for the first paint, before the force
-// layout has run. It centers the seeded centroid and scales so the node spread
-// occupies `margin` of the smaller viewport dimension, clamped to a sane zoom
-// range. Unlike computeFitTransform it does not chase exact bounds — the layout
-// is about to change, so a rough frame is enough; the precise fit runs once the
-// simulation settles.
-export function computeRoughInitialTransform(
-  nodes: Array<{ x?: number; y?: number }>,
-  viewportWidth: number,
-  viewportHeight: number,
-  margin = 0.3
-): { k: number; x: number; y: number } {
-  const positioned = nodes.filter((n) => n.x !== undefined && n.y !== undefined);
-  if (positioned.length === 0) return { k: 1, x: 0, y: 0 };
-
-  const centroidX = positioned.reduce((sum, n) => sum + n.x!, 0) / positioned.length;
-  const centroidY = positioned.reduce((sum, n) => sum + n.y!, 0) / positioned.length;
-  let maxRadius = 0;
-  for (const n of positioned) {
-    maxRadius = Math.max(maxRadius, Math.hypot(n.x! - centroidX, n.y! - centroidY));
-  }
-
-  // A single node (or coincident nodes) has no spread — center it at natural size.
-  if (maxRadius === 0) {
-    return { k: 1, x: viewportWidth / 2 - centroidX, y: viewportHeight / 2 - centroidY };
-  }
-
-  const k = Math.max(
-    NODE_MIN_ZOOM,
-    Math.min(1, (margin * Math.min(viewportWidth, viewportHeight)) / (2 * maxRadius))
-  );
-  return {
-    k,
-    x: viewportWidth / 2 - k * centroidX,
-    y: viewportHeight / 2 - k * centroidY,
-  };
-}
-
 // Where a pointer sits in graph coordinates, given the viewport rect it moved
 // in and the zoom transform currently applied to the world.
 //
@@ -228,67 +190,8 @@ export function isDragGesture(
   return Math.hypot(moved.x - press.x, moved.y - press.y) * transform.k > slop;
 }
 
-// How long a camera move the graph makes on its own takes: the settled fit, and
-// the re-anchor a layout change asks for. The rough fit is a snap by comparison
-// — see planFit — and a gesture's motion is the viewer's, not the graph's.
+// How long a camera move the graph makes on its own takes: the focus flight,
+// and the re-anchor a layout change asks for. The fit is a snap by comparison —
+// it is the frame the graph is first seen in, not a move the viewer watches.
+// A gesture's motion is the viewer's, not the graph's.
 export const GRAPH_ANIMATION_MS = 500;
-
-// What asked for a fit. The simulation nudges the nodes on every tick, so the
-// first one has nothing settled to frame yet, and "end" is the first moment
-// there is a resting layout worth fitting.
-export type FitTrigger = "first-tick" | "settled";
-
-// A fit to run: snap applies the transform immediately, animate eases into it.
-// The mode is a choice rather than a duration, because a zero-length transition
-// is not a snap — d3 defers it by a frame, and deferring the first one is
-// exactly the unframed flash the rough fit exists to prevent.
-export type FitPlan =
-  | { mode: "snap"; transform: { k: number; x: number; y: number } }
-  | { mode: "animate"; transform: { k: number; x: number; y: number }; durationMs: number };
-
-// The fit to run for a trigger, or null when there should be none at all.
-//
-// Every part of the decision is here: whether to fit, which framing, and
-// whether it animates. The caller applies what it is given and holds no policy
-// of its own — which is what makes the rules below assertable without a Pixi
-// scene or a running simulation.
-export function planFit(
-  trigger: FitTrigger,
-  context: {
-    // Once the viewer has zoomed or panned, the graph is where they put it:
-    // neither fit may move it out from under them.
-    userInteracted: boolean;
-    // A note holding the Focus is the same kind of claim, made by the same
-    // visitor: the camera is framing that note's neighbourhood, so a fit that
-    // framed the whole graph would take it away from what they asked for.
-    focused: boolean;
-    nodes: Array<{ x?: number; y?: number }>;
-    viewportWidth: number;
-    viewportHeight: number;
-  }
-): FitPlan | null {
-  if (context.userInteracted || context.focused) return null;
-
-  const { nodes, viewportWidth, viewportHeight } = context;
-
-  if (trigger === "first-tick") {
-    // d3 seeded every node with a phyllotaxis position when the simulation was
-    // constructed, so there is already a centroid to frame — but the forces are
-    // about to move everything, so only a rough frame is worth drawing. Snapped,
-    // not animated: this is the frame the graph is first seen in.
-    return {
-      mode: "snap",
-      transform: computeRoughInitialTransform(nodes, viewportWidth, viewportHeight),
-    };
-  }
-
-  // The layout has settled, so its real extent is known and unlike the seeded
-  // circle it can be framed exactly. Animated, because the graph visibly moved
-  // to get here and the viewer should see where it went. Padding is
-  // computeFitTransform's own default, so the two cannot drift apart.
-  return {
-    mode: "animate",
-    transform: computeFitTransform(nodes, viewportWidth, viewportHeight),
-    durationMs: GRAPH_ANIMATION_MS,
-  };
-}
