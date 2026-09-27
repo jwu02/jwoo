@@ -28,7 +28,9 @@ export const KEYBOARD_DRACO_PATH = "/draco/"
 
 /**
  * Physical id → GLB node name. 78 entries, one per key_* node in the model.
- * `Section` is deliberately absent — see NO_NODE_IDS.
+ * `Section` (the §/± key) is deliberately absent: the node was removed from the
+ * model, so the key still renders in the a11y layer but has no keycap to tint or
+ * press.
  */
 export const PHYSICAL_KEY_NODE: Record<string, string> = {
   // Function row
@@ -119,13 +121,6 @@ export const PHYSICAL_KEY_NODE: Record<string, string> = {
   "Right Arrow": "key_arrow_right",
 }
 
-/**
- * Physical ids with no GLB node, so their 3D keycap is absent (and thus not
- * tinted or pressable) — but they still render in the a11y layer. Exactly the
- * one key removed from the model: the §/± key.
- */
-export const NO_NODE_IDS: ReadonlySet<string> = new Set(["Section"])
-
 // Reverse map: sanitized node name → physical id (first match wins).
 const NODE_TO_PHYSICAL_ID: Map<string, string> = new Map()
 for (const [id, node] of Object.entries(PHYSICAL_KEY_NODE)) {
@@ -149,12 +144,4 @@ export function glbNodeName(id: string): string | null {
  */
 export function physicalIdForNode(name: string): string | null {
   return NODE_TO_PHYSICAL_ID.get(name) ?? null
-}
-
-/**
- * Whether a physical id has a node in the GLB. Backtick (the `` ` ``/`~` key
- * on the top-left node) is true; Section (the removed §/± key) is false.
- */
-export function hasNode(id: string): boolean {
-  return PHYSICAL_KEY_NODE[id] !== undefined
 }

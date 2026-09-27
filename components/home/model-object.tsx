@@ -10,8 +10,8 @@ import { projectNodeSpan } from "@/components/three/scene-span"
 
 import { useSceneState, selectHotspot, viewEngagesGreeting } from "./home-scene-controller"
 import { registerHomeScene } from "./home-scene-resolver"
-import { resolveClickAction } from "./scene-click"
-import { HOME_GREETING, HOME_SCENE_HOTSPOTS, HOME_SCENE_MODEL } from "./scene-config"
+import { HOTSPOT_BY_NODE, resolveClickAction } from "./scene-click"
+import { HOME_GREETING, HOME_SCENE_MODEL } from "./scene-config"
 import { resolveTopLevelNode } from "./scene-hit"
 import { TypeWriter } from "./typewriter"
 
@@ -39,21 +39,10 @@ export function ModelObject() {
     return () => registerHomeScene(null)
   }, [scene])
 
-  // Keyed by the sanitized runtime node names three assigns on load (GLTFLoader
-  // runs PropertyBinding.sanitizeNodeName over every node) so hits resolved off
-  // the live scene match the config. Only interactive hotspots are hoverable
-  // (cursor + label); non-interactive ones like the desk supply a camera view but
-  // never show a tooltip or pointer.
-  const hotspotByNode = useMemo(
-    () =>
-      new Map(
-        HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.interactive !== false).map(
-          (hotspot) => [THREE.PropertyBinding.sanitizeNodeName(hotspot.node), hotspot],
-        ),
-      ),
-    [],
-  )
-  const hoveredHotspot = hoveredNode ? hotspotByNode.get(hoveredNode) ?? null : null
+  // The hovered node resolved through the scene's one hotspot index (see
+  // scene-click) — only interactive hotspots are in it, so a non-interactive one
+  // like the desk shows no tooltip and gets no pointer cursor.
+  const hoveredHotspot = hoveredNode ? HOTSPOT_BY_NODE.get(hoveredNode) ?? null : null
   useCursor(hoveredHotspot != null)
 
   // World-space anchor for a hotspot: the top-center of its node's bbox. Used
@@ -77,9 +66,9 @@ export function ModelObject() {
     (event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation()
       const name = resolveTopLevelNode(event.object, scene)
-      setHoveredNode(name && hotspotByNode.has(name) ? name : null)
+      setHoveredNode(name && HOTSPOT_BY_NODE.has(name) ? name : null)
     },
-    [scene, hotspotByNode],
+    [scene],
   )
   const handlePointerOut = useCallback(() => setHoveredNode(null), [])
 
@@ -92,7 +81,7 @@ export function ModelObject() {
       // navigate-vs-focus split all live in the one testable function; the
       // controller owns what focusing *means*, so the switcher pill and this
       // path cannot drift apart.
-      const action = resolveClickAction(event.object, event.delta, scene, HOME_SCENE_HOTSPOTS)
+      const action = resolveClickAction(event.object, event.delta, scene)
       if (action.kind === "navigate") {
         router.push(action.target)
         return

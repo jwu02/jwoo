@@ -37,5 +37,5 @@ export function tweenSettled(current: Vec3, target: Vec3): boolean {
   const dx = current[0] - target[0]
   const dy = current[1] - target[1]
   const dz = current[2] - target[2]
-  return Math.sqrt(dx * dx + dy * dy + dz * dz) < TWEEN_SETTLE_EPSILON
+  return Math.hypot(dx, dy, dz) < TWEEN_SETTLE_EPSILON
 }

@@ -11,80 +11,65 @@ import {
 } from "@/components/ui/card"
 import { HomeGreeting } from "./home-greeting"
 
+/** The four cards' copy — header icon, title, blurb, and the button that links out. */
+const SECTIONS = [
+  {
+    icon: Activity,
+    title: "Activity Telemetry",
+    description: "Live mouse and keyboard activity collected from this machine.",
+    href: "/activity-telemetry",
+    action: "View dashboard",
+    actionIcon: Activity,
+  },
+  {
+    icon: Bot,
+    title: "AI Usage",
+    description: "Model cost and token usage from AI API calls.",
+    href: "/ai-usage",
+    action: "View usage",
+    actionIcon: Bot,
+  },
+  {
+    icon: Globe,
+    title: "Knowledge Graph",
+    description: "Explore Obsidian-style note connections.",
+    href: "/knowledge-graph",
+    action: "Open graph",
+    actionIcon: Sparkle,
+  },
+  {
+    icon: FileText,
+    title: "Resume",
+    description: "My CV as an exact A4 sheet — English and 中文.",
+    href: "/resume",
+    action: "View resume",
+    actionIcon: FileText,
+  },
+]
+
 export function HomeFallback() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
       <HomeGreeting />
 
       <section className="mt-12 grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Activity />
-            </div>
-            <CardTitle>Activity Telemetry</CardTitle>
-            <CardDescription>
-              Live mouse and keyboard activity collected from this machine.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button render={<Link href="/activity-telemetry" />} nativeButton={false}>
-              <Activity data-icon="inline-start" />
-              View dashboard
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Bot />
-            </div>
-            <CardTitle>AI Usage</CardTitle>
-            <CardDescription>
-              Model cost and token usage from AI API calls.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button render={<Link href="/ai-usage" />} nativeButton={false}>
-              <Bot data-icon="inline-start" />
-              View usage
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Globe />
-            </div>
-            <CardTitle>Knowledge Graph</CardTitle>
-            <CardDescription>
-              Explore Obsidian-style note connections.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button render={<Link href="/knowledge-graph" />} nativeButton={false}>
-              <Sparkle data-icon="inline-start" />
-              Open graph
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <FileText />
-            </div>
-            <CardTitle>Resume</CardTitle>
-            <CardDescription>
-              My CV as an exact A4 sheet — English and 中文.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button render={<Link href="/resume" />} nativeButton={false}>
-              <FileText data-icon="inline-start" />
-              View resume
-            </Button>
-          </CardContent>
-        </Card>
+        {SECTIONS.map((section) => (
+          <Card key={section.href}>
+            <CardHeader>
+              <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <section.icon />
+              </div>
+              <CardTitle>{section.title}</CardTitle>
+              <CardDescription>{section.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button render={<Link href={section.href} />} nativeButton={false}>
+                <section.actionIcon data-icon="inline-start" />
+                {section.action}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </section>
     </div>
   )

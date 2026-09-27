@@ -36,13 +36,10 @@ export function KeyboardHeatmap({ keys, showOverlay }: KeyboardHeatmapProps) {
 
   // Highest count, floored at 1 so a single-key dataset still saturates the
   // ramp and the coldest key reads as "never pressed".
-  const maxCount = useMemo(() => {
-    let max = 1
-    for (const count of keyCountMap.values()) {
-      if (count > max) max = count
-    }
-    return max
-  }, [keyCountMap])
+  const maxCount = useMemo(
+    () => Math.max(1, ...keyCountMap.values()),
+    [keyCountMap],
+  )
 
   const hoveredKey = useMemo(
     () => PHYSICAL_KEYS.find((key) => key.id === hovered),

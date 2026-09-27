@@ -9,13 +9,6 @@ import { resolveTopLevelNode } from "@/components/home/scene-hit"
 import { projectNodeSpan } from "@/components/three/scene-span"
 import { keyIntensity, keycapColor } from "@/lib/telemetry/heatmap-colors"
 import {
-  heatAlpha,
-  hexRgba,
-  mapNodeToUv,
-  uvToCanvas,
-  type Footprint,
-} from "@/lib/telemetry/key-heatmap-layer"
-import {
   KEYBOARD_DRACO_PATH,
   KEYBOARD_MODEL_URL,
   PHYSICAL_KEY_NODE,
@@ -47,6 +40,54 @@ const OVERLAY_BLUR_SCALE = 0.4
 
 /** Overlay plane lifts off the caps by a small fraction of the model height. */
 const OVERLAY_LIFT_SCALE = 0.05
+
+/** Footprint (top-down extent) of the keyboard, in world units. */
+interface Footprint {
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
+/**
+ * Map a key's world-space footprint point (x on XZ, z on XZ) into the overlay
+ * texture's [0,1] UV grid. u grows with world +X (left→right); v is 1 at the
+ * back edge (world −Z, screen top) and 0 at the front (world +Z, screen bottom),
+ * which matches a plane rotated flat facing the top-down camera. Out-of-range
+ * points are clamped onto the nearest edge.
+ */
+function mapNodeToUv(x: number, z: number, footprint: Footprint): { u: number; v: number } {
+  const width = footprint.maxX - footprint.minX
+  const depth = footprint.maxZ - footprint.minZ
+  return {
+    u: clamp01((x - footprint.minX) / width),
+    v: clamp01((footprint.maxZ - z) / depth),
+  }
+}
+
+/**
+ * Convert an sRGB hex string ("#rgb" or "#rrggbb") into an "rgba(r,g,b,a)" CSS
+ * string for a canvas gradient stop. `alpha` is clamped to [0, 1].
+ */
+function hexRgba(hex: string, alpha: number): string {
+  const a = clamp01(alpha)
+  const clean = hex.replace("#", "")
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${a})`
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
 
 export interface KeyboardCanvasApi {
   /** Project a key's 3D node into a tooltip anchor (container-content px). */
@@ -219,11 +260,16 @@ export function KeyboardModel({
       const intensity = keyIntensity(count, maxCount)
       def.node.getWorldPosition(nodePos)
       const { u, v } = mapNodeToUv(nodePos.x, nodePos.z, footprint)
-      const { x, y } = uvToCanvas(u, v, canvasWidth, canvasHeight)
+      // The ramp is drawn on a 2D canvas (row 0 = top) and sampled by a plane
+      // with flipY = true, so the canvas's top row shows at texture-v = 1 — the
+      // back of the keyboard. Hence the inverted vertical coordinate.
+      const x = u * canvasWidth
+      const y = (1 - v) * canvasHeight
       const color = keycapColor(intensity)
-      const alpha = heatAlpha(intensity)
       const grad = ctx.createRadialGradient(x, y, 0, x, y, radius)
-      grad.addColorStop(0, hexRgba(color, alpha))
+      // Max overlay alpha for a fully-hot key; intensity is already in [0, 1]
+      // (keyIntensity clamps), so it doubles as the gradient's peak alpha.
+      grad.addColorStop(0, hexRgba(color, intensity))
       grad.addColorStop(1, hexRgba(color, 0))
       ctx.fillStyle = grad
       ctx.beginPath()
@@ -235,7 +281,7 @@ export function KeyboardModel({
     texture.colorSpace = THREE.SRGBColorSpace
     texture.wrapS = THREE.ClampToEdgeWrapping
     texture.wrapT = THREE.ClampToEdgeWrapping
-    // Pin flipY so uvToCanvas's inverted vertical mapping is enforced, not
+    // Pin flipY so the inverted vertical mapping above is enforced, not
     // implicit — a silent flipY change would mirror the overlay top-to-bottom.
     texture.flipY = true
 
@@ -288,7 +334,9 @@ export function KeyboardModel({
 
   useCursor(hovered != null)
 
-  const handlePointerMove = useCallback(
+  // Wired to both pointermove and pointerdown: iOS taps don't reliably fire
+  // pointermove, so a pointerdown is treated as a tap.
+  const handlePointer = useCallback(
     (event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation()
       const name = resolveTopLevelNode(event.object, scene)
@@ -297,15 +345,6 @@ export function KeyboardModel({
     [scene, onHover],
   )
   const handlePointerOut = useCallback(() => onHover(null), [onHover])
-  // iOS taps don't reliably fire pointermove — treat a pointerdown as a tap.
-  const handlePointerDown = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      const name = resolveTopLevelNode(event.object, scene)
-      onHover(name ? physicalIdForNode(name) : null)
-    },
-    [scene, onHover],
-  )
 
   // Advance the active springs and write the press depth onto the keycap nodes.
   // No React state per frame.
@@ -332,9 +371,9 @@ export function KeyboardModel({
 
   return (
     <group
-      onPointerMove={handlePointerMove}
+      onPointerMove={handlePointer}
       onPointerOut={handlePointerOut}
-      onPointerDown={handlePointerDown}
+      onPointerDown={handlePointer}
     >
       <primitive object={scene} />
       {showOverlay && overlay && (

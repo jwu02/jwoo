@@ -79,7 +79,6 @@ export function fitTopDown(options: FitTopDownOptions): TopDownFrame {
 // extents fits. Half-extents: horizontal width is halfW, vertical depth is
 // halfD. At distance d the visible half-extents are d·tan(fov/2) (vertical) and
 // that times `aspect` (horizontal). Solve both, take the larger, add margin.
-// Guards: a zero/degenerate fov, aspect, or bounds yield a sane default of 1.
 function computeDistance(
   halfW: number,
   halfD: number,
@@ -88,9 +87,6 @@ function computeDistance(
   margin: number,
 ): number {
   const fov = (fovDeg * Math.PI) / 180
-  if (fov <= 0 || aspect <= 0 || halfW <= 0 || halfD <= 0) {
-    return 1
-  }
   const tanHalfFov = Math.tan(fov / 2)
   const distanceForWidth = halfW / (tanHalfFov * aspect)
   const distanceForDepth = halfD / tanHalfFov

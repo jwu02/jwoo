@@ -2,7 +2,6 @@ import * as THREE from "three"
 
 import type { HomeSceneHotspot } from "./scene-config"
 import {
-  readWorldPosition,
   resolveFocus,
   type CameraPose,
   type FocusInfo,
@@ -66,8 +65,9 @@ function getCameraPose(scene: THREE.Group, cameraName: string): CameraPose | und
   // GLTF cameras look down their -Z axis; rotate that by the node's world
   // orientation to get the direction the authored camera actually gazes.
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion)
+  const position = node.getWorldPosition(new THREE.Vector3())
   return {
-    position: readWorldPosition(node),
+    position: [position.x, position.y, position.z],
     forward: [forward.x, forward.y, forward.z],
   }
 }

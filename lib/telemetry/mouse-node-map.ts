@@ -41,23 +41,24 @@ export const MOUSE_REGION_NODES: Record<MouseRegion, readonly string[]> = {
   body: ["Body"],
 }
 
+// Reverse map, inverted from MOUSE_REGION_NODES so the two can never drift.
+// `body` is excluded: it is the walk's fallback for any other part of the mouse,
+// not a name-to-region mapping, so `Body` itself must keep resolving to null.
+const REGION_BY_NODE: Map<string, MouseRegion> = new Map(
+  (Object.entries(MOUSE_REGION_NODES) as [MouseRegion, readonly string[]][])
+    .filter(([region]) => region !== "body")
+    .flatMap(([region, names]) =>
+      names.map((name) => [PropertyBinding.sanitizeNodeName(name), region] as const),
+    ),
+)
+
 /**
  * Region a named node resolves to, or null when the name is not a recognised
  * mouse part. Unknown names resolve to null so the caller can decide the
  * default (body) once it has confirmed the node is under the mouse root.
  */
 export function mouseRegionForName(name: string): MouseRegion | null {
-  switch (PropertyBinding.sanitizeNodeName(name)) {
-    case "Button_Left":
-      return "left"
-    case "Button_Right":
-      return "right"
-    case "Scroll_Wheel":
-    case "Scroll_Wheel_Inner":
-      return "wheel"
-    default:
-      return null
-  }
+  return REGION_BY_NODE.get(name) ?? null
 }
 
 /** Minimal structural node type for the ancestor walk. THREE.Object3D satisfies it. */

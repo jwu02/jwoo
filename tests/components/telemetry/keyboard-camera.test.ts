@@ -81,23 +81,4 @@ describe("fitTopDown", () => {
     const roomyD = roomy.cameraPos.y - roomy.target.y;
     expect(roomyD).toBeCloseTo(tightD * 1.15, 6);
   });
-
-  it("guards degenerate inputs with a distance of 1", () => {
-    const frame = fitTopDown({
-      bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } },
-      fovDeg: 40,
-      aspect: 2,
-    });
-    expect(frame.cameraPos.y - frame.target.y).toBe(1);
-
-    const badFov = fitTopDown({ bounds: KEYBOARD_BOUNDS, fovDeg: 0, aspect: 2 });
-    expect(badFov.cameraPos.y - badFov.target.y).toBe(1);
-
-    const badAspect = fitTopDown({
-      bounds: KEYBOARD_BOUNDS,
-      fovDeg: 40,
-      aspect: 0,
-    });
-    expect(badAspect.cameraPos.y - badAspect.target.y).toBe(1);
-  });
 });

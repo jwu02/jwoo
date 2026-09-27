@@ -34,60 +34,27 @@ interface MouseModelProps {
 // skin). THREE.Color.set() parses the "#rrggbb" string directly.
 const MOUSE_HOVER_HEX = "#d97757"
 
-// The material surface values to restore when a mesh leaves hover, so the same
-// isolated material can be toggled in place between its textured GLB look and a
-// flat orange highlight (peels off every texture-backed channel, not just
-// `color`, because setting only `color` leaves the baseColor texture tinting
-// the whole surface).
-interface MaterialRest {
-  colorHex: number
-  emissiveHex: number
-  metalness: number
-  roughness: number
-  map: THREE.Texture | null
-  metalnessMap: THREE.Texture | null
-  roughnessMap: THREE.Texture | null
-  emissiveMap: THREE.Texture | null
-}
+// The hover look, shared by every region mesh: the textures are simply absent
+// (not tinted over), so the region reads as a solid matte orange. One material
+// instance is enough because the look carries no per-mesh state — hover swaps
+// each mesh's material to this and back to its own rest material.
+const MOUSE_HOVER_MATERIAL = new THREE.MeshStandardMaterial({
+  color: new THREE.Color(MOUSE_HOVER_HEX),
+  metalness: 0,
+  roughness: 1,
+})
 
-// One region mesh and the isolated material it keeps mounted regardless of hover.
-// Each mesh gets its own clone of the GLB primitive so a hovered region never
-// writes over a shared primitive used by its neighbour (the left/right buttons
-// ship one shared material).
+// One region mesh plus the isolated copy of its GLB material. Each mesh gets its
+// own clone so a hovered region never writes over a shared primitive used by its
+// neighbour (the left/right buttons ship one shared material).
 interface RegionMesh {
   mesh: THREE.Mesh
-  material: THREE.MeshStandardMaterial
-  rest: MaterialRest
+  rest: THREE.MeshStandardMaterial
 }
 
-// Apply either the flat hover highlight or the captured rest state onto a mesh's
-// material. The hover look strips the colour/roughness/emissive maps and zeroes
-// metallicity so the region reads as a solid matte orange instead of an orange
-// tint blended over the original texture.
-function applyRegionState(
-  material: THREE.MeshStandardMaterial,
-  active: boolean,
-  rest: MaterialRest,
-) {
-  if (active) {
-    material.map = null
-    material.metalnessMap = null
-    material.roughnessMap = null
-    material.emissiveMap = null
-    material.emissive.setHex(0)
-    material.metalness = 0
-    material.roughness = 1
-    material.color.set(MOUSE_HOVER_HEX)
-    return
-  }
-  material.map = rest.map
-  material.metalnessMap = rest.metalnessMap
-  material.roughnessMap = rest.roughnessMap
-  material.emissiveMap = rest.emissiveMap
-  material.emissive.setHex(rest.emissiveHex)
-  material.metalness = rest.metalness
-  material.roughness = rest.roughness
-  material.color.setHex(rest.colorHex)
+/** Point one region mesh at the shared highlight, or back at its rest material. */
+function applyRegionState(entry: RegionMesh, active: boolean) {
+  entry.mesh.material = active ? MOUSE_HOVER_MATERIAL : entry.rest
 }
 
 export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) {
@@ -104,10 +71,10 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   // look at the shell while still framing the full box (for the clip distance).
   const bodyCenterRef = useRef<THREE.Vector3 | null>(null)
 
-  // Resolve each region's meshes (descendants of its node) once and snapshot the
-  // original material surface, so hover can toggle each mesh's isolated material
-  // in place between its textured look and a flat orange highlight. Keyed on the
-  // GLB scene so it is captured once, never re-walked.
+  // Resolve each region's meshes (descendants of its node) once and keep an
+  // isolated clone of each mesh's GLB material as its rest state, so hover can
+  // swap the mesh's material between the two. Keyed on the GLB scene so it is
+  // captured once, never re-walked.
   const regionMeshesRef = useRef<Map<MouseRegion, RegionMesh[]>>(new Map())
   useEffect(() => {
     const resolved = new Map<MouseRegion, RegionMesh[]>()
@@ -122,25 +89,12 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
           const material = mesh.material as THREE.MeshStandardMaterial
           if (!material?.color) return
           // Clone per mesh so adjacent regions (the left/right buttons ship one
-          // shared primitive) never fight over the same material — without this
-          // isolation the last write wins: hovering one button tints the other,
-          // and the region restored first wipes its own tint.
+          // shared primitive) never fight over the same material — the clone is
+          // this mesh's rest material and is restored verbatim, so one region
+          // can never leave its highlight on another.
           const isolated = material.clone()
           mesh.material = isolated
-          meshes.push({
-            mesh,
-            material: isolated,
-            rest: {
-              colorHex: isolated.color.getHex(),
-              emissiveHex: isolated.emissive.getHex(),
-              metalness: isolated.metalness,
-              roughness: isolated.roughness,
-              map: isolated.map,
-              metalnessMap: isolated.metalnessMap,
-              roughnessMap: isolated.roughnessMap,
-              emissiveMap: isolated.emissiveMap,
-            },
-          })
+          meshes.push({ mesh, rest: isolated })
         })
       }
       resolved.set(region, meshes)
@@ -227,18 +181,14 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   )
   const handlePointerOut = useCallback(() => onHover(null), [onHover])
 
-  // Hover highlight: toggle each region mesh's material between a flat orange
-  // highlight and its captured textured state. A plain React effect on
+  // Hover highlight: swap each region mesh's material between the shared flat
+  // orange highlight and its own rest material. A plain React effect on
   // `hovered` (no per-frame loop) — hover changes colour rather than pressing
-  // down. The highlight is flat because the active state strips the map channels
-  // (not just `color`), so the original texture no longer shows through the tint.
+  // down.
   useEffect(() => {
-    const regionMeshes = regionMeshesRef.current
-    for (const [region, meshes] of regionMeshes) {
+    for (const [region, meshes] of regionMeshesRef.current) {
       const active = region === hovered
-      for (const { material, rest } of meshes) {
-        applyRegionState(material, active, rest)
-      }
+      for (const entry of meshes) applyRegionState(entry, active)
     }
   }, [hovered])
 

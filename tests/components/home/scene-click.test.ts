@@ -18,7 +18,7 @@ describe("resolveClickAction", () => {
     for (const hotspot of HOME_SCENE_HOTSPOTS) {
       if (!hotspot.target) continue
       const { root, mesh } = sceneChain(hotspot.node)
-      const action = resolveClickAction(mesh, 0, root, HOME_SCENE_HOTSPOTS)
+      const action = resolveClickAction(mesh, 0, root)
       expect(action).toEqual({ kind: "navigate", target: hotspot.target })
     }
   })
@@ -27,7 +27,7 @@ describe("resolveClickAction", () => {
     for (const hotspot of HOME_SCENE_HOTSPOTS) {
       if (hotspot.target || hotspot.interactive === false) continue
       const { root, mesh } = sceneChain(hotspot.node)
-      const action = resolveClickAction(mesh, 0, root, HOME_SCENE_HOTSPOTS)
+      const action = resolveClickAction(mesh, 0, root)
       expect(action).toEqual({ kind: "focus", hotspot })
     }
   })
@@ -36,13 +36,13 @@ describe("resolveClickAction", () => {
     const desk = HOME_SCENE_HOTSPOTS.find((h) => h.id === "desk")!
     expect(desk.interactive).toBe(false)
     const { root, mesh } = sceneChain(desk.node)
-    expect(resolveClickAction(mesh, 0, root, HOME_SCENE_HOTSPOTS)).toEqual({ kind: "ignore" })
+    expect(resolveClickAction(mesh, 0, root)).toEqual({ kind: "ignore" })
   })
 
   it("never navigates on a drag release, even over a hotspot with a page", () => {
     const macbook = HOME_SCENE_HOTSPOTS.find((h) => h.id === "macbook")!
     const { root, mesh } = sceneChain(macbook.node)
-    expect(resolveClickAction(mesh, 3, root, HOME_SCENE_HOTSPOTS)).toEqual({ kind: "ignore" })
+    expect(resolveClickAction(mesh, 3, root)).toEqual({ kind: "ignore" })
   })
 
   it("ignores clicks that miss every hotspot", () => {
@@ -50,9 +50,9 @@ describe("resolveClickAction", () => {
     // A decor object that is not a hotspot node.
     const bookshelf: SceneNode = { name: "Bookshelf", parent: root }
     const mesh: SceneNode = { name: "mesh", parent: bookshelf }
-    expect(resolveClickAction(mesh, 0, root, HOME_SCENE_HOTSPOTS)).toEqual({ kind: "ignore" })
+    expect(resolveClickAction(mesh, 0, root)).toEqual({ kind: "ignore" })
 
     // The scene root itself (empty space) is not a hotspot either.
-    expect(resolveClickAction(root, 0, root, HOME_SCENE_HOTSPOTS)).toEqual({ kind: "ignore" })
+    expect(resolveClickAction(root, 0, root)).toEqual({ kind: "ignore" })
   })
 })

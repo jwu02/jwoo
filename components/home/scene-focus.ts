@@ -41,19 +41,6 @@ export function fitDistance(radius: number, fovDeg: number, margin = 1.15): numb
   return (radius / Math.sin(halfFovRad)) * margin
 }
 
-/**
- * Minimal THREE.Matrix4-like shape so the translation extraction stays
- * framework-free and unit-testable. THREE.Matrix4 satisfies it (column-major
- * `elements` as a Float32Array, translation in indices 12/13/14).
- */
-export type WorldMatrixNode = { matrixWorld: { elements: ArrayLike<number> } }
-
-/** Read the world-space translation out of a node's world matrix. */
-export function readWorldPosition(node: WorldMatrixNode): Vec3 {
-  const e = node.matrixWorld.elements
-  return [e[12], e[13], e[14]]
-}
-
 // Minimum distance along a GLB camera's gaze at which the orbit target may sit.
 // Keeps the target in front of the camera (and clear of the near plane) even if
 // the authored camera happens to look away from the clicked node.

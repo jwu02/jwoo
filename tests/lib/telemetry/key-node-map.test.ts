@@ -5,10 +5,8 @@ import { PropertyBinding } from "three"
 import { PHYSICAL_KEYS } from "@/lib/telemetry/key-layout"
 import {
   KEYBOARD_MODEL_URL,
-  NO_NODE_IDS,
   PHYSICAL_KEY_NODE,
   glbNodeName,
-  hasNode,
   physicalIdForNode,
 } from "@/lib/telemetry/key-node-map"
 
@@ -24,18 +22,12 @@ function readGltfJson(path: string): {
 }
 
 describe("PHYSICAL_KEY_NODE", () => {
-  it("maps every physical id either to a node or to NO_NODE_IDS, never both/neither", () => {
+  it("maps every physical id except the removed Section (§/±) to a node", () => {
     const ids = PHYSICAL_KEYS.map((key) => key.id)
     expect(ids.length).toBeGreaterThan(0)
     for (const id of ids) {
-      const mapped = id in PHYSICAL_KEY_NODE
-      const absent = NO_NODE_IDS.has(id)
-      expect(mapped).toBe(!absent)
+      expect(id in PHYSICAL_KEY_NODE).toBe(id !== "Section")
     }
-  })
-
-  it("marks exactly the removed Section (the §/± key) as node-less", () => {
-    expect([...NO_NODE_IDS].sort()).toEqual(["Section"])
   })
 
   it("keeps every mapped node name distinct (injective)", () => {
@@ -83,9 +75,8 @@ describe("glbNodeName / physicalIdForNode", () => {
     expect(physicalIdForNode("key_backquote")).toBe("Backtick")
   })
 
-  it("returns null / null for the removed Section key", () => {
+  it("returns null for the removed Section key", () => {
     expect(glbNodeName("Section")).toBeNull()
-    expect(hasNode("Section")).toBe(false)
   })
 
   it("maps the common casing/aliases to their GLB nodes", () => {

@@ -1,7 +1,6 @@
 import {
   fitDistance,
   gazeTarget,
-  readWorldPosition,
   resolveFocus,
   type CameraPose,
   type FocusInfo,
@@ -111,27 +110,5 @@ describe("gazeTarget", () => {
     // distance instead — the orbit target must stay in front of the camera.
     const camera: CameraPose = { position: [0, 0, 0], forward: [0, 0, -1] }
     expect(gazeTarget(camera, [0, 0, 5])).toEqual([0, 0, -0.5])
-  })
-})
-
-describe("readWorldPosition", () => {
-  it("extracts the translation from a column-major elements array", () => {
-    const elements = [
-      1, 0, 0, 0, // col 0
-      0, 1, 0, 0, // col 1
-      0, 0, 1, 0, // col 2
-      5, 6, 7, 1, // col 3 = translation
-    ]
-    expect(readWorldPosition({ matrixWorld: { elements } })).toEqual([5, 6, 7])
-  })
-
-  it("handles THREE.Matrix4's Float32Array elements", () => {
-    const elements = new Float32Array([
-      1, 0, 0, 0, //
-      0, 1, 0, 0, //
-      0, 0, 1, 0, //
-      -1.5, 2.25, 3.75, 1,
-    ])
-    expect(readWorldPosition({ matrixWorld: { elements } })).toEqual([-1.5, 2.25, 3.75])
   })
 })

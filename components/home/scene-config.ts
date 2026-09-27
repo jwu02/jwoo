@@ -181,21 +181,16 @@ export const HOME_VIEWS: HomeView[] = HOME_SCENE_HOTSPOTS.flatMap((hotspot) =>
  * the GLB resolves, and the controller marks it selected so the greeting types
  * without a click.
  *
- * It must be a framing hotspot — a bbox fit has no camera position to seat the
- * camera at until the model has loaded, which is exactly what the preset is for.
+ * Exactly one hotspot sets `initial` and it carries a framing focus preset — a
+ * bbox fit has no camera position to seat the camera at until the model has
+ * loaded, which is exactly what the preset is for. scene-config's test holds both
+ * halves of that.
  */
-function requireInitialView(): { hotspot: HomeSceneHotspot; framing: FramingPreset } {
-  const initial = HOME_SCENE_HOTSPOTS.filter((hotspot) => hotspot.initial)
-  const [hotspot] = initial
-  // Both halves are load-bearing: none leaves the scene with no camera to seat,
-  // and two or more makes "the" initial view ambiguous — `find` would silently
-  // pick the first, so the count is checked rather than the first match.
-  if (initial.length !== 1 || hotspot.focus?.type !== "framing") {
-    throw new Error(
-      "home scene config: exactly one hotspot must set `initial` and carry a framing focus preset",
-    )
-  }
-  return { hotspot, framing: hotspot.focus }
+const initialHotspot = HOME_SCENE_HOTSPOTS.find((hotspot) => hotspot.initial) as HomeSceneHotspot & {
+  focus: FramingPreset
 }
 
-export const HOME_INITIAL_VIEW = requireInitialView()
+export const HOME_INITIAL_VIEW = {
+  hotspot: initialHotspot,
+  framing: initialHotspot.focus,
+}

@@ -146,7 +146,6 @@ function SceneController() {
           default. Tunable in dev. */}
       <HomeOrbitControls
         ref={controlsRef}
-        makeDefault
         target={HOME_INITIAL_VIEW.framing.target}
         enableDamping
         dampingFactor={0.08}

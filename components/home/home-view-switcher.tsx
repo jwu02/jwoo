@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { HOME_VIEWS } from "./scene-config"
 
-export type HomeViewSwitcherProps = {
+type HomeViewSwitcherProps = {
   /** Id of the currently framed view, or null when none of the presets is active. */
   activeView: string | null
   onSelectView: (id: string) => void
