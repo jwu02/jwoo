@@ -26,18 +26,8 @@ import {
   NODE_HOVER_SCALE,
   nodeRadius,
 } from "@/lib/knowledge-graph/graph-data";
-import {
-  computeFocusTransform,
-  computeReanchorTransform,
-  GRAPH_ANIMATION_MS,
-  graphPointFromClient,
-  isDragGesture,
-  NODE_MAX_ZOOM,
-  NODE_MIN_ZOOM,
-  type FitPlan,
-  type FitTrigger,
-  planFit,
-} from "@/lib/knowledge-graph/framing";
+import { graphPointFromClient, isDragGesture } from "@/lib/knowledge-graph/framing";
+import { createCamera, type Camera } from "@/lib/knowledge-graph/camera";
 import { usePixiApp } from "./use-pixi-app";
 
 interface ForceGraphProps {
@@ -226,10 +216,6 @@ export const ForceGraph = memo(function ForceGraph({
   // gesture clears it the moment it happens rather than a re-render later, so
   // nothing emphasizes a note the visitor has just panned away from.
   const drawnFocusRef = useRef<string | null>(null);
-  // The focus the camera was last flown to. A rebuild hands over new arrays for
-  // the same focus, and that is not a new focus: the flight has been made, and
-  // the fresh graph is about to frame itself.
-  const flownFocusRef = useRef<string | null>(null);
   const dragNodeRef = useRef<GraphNode | null>(null);
   // The press that is down right now, if one is: the node under the pointer, and
   // where the pointer landed — in graph coordinates, through the zoom transform
@@ -237,8 +223,9 @@ export const ForceGraph = memo(function ForceGraph({
   // judged a click or a drag without knowing where it came from, and cleared the
   // moment it is judged either way.
   //
-  // It is also what the zoom filter below reads: a press is a camera gesture's
-  // veto, and the veto has to be in place before d3 is offered the gesture.
+  // It is also what the camera's filter is told about: a press is a camera
+  // gesture's veto, and the veto has to be in place before d3 is offered the
+  // gesture.
   const pressRef = useRef<{
     node: GraphNode;
     point: { x: number; y: number };
@@ -253,14 +240,12 @@ export const ForceGraph = memo(function ForceGraph({
   // teardown that takes the node away mid-gesture.
   const pressCleanupRef = useRef<(() => void) | null>(null);
   const zoomTransformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
-  // The width the graph last laid itself out against. The renderer measures its
-  // wrapper once, at build, and pixi's `resizeTo` hears about window resizes and
-  // nothing else — so this is what a re-anchor compares the viewport it now has
-  // against the one the viewer was looking at.
-  const viewportWidthRef = useRef(0);
-  const zoomBehaviorRef = useRef<d3.ZoomBehavior<HTMLDivElement, unknown> | null>(null);
-  const zoomSelectionRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null);
-  const userInteractedRef = useRef(false);
+  // The camera, and the Pixi app the camera's viewport change has to resize
+  // before it moves. Both are read by ref because both outlive any one render:
+  // the camera is created once per mount and fires from outside React's cycle,
+  // and the app arrives asynchronously after it.
+  const cameraRef = useRef<Camera | null>(null);
+  const appRef = useRef<import("pixi.js").Application | null>(null);
   const colorsRef = useRef({ node: 0, hover: 0, link: 0, leaf: 0 });
 
   // Screen position for a node's label, in wrapper coordinates. Labels live in
@@ -388,46 +373,15 @@ export const ForceGraph = memo(function ForceGraph({
     [applyHover, positionLabel]
   );
 
-  // The layout around the graph changed — the note panel opened or collapsed —
-  // so the graph puts back what the viewer was looking at, and eases there so
-  // they can see which way it moved instead of finding it moved.
-  //
-  // Not gated by anything, unlike a fit: this is compensation for a change the
-  // viewer made to the page rather than a framing of its own, so it applies
-  // over a viewer who has panned away from every fit. A layout that left the
-  // viewport alone — the note list's overlay, which sits above the graph
-  // rather than beside it — has nothing to compensate for.
+  // The layout around the graph changed, so the viewer's centre is put back —
+  // what that means, and why it is not gated the way a fit is, is the camera's
+  // (see Camera.reanchor). The renderer's share is only to know when it is
+  // owed: a layout that left the viewport alone — the note list's overlay,
+  // which sits above the graph rather than beside it — asks for nothing, and
+  // so does not call this.
   const reanchorViewport = useCallback(() => {
-    const wrapper = wrapperRef.current;
-    const selection = zoomSelectionRef.current;
-    const zoom = zoomBehaviorRef.current;
-    if (!wrapper || !selection || !zoom) return;
-
-    const nextWidth = wrapper.clientWidth;
-    const previousWidth = viewportWidthRef.current;
-    viewportWidthRef.current = nextWidth;
-    // Nothing has been built yet, or the viewport is the one the graph is
-    // already drawn against: either way there is nothing to put back.
-    if (previousWidth === 0 || nextWidth === previousWidth) return;
-
-    // The surface the world is drawn into follows the viewport it is drawn in:
-    // it is still the width the graph was built at, and a canvas the old width
-    // would clip the graph at an edge the viewport no longer has.
-    app?.resize();
-
-    const { x, y, k } = computeReanchorTransform(
-      zoomTransformRef.current,
-      previousWidth,
-      nextWidth
-    );
-    // A fit or a flight still in the air would fight this one — d3 keeps one
-    // transition per element — so the camera is taken before it is moved.
-    selection.interrupt();
-    selection
-      .transition()
-      .duration(GRAPH_ANIMATION_MS)
-      .call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(k));
-  }, [app]);
+    cameraRef.current?.reanchor();
+  }, []);
 
   useImperativeHandle(
     ref,
@@ -436,12 +390,18 @@ export const ForceGraph = memo(function ForceGraph({
   );
 
   // Ends the focus the graph is drawing, and reports it to the page that owns
-  // it. Stable, so the zoom gesture can hold onto it across every rebuild: the
-  // hover, the painter and the report are all reached through refs.
+  // it. Stable, so the camera can hold onto it across every rebuild: the hover,
+  // the painter and the report are all reached through refs.
+  //
+  // The camera's claim is dropped here rather than left to the page's own
+  // round-trip: this is called the moment the focus ends — by the visitor's
+  // hand on the camera, and by a click releasing the note it holds — and until
+  // the page has been told and rendered, a camera still claiming the note would
+  // refuse a settled fit and re-fly a note that has just been let go of.
   const clearFocus = useCallback(() => {
     if (drawnFocusRef.current === null) return;
     drawnFocusRef.current = null;
-    flownFocusRef.current = null;
+    cameraRef.current?.setFocus(null);
     applyHoverRef.current(hoveredIdRef.current);
     onFocusClearRef.current?.();
   }, []);
@@ -481,6 +441,10 @@ export const ForceGraph = memo(function ForceGraph({
         point: graphPointFromClient(event.client.x, event.client.y, rect, transform),
         transform,
       };
+      // The veto goes up with the press. The browser reaches d3 through the
+      // compatibility mouse events that follow this one, and this ran first, so
+      // the camera is already refusing by the time d3 asks.
+      cameraRef.current?.setPressed(true);
 
       // Everything a drag does once it is one: the node leaves the simulation
       // for the pointer, and the links reaching it are redrawn behind it.
@@ -536,6 +500,7 @@ export const ForceGraph = memo(function ForceGraph({
         const press = pressRef.current;
         const dragged = dragNodeRef.current;
         pressRef.current = null;
+        cameraRef.current?.setPressed(false);
         dragNodeRef.current = null;
         pressCleanupRef.current = null;
         if (dragged) {
@@ -575,42 +540,68 @@ export const ForceGraph = memo(function ForceGraph({
     [updateLinkSprite, positionLabel, positionAllLabels, clearFocus]
   );
 
-  // Flies the camera to frame a note with its neighbours. Called when the page
-  // hands over a focus, and again when a layout settles under one — the
-  // positions the first framing was computed from are the pre-settle ones.
+  // The camera, created once per mount and held for the life of the graph.
+  // Declared above the build and focus effects because both reach it: the build
+  // hands over each snapshot's layout, and the focus effect hands over the note
+  // the page has taken.
   //
-  // Declared above the build effect because that effect's own handlers settle
-  // the layout, and a dependency array is read while rendering, before a
-  // `const` below it exists.
-  const flyToFocus = useCallback(
-    (noteId: string) => {
-      const wrapper = wrapperRef.current;
-      const selection = zoomSelectionRef.current;
-      const zoom = zoomBehaviorRef.current;
-      if (!wrapper || !selection || !zoom) return;
+  // Its callbacks fire outside React's render cycle — from a wheel, a pointer,
+  // a transition's frame — so everything they touch is reached through a ref or
+  // is stable across every render.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
-      const transform = computeFocusTransform(
-        noteId,
-        graphNodes,
-        graphEdges,
-        wrapper.clientWidth,
-        wrapper.clientHeight
-      );
-      if (!transform) return;
+    const camera = createCamera(wrapper, {
+      onTransformChange: (transform, by) => {
+        // Written before anything reads it: the label layer is positioned
+        // through this same transform, in this same event.
+        zoomTransformRef.current = transform;
 
-      // A fit still easing would otherwise fight the flight, and d3 keeps one
-      // transition per name: interrupt it and take the camera.
-      selection.interrupt();
-      selection
-        .transition()
-        .duration(GRAPH_ANIMATION_MS)
-        .call(
-          zoom.transform,
-          d3.zoomIdentity.translate(transform.x, transform.y).scale(transform.k)
-        );
-    },
-    [graphNodes, graphEdges]
-  );
+        // The world is what the camera moves, but it is Pixi's to draw — the
+        // camera knows the transform, not the scene wearing it.
+        const world = worldContainerRef.current;
+        if (world) {
+          world.position.set(transform.x, transform.y);
+          world.scale.set(transform.k);
+        }
+
+        // Flip the all-labels mode only on a crossing, not on every zoom frame
+        // — the ref is updated first so the positioning below happens in this
+        // same event, with the labels already in place as they fade in.
+        const pastThreshold = transform.k >= LABEL_ZOOM_THRESHOLD;
+        if (pastThreshold !== showAllLabelsRef.current) {
+          showAllLabelsRef.current = pastThreshold;
+          setShowAllLabels(pastThreshold);
+        }
+
+        // The visitor's hand on the camera ends the focus wherever it is: the
+        // note list must not go on claiming a note they have panned away from.
+        // A transition the graph itself runs is not their hand, and must not
+        // read as one.
+        if (by === "gesture") clearFocus();
+
+        positionLabel();
+        positionAllLabels();
+      },
+      // The surface grows into the viewport before the camera moves into it.
+      // Reached by ref because the Pixi app arrives asynchronously, after the
+      // camera that was built without it.
+      onViewportChange: () => appRef.current?.resize(),
+    });
+
+    cameraRef.current = camera;
+    return () => {
+      camera.destroy();
+      cameraRef.current = null;
+    };
+  }, [clearFocus, positionLabel, positionAllLabels]);
+
+  // The Pixi app, for the callbacks that need the surface rather than the
+  // camera's copy of its size.
+  useEffect(() => {
+    appRef.current = app;
+  }, [app]);
 
   // Build the Pixi scene and d3-force simulation once per data set.
   useEffect(() => {
@@ -618,9 +609,11 @@ export const ForceGraph = memo(function ForceGraph({
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const { clientWidth, clientHeight } = wrapper;
-    // The viewport this build frames against, and so the one a later layout
-    // change is measured from.
-    viewportWidthRef.current = clientWidth;
+    // What there is to frame, and the viewport it is framed in — the one a
+    // later layout change is measured from. The edges are the string-keyed ones
+    // rather than the simulation's resolved links: the focus framing needs the
+    // neighbours of a note by id, not the node objects.
+    cameraRef.current?.setLayout(graphNodes, graphEdges);
 
     const teardownWorld = () => {
       // A gesture in the air when the world it was pressing goes away: the
@@ -670,8 +663,11 @@ export const ForceGraph = memo(function ForceGraph({
       setHovered(null);
       dragNodeRef.current = null;
       pressRef.current = null;
+      // A press the last world was in the middle of is gone with it, and the
+      // camera's veto has to go with it too — a veto left standing refuses
+      // every gesture there is.
+      cameraRef.current?.setPressed(false);
       pressDetailRef.current = 0;
-      userInteractedRef.current = false;
 
       const world = new PIXI.Container();
       worldContainerRef.current = world;
@@ -794,44 +790,6 @@ export const ForceGraph = memo(function ForceGraph({
         );
       simulationRef.current = simulation;
 
-      let initialFitDone = false;
-
-      // Runs one fit plan. Nothing here decides whether a fit should happen or
-      // what it should be — planFit owns that, in lib — so this only applies
-      // what it is handed.
-      const applyFit = (plan: FitPlan) => {
-        const selection = zoomSelectionRef.current;
-        const zoom = zoomBehaviorRef.current;
-        if (!selection || !zoom) return;
-        const { k, x, y } = plan.transform;
-        const transform = d3.zoomIdentity.translate(x, y).scale(k);
-        if (plan.mode === "snap") {
-          selection.call(zoom.transform, transform);
-        } else {
-          selection.transition().duration(plan.durationMs).call(zoom.transform, transform);
-        }
-      };
-
-      const fitViewport = (trigger: FitTrigger) => {
-        const plan = planFit(trigger, {
-          userInteracted: userInteractedRef.current,
-          // A note holding the focus is the visitor's claim on the camera, made
-          // later and more specifically than the fit's: the framing they asked
-          // for is the one that stands.
-          focused: drawnFocusRef.current !== null,
-          nodes: simNodes,
-          // The viewport the graph is in now, which the fit is the framing of.
-          // Read live rather than taken from the build: a panel that came or
-          // went while the layout was still settling leaves the graph a
-          // different box to be framed inside, and a fit computed against the
-          // one it was built in would frame it off-centre — undoing the
-          // compensation that kept the viewer's centre while it settled.
-          viewportWidth: wrapper.clientWidth,
-          viewportHeight: wrapper.clientHeight,
-        });
-        if (plan) applyFit(plan);
-      };
-
       simulation.on("tick", () => {
         // Sprites are kept in arrays aligned 1:1 with the sim data, so the hot
         // per-tick path is plain index lookups instead of string-keyed Map gets.
@@ -847,27 +805,16 @@ export const ForceGraph = memo(function ForceGraph({
         positionLabel();
         positionAllLabels();
 
-        // The graph is first seen here, so this tick is what asks for the rough
-        // frame. What that frame is, and whether it moves, is planFit's business.
-        if (!initialFitDone) {
-          initialFitDone = true;
-          fitViewport("first-tick");
-        }
+        // The graph is first seen here, so this tick is what asks the camera
+        // for the rough frame. What that frame is, and whether it moves, is the
+        // camera's business.
+        cameraRef.current?.layoutTicked();
       });
 
       // "end" fires when alpha drops below alphaMin, so positions are final and
-      // the settling fit frames the layout the viewer is left with.
+      // the settle can frame the layout the viewer is left with.
       simulation.on("end", () => {
-        // A focus was framed against a layout that has since moved — an early
-        // click, or a fresh snapshot's own layout — so the flight is made again
-        // rather than a fit taking the camera off the note. The focus outranks
-        // the fit either way: planFit plans nothing while one is held.
-        const focused = drawnFocusRef.current;
-        if (focused !== null) {
-          flyToFocus(focused);
-          return;
-        }
-        fitViewport("settled");
+        cameraRef.current?.layoutSettled();
       });
     };
 
@@ -877,99 +824,7 @@ export const ForceGraph = memo(function ForceGraph({
       cancelled = true;
       teardownWorld();
     };
-  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus, flyToFocus]);
-
-  // d3-zoom drives the Pixi world container transform.
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    // A window resize is not the graph's to compensate for — pixi's `resizeTo`
-    // follows it and the camera is left where the viewer put it — but the width
-    // it leaves behind is the viewport the graph is drawn against, and so the
-    // one a later panel toggle measures from. Recorded where it happens rather
-    // than measured at the toggle, which would take the width the graph had
-    // before the window moved and compensate for that as well.
-    const recordViewport = () => {
-      viewportWidthRef.current = wrapper.clientWidth;
-    };
-    window.addEventListener("resize", recordViewport);
-
-    const zoom = d3
-      .zoom<HTMLDivElement, unknown>()
-      .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
-      // A press on a node is not a camera gesture, and while it is down nothing
-      // else is one either. d3 arms its pan from the `mousedown` the browser
-      // fires right after the pointerdown that began the press, so a press that
-      // turns out to be a click would otherwise have panned the graph by the few
-      // pixels the hand drifted — the camera moving under a visitor who only
-      // meant to select a note.
-      //
-      // The press is knowable here at all because pixi dispatches the pointer
-      // events it was given, and the compatibility mousedown follows them: at the
-      // moment this is asked, the press is already recorded. Which gesture d3 is
-      // asking about is d3's business — it consults this at the start of each of
-      // them, a wheel, a pan, a double-click, a touch — so refusing here refuses
-      // all of them.
-      .filter((event: { type: string; ctrlKey: boolean; button: number }) => {
-        if (pressRef.current !== null) return false;
-        // d3's own default, kept as it is: ctrl+wheel is a zoom because the
-        // browser's own ctrl+wheel is the page zoom, a drag is the left
-        // button's, and ctrl+click belongs to the browser.
-        return (!event.ctrlKey || event.type === "wheel") && !event.button;
-      })
-      .on("zoom", (event) => {
-        // A sourceEvent is the visitor's own hand — a wheel, a drag, a
-        // double-click. The graph's own transitions carry none, which is what
-        // lets the flight below be told apart from the gesture that ends it.
-        //
-        // What is deliberately *not* here is an interrupt. A gesture takes the
-        // camera off whatever the graph was doing, but d3-zoom interrupts the
-        // element's transitions itself the moment one begins, before it emits
-        // the first zoom of the gesture — and interrupting from here instead
-        // would take the graph's own moves down with it: a wheel keeps its
-        // gesture live for a moment after the last event, a transition started
-        // inside that window reuses that gesture, and every frame of the
-        // graph's own camera move would then read as the visitor's hand and
-        // cancel it on its first frame.
-        if (event.sourceEvent) {
-          userInteractedRef.current = true;
-          // The camera is the visitor's again: a focus already framed is over,
-          // because the note list must not go on claiming a note they have
-          // panned away from.
-          clearFocus();
-        }
-        zoomTransformRef.current = { x: event.transform.x, y: event.transform.y, k: event.transform.k };
-        const world = worldContainerRef.current;
-        if (world) {
-          world.position.set(event.transform.x, event.transform.y);
-          world.scale.set(event.transform.k);
-        }
-
-        // Flip the all-labels mode only on a crossing, not on every zoom frame —
-        // the ref is updated first so the positioning below happens in this same
-        // event, with the labels already in place as they fade in.
-        const pastThreshold = event.transform.k >= LABEL_ZOOM_THRESHOLD;
-        if (pastThreshold !== showAllLabelsRef.current) {
-          showAllLabelsRef.current = pastThreshold;
-          setShowAllLabels(pastThreshold);
-        }
-
-        positionLabel();
-        positionAllLabels();
-      });
-
-    const selection = d3.select(wrapper).call(zoom);
-    zoomBehaviorRef.current = zoom;
-    zoomSelectionRef.current = selection;
-
-    return () => {
-      selection.on(".zoom", null);
-      window.removeEventListener("resize", recordViewport);
-      zoomBehaviorRef.current = null;
-      zoomSelectionRef.current = null;
-    };
-  }, [positionLabel, positionAllLabels, clearFocus]);
+  }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus]);
 
   // The click count, carried across a press to the double-click that press may
   // turn out to be part of.
@@ -1025,10 +880,9 @@ export const ForceGraph = memo(function ForceGraph({
   // The Focus: fly the camera to frame the note with its neighbours, and hold
   // the note's emphasis for as long as the focus lasts.
   //
-  // Deliberately not gated by the fit's yield-to-viewer rule — focusing is
-  // something the visitor asked for, so it may move a graph they have already
-  // panned. What applies instead is the take-over rule, in the zoom gesture
-  // above: their hand on the camera ends the focus wherever it is.
+  // The flight itself is the camera's — what the renderer owns is the drawing
+  // of the focus and the page's belief in it, and whether the graph can show
+  // the note at all.
   useEffect(() => {
     // A focus the graph cannot show is no focus at all — a snapshot that no
     // longer holds the note, or a layout with no position for it. The emphasis
@@ -1041,26 +895,17 @@ export const ForceGraph = memo(function ForceGraph({
     drawnFocusRef.current = held ? focused : null;
     applyHover(hoveredIdRef.current);
 
-    // Nothing is focused, so nothing has been flown to: the next focus — even
-    // of this same note — is a new flight.
-    if (!held) {
-      flownFocusRef.current = null;
-      if (focused !== null) onFocusClearRef.current?.();
-      return;
-    }
+    if (!held && focused !== null) onFocusClearRef.current?.();
 
-    // The same focus arriving with a fresh graph — a snapshot rotation that
-    // kept the note — has already been flown to, and flying again would aim at
-    // the layout the simulation has not built yet. The settle that follows is
-    // what re-frames it, against positions that mean something.
-    if (flownFocusRef.current === focused) return;
-
-    flownFocusRef.current = focused;
-    flyToFocus(focused);
-    // `app` is here because the flight needs the world the Pixi app builds: a
-    // row can be clicked before that has loaded, and the focus must fly once it
-    // has rather than being dropped on the floor.
-  }, [focused, graphNodes, graphEdges, applyHover, flyToFocus, app]);
+    // The camera is told either way: a note it is given is one to fly to (or,
+    // for a note it has already flown to, one to leave to the settle), and a
+    // dismissal is one it must not reframe for.
+    cameraRef.current?.setFocus(held ? focused : null);
+    // `app` is here because the flight needs positions the layout has given —
+    // a row can be clicked before Pixi has loaded and the simulation has laid
+    // the graph out, and the focus must be flown once it has rather than being
+    // dropped on the floor.
+  }, [focused, graphNodes, graphEdges, applyHover, app]);
 
   return (
     <div
