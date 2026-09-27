@@ -95,8 +95,7 @@ describe("CacheNotice", () => {
   });
 
   // The notice is placed in the graph's corner, so it has to be a child of the
-  // box it is placed in rather than a portal that would land somewhere else —
-  // which is what it was when the page raised it as a toast.
+  // box it is placed in rather than a portal that would land somewhere else.
   it("stays inside the page's own box rather than portalling out of it", () => {
     const { container } = renderNotice({ cachedAt, remainingSeconds: 9720 });
 

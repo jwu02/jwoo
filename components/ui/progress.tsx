@@ -37,4 +37,4 @@ function ProgressIndicator({
   )
 }
 
-export { Progress, ProgressIndicator }
+export { Progress }
