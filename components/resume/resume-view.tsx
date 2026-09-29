@@ -1,7 +1,7 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { Download, Info } from "lucide-react"
+import { Download } from "lucide-react"
 
 import {
   Tooltip,
@@ -19,11 +19,6 @@ const RESUME_LOCALE_KEY = "resume:locale"
 // The print dialog is modal and covers the page, so this notice has to be
 // readable *before* Download is clicked. Background graphics and zero margins
 // are what keep the sheet's rules and fills intact in the printed PDF.
-const PRINT_HELP_LABELS: Record<Locale, string> = {
-  en: "Print settings help",
-  zh: "打印设置帮助",
-}
-
 const PRINT_HELP: Record<Locale, { title: string; settings: string[] }> = {
   en: {
     title: "Chrome Print Dialog",
@@ -63,23 +58,16 @@ export function ResumeView() {
     <div className="flex flex-col px-4 md:px-0">
       <div className="mt-6 flex items-center justify-center gap-2 print:hidden">
         <LanguageToggle locale={locale} onChange={handleChange} />
-        <button
-          type="button"
-          onClick={() => printResume()}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          <Download className="size-4" />
-          Download Resume
-        </button>
         <Tooltip>
           <TooltipTrigger
             render={
               <button
                 type="button"
-                aria-label={PRINT_HELP_LABELS[locale]}
-                className="inline-flex cursor-pointer items-center justify-center rounded-full border p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                onClick={() => printResume()}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               >
-                <Info className="size-4" />
+                <Download className="size-4" />
+                Download Resume
               </button>
             }
           />

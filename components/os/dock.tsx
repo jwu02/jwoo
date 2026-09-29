@@ -63,7 +63,7 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
                   aria-label={app.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex size-10 items-center justify-center rounded-xl transition duration-150 ease-out",
+                    "flex size-10 items-center justify-center overflow-hidden rounded-xl transition duration-150 ease-out",
                     active
                       ? "bg-foreground/15 text-foreground ring-1 ring-foreground/15 shadow-[inset_0_1px_0_oklch(1_0_0/12%)]"
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",

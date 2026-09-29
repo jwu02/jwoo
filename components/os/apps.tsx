@@ -31,14 +31,16 @@ export const APPS: readonly App[] = [
   { href: "/resume", label: "Resume", icon: FileText },
 ]
 
-function Miyamura({ className }: { className?: string }) {
+/** Drawn rather than sized by the Dock: the desktop's portrait fills its button
+ * edge to edge, so the Link clips it to the button's own rounding. */
+function Miyamura() {
   return (
     <Image
       src="/miyamura.jpg"
       alt=""
       width={56}
       height={56}
-      className={`${className} rounded-md object-cover`}
+      className="size-full object-cover"
     />
   )
 }

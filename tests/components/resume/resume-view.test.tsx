@@ -47,7 +47,7 @@ describe("ResumeView", () => {
   it("reveals the Chrome print instructions from the help trigger", async () => {
     renderView()
 
-    const trigger = screen.getByRole("button", { name: /print settings help/i })
+    const trigger = screen.getByRole("button", { name: /download resume/i })
     fireEvent.mouseEnter(trigger)
 
     expect(await screen.findByText(/Chrome Print Dialog/i)).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe("ResumeView", () => {
     renderView()
 
     fireEvent.focus(
-      screen.getByRole("button", { name: /print settings help/i })
+      screen.getByRole("button", { name: /download resume/i })
     )
 
     expect(await screen.findByText(/background graphics/i)).toBeInTheDocument()
@@ -74,7 +74,7 @@ describe("ResumeView", () => {
     renderView()
 
     const trigger = await screen.findByRole("button", {
-      name: /打印设置帮助/,
+      name: /download resume/i,
     })
     fireEvent.mouseEnter(trigger)
 
