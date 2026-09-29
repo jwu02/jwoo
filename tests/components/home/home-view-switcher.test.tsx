@@ -16,7 +16,7 @@ describe("HomeViewSwitcher", () => {
     const onSelectView = jest.fn()
     render(<HomeViewSwitcher activeView={null} onSelectView={onSelectView} />)
 
-    fireEvent.click(screen.getByRole("button", { name: "Desk" }))
+    fireEvent.click(screen.getByRole("button", { name: "Workspace" }))
 
     expect(onSelectView).toHaveBeenCalledTimes(1)
     expect(onSelectView).toHaveBeenCalledWith("desk")
@@ -29,7 +29,7 @@ describe("HomeViewSwitcher", () => {
       "aria-pressed",
       "true",
     )
-    expect(screen.getByRole("button", { name: "Desk" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Workspace" })).toHaveAttribute(
       "aria-pressed",
       "false",
     )

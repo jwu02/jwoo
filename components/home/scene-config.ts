@@ -30,7 +30,7 @@ export type HomeSceneHotspot = {
   /**
    * Short label for the view switcher pill, set on the hotspots that are views
    * (see HOME_VIEWS). The full `label` is the hover tooltip's copy; the pill
-   * needs something that reads as a button ("Desk", not "Computer Desk").
+   * needs something that reads as a button ("Workspace", not "Computer Desk").
    */
   viewLabel?: string
   /**
@@ -84,7 +84,7 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
     id: "desk",
     node: "Desk",
     label: "Computer Desk",
-    viewLabel: "Desk",
+    viewLabel: "Workspace",
     // The loaded view: a fresh scene is framed on the desk and greets without a
     // click. The greeting is anchored above the MacBook (HOME_GREETING.node),
     // which is why the desk's own node name isn't the greeting's.
@@ -107,7 +107,7 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
   {
     id: "bottle",
     node: "WaterBottle",
-    label: "Water Bottle",
+    label: "Stay Hydrated",
     // Bbox-fit view of the bottle node alone (fit is computed per-node, not the
     // whole combined scene). Tunable in dev.
     focus: { type: "fit" },
@@ -115,7 +115,7 @@ export const HOME_SCENE_HOTSPOTS: HomeSceneHotspot[] = [
   {
     id: "bonsai",
     node: "Bonsai",
-    label: "Bonsai",
+    label: "Touch Grass",
     // Bbox-fit view of the bonsai tree node alone. Tunable in dev.
     focus: { type: "fit" },
   },

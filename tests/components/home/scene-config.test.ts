@@ -133,7 +133,7 @@ describe("HOME_SCENE_HOTSPOTS", () => {
 describe("HOME_VIEWS", () => {
   it("offers the two GLB-authored camera views in hotspot order", () => {
     expect(HOME_VIEWS).toEqual([
-      { id: "desk", label: "Desk" },
+      { id: "desk", label: "Workspace" },
       { id: "car", label: "Xiaomi SU7" },
     ])
   })
