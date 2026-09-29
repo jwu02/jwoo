@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 // Two voices, and the split is what makes the frame read as a system: Geist is
-// what an application says, Roboto Mono is what the OS chrome (Top Bar, Dock
+// what an application says, Roboto Mono is what the OS chrome (the Dock's
 // labels) says.
 const geist = Geist({
   subsets: ["latin"],

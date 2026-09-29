@@ -35,7 +35,7 @@ describe("HomeScene", () => {
   // The greeting ("Hi, I'm Tony.") and the hover tooltips are drei <Html>
   // labels, which write an inline z-index in the millions — drei's default
   // zIndexRange is [16777271, 0]. With no stacking context between the canvas
-  // and <body> those labels paint straight over the Top Bar and the Dock.
+  // and <body> those labels paint straight over the Dock.
   //
   // jsdom has no layout engine and the Tailwind classes carry no stylesheet
   // here, so this cannot assert paint order. It guards the structural fix.

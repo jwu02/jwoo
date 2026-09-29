@@ -20,11 +20,14 @@ import { APPS } from "./apps"
  * It is a pane rather than a panel in both orientations: sized to its contents,
  * so the view shows around it the way it does around an application's surface.
  *
+ * It is also the whole of the Shell's voice about location: the active icon is
+ * the only thing on screen that says which application the visitor is in.
+ *
  * `overlay` is the one thing the Desktop changes about it. An application's
  * surface is laid out *beside* the Dock, so the Dock takes its own column. The
  * Desktop is the whole viewport and has nowhere to put a column — the Dock
  * floats over the wallpaper there, and over the scene, which is also what makes
- * its glass read the way the Top Bar's does over the same scene.
+ * its glass read the way the Shell's other panes do over the same scene.
  *
  * Icons carry an `aria-label`, so the hover tooltip is an affordance and never
  * the only way to read an app's name.

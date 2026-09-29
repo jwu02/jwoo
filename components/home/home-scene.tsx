@@ -14,11 +14,11 @@ const loadHomeCanvas = () =>
 // — drei's default zIndexRange of [16777271, 0] — and nothing else between here
 // and <body> forms a stacking context, so without this they paint over the OS
 // chrome. Scoping their z-index here means the scene as a whole sits at z-index
-// auto, below the Top Bar and the Dock.
+// auto, below the Dock.
 //
 // `absolute inset-0` is the desktop: Home is unframed, and the shell hands it
-// the whole viewport with nothing to cancel — the Top Bar and the Dock float
-// over the box this fills rather than being laid out next to it.
+// the whole viewport with nothing to cancel — the Dock floats over the box this
+// fills rather than being laid out next to it.
 //
 // No three imports here on purpose: this module is in the route's eager graph,
 // and only the lazily loaded canvas may pull three in (ADR 0001).

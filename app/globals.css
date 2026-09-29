@@ -10,7 +10,7 @@
     /* Declared the same way as --font-sans above, so `font-mono` resolves to
        next/font's Roboto Mono rather than Tailwind's default mono stack. */
     --font-mono: var(--font-mono);
-    /* The OS shell's own voice — the Top Bar and the Dock's tooltips. A system
+    /* The OS shell's own voice — the Dock's tooltips. A system
        stack rather than a webfont for the same reason the OS it imitates uses
        one: it names the machine's own font (SF Pro on Apple hardware) instead
        of shipping a lookalike. Applications keep Geist, so the shell and what
@@ -151,10 +151,7 @@
 /* The material the OS's panes are made of: the Dock and an application's
    surface are the same translucent, blurred pane over the view, which is what
    makes them read as one system rather than two panels. Border colour only —
-   each sets its own edges.
-
-   The Top Bar is deliberately not in that set: it has no pane at all, and is
-   only its text over whatever is under it. */
+   each sets its own edges. */
 .os-glass {
   background: oklch(1 0 0 / 6%);
   border-color: oklch(1 0 0 / 12%);

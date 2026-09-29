@@ -14,7 +14,7 @@ Each dashboard is one vertical slice — lib, API route, components — standing
 
 Boundaries: `lib/telemetry/` and `lib/ai-usage/` import nothing from each other — shared code sits at the lib root (`tests/lib/features-do-not-import-each-other.test.ts` enforces it). three loads only inside `*-canvas.tsx` implementations (Gotchas below).
 
-The site is framed as an OS: every route is an *application* the Dock selects, named by the Top Bar. `app/layout.tsx` mounts the shell; `components/os/` holds it, and `components/os/apps.ts` is the single list of applications the Dock and the Top Bar both read. See `docs/adr/0004-one-application-at-a-time.md`.
+The site is framed as an OS: every route is an *application* the Dock selects. `app/layout.tsx` mounts the shell; `components/os/` holds it, and `components/os/apps.ts` is the single list of applications the Dock reads. See `docs/adr/0004-one-application-at-a-time.md`.
 
 ## Conventions
 
