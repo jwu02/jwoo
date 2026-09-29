@@ -52,7 +52,7 @@ export function Dock() {
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",
                   )}
                 >
-                  <app.icon className="size-8" aria-hidden />
+                  <app.icon className="size-7" aria-hidden />
                 </Link>
               }
             />
