@@ -6,6 +6,10 @@ A personal site: a 3D home scene, an activity-telemetry dashboard, AI-usage char
 
 ### OS shell
 
+**Shell**:
+The OS's persistent frame: the Top Bar and the Dock. Mounted once above every route, so it is the only part of the site that outlives a navigation — the thing that makes applications read as places inside one system rather than pages. It is an overlay: nothing is laid out beside it. An application's surface is what makes room for it, and the Desktop makes room for nothing.
+_Avoid_: chrome, HUD, frame
+
 **Application**:
 One part of the site presented as a thing you are inside of: the top-level area the Dock selects and the Top Bar names. Exactly one is active at a time, and each is a real route — an application is a page seen as a place.
 _Avoid_: nav item, section, tab, window
@@ -15,7 +19,7 @@ The one application the visitor is currently in. There is never more than one: s
 _Avoid_: open app, current window
 
 **Dock**:
-The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications.
+The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room.
 _Avoid_: sidebar, menu, launcher
 
 **Top Bar**:
@@ -23,7 +27,7 @@ The persistent strip above everything: the active application's name on the left
 _Avoid_: header, navbar, menu bar
 
 **Desktop**:
-Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, and it names the person rather than a place.
+Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, and it names the person rather than a place. It is the whole viewport rather than an area beside the Shell's chrome: the Top Bar and the Dock are over it, not next to it.
 _Avoid_: home screen, landing page, wallpaper (that is the picture behind it)
 
 ### 3D scenes

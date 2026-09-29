@@ -49,7 +49,13 @@ const SECTIONS = [
 
 export function HomeFallback() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
+    // Unlike the scene, this is an ordinary scrolling page with the Shell
+    // floating over it, so it keeps itself clear of the chrome the way an
+    // application's surface does: a column's worth of padding where the Dock
+    // railed down the left at desktop widths, a bar's worth at the bottom on
+    // narrow ones. Only the padding is layout — everything else here is the
+    // same page it was when the Dock took its own column.
+    <div className="mx-auto w-full max-w-6xl px-4 pt-16 pb-24 md:px-20 md:pb-16">
       <HomeGreeting />
 
       <section className="mt-12 grid gap-4 md:grid-cols-2">

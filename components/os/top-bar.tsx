@@ -56,7 +56,10 @@ export function TopBar() {
   return (
     <header
       data-os-chrome
-      className="os-glass relative flex h-8 shrink-0 items-center justify-between border-b px-3 font-mono text-[11px] tracking-wide"
+      // No pane: the bar is its text, floating on whatever is under it. Where
+      // that is the wallpaper it reads as a system bar; over the Desktop it is
+      // the scene's own top edge, which is why nothing here may box it in.
+      className="absolute inset-x-0 top-0 z-20 flex h-9 items-center justify-between px-4 font-os text-[15px]"
     >
       <span className="truncate">{app.title}</span>
       {/* Blank until mounted: the time is the client's to know, and rendering a

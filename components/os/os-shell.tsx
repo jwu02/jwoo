@@ -15,9 +15,11 @@ const HOME = "/"
  * does not open a window beside the current one — it replaces it, which is why
  * this is a layout and not a window manager.
  *
- * Home is the desktop: it takes the whole content area, unframed, because it is
- * the wallpaper the other applications appear over rather than an application
- * among them.
+ * Home is the desktop: it takes the whole viewport, unframed, because it is the
+ * wallpaper the other applications appear over rather than an application among
+ * them. Both pieces of the Shell are overlays rather than panels — nothing here
+ * reserves a column or a strip for them; an application's own surface is what
+ * makes room (see the padding below), and the desktop makes room for nothing.
  */
 export function OSShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -35,10 +37,17 @@ export function OSShell({ children }: { children: React.ReactNode }) {
       {/* Column-reversed on narrow screens so the Dock lands at the bottom
           without a second copy of the markup, and a plain row from `md` up. */}
       <div className="relative flex min-h-0 flex-1 flex-col-reverse md:flex-row">
-        <Dock />
+        {/* Floating over the desktop rather than taking a column from it: the
+            scene runs the full width of the viewport, and the Dock's glass sits
+            over the scene instead of over the flat wallpaper beside it. */}
+        <Dock overlay={desktop} />
         <main
+          // The Shell floats over the frame, so an application's surface is
+          // padded clear of it; the desktop is not, and its wallpaper runs on
+          // under the glass. The top padding is the Top Bar's own height (h-9)
+          // plus the gap the other edges use, so the surface never crowds it.
           className={`relative isolate min-h-0 flex-1 overflow-hidden print:overflow-visible ${
-            desktop ? "" : "p-2 md:p-3 print:p-0"
+            desktop ? "" : "p-2 pt-11 md:p-3 md:pt-12 print:p-0"
           }`}
         >
           {/* Keyed on the route so switching applications remounts the view and

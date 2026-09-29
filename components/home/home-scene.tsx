@@ -17,7 +17,8 @@ const loadHomeCanvas = () =>
 // auto, below the Top Bar and the Dock.
 //
 // `absolute inset-0` is the desktop: Home is unframed, and the shell hands it
-// the whole content area with no padding of its own to cancel.
+// the whole viewport with nothing to cancel — the Top Bar and the Dock float
+// over the box this fills rather than being laid out next to it.
 //
 // No three imports here on purpose: this module is in the route's eager graph,
 // and only the lazily loaded canvas may pull three in (ADR 0001).

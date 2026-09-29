@@ -17,22 +17,36 @@ import { APPS } from "./apps"
  * at desktop widths, a bottom bar on narrow ones — the same applications in the
  * same order either way, since the model being presented is the same.
  *
- * It is a floating pane in both orientations: sized to its contents rather than
- * to its column, so the wallpaper shows around it the way it does around an
- * application's surface. Desktop centres it against the viewport height by
- * absorbing the free space as margin; narrow widths let it span the width.
+ * It is a pane rather than a panel in both orientations: sized to its contents,
+ * so the view shows around it the way it does around an application's surface.
+ *
+ * `overlay` is the one thing the Desktop changes about it. An application's
+ * surface is laid out *beside* the Dock, so the Dock takes its own column. The
+ * Desktop is the whole viewport and has nowhere to put a column — the Dock
+ * floats over the wallpaper there, and over the scene, which is also what makes
+ * its glass read the way the Top Bar's does over the same scene.
  *
  * Icons carry an `aria-label`, so the hover tooltip is an affordance and never
  * the only way to read an app's name.
  */
-export function Dock() {
+export function Dock({ overlay = false }: { overlay?: boolean }) {
   const pathname = usePathname()
 
   return (
     <nav
       data-os-chrome
       aria-label="Applications"
-      className="os-glass mx-2 mb-2 flex shrink-0 items-center justify-center gap-1 rounded-2xl border p-1.5 shadow-2xl md:my-auto md:flex-col md:gap-1.5 md:p-2"
+      className={cn(
+        "os-glass flex shrink-0 items-center justify-center gap-1 rounded-2xl border p-1.5 shadow-2xl md:flex-col md:gap-1.5 md:p-2",
+        // Overlaid, the offsets are the margins the in-flow variant would have
+        // set (8px from the left, the same 8px from the viewport bottom on
+        // narrow) — so the Dock does not move when the visitor navigates, it
+        // only stops taking room. `md:my-auto` becomes an explicit centring,
+        // the row it used to centre itself in being the viewport tall anyway.
+        overlay
+          ? "absolute bottom-2 left-2 right-2 z-20 md:bottom-auto md:right-auto md:top-1/2 md:-translate-y-1/2"
+          : "mx-2 mb-2 md:my-auto",
+      )}
     >
       {APPS.map((app) => {
         const active = pathname === app.href
@@ -57,7 +71,12 @@ export function Dock() {
               }
             />
             {/* No pointer to hover on a touch screen, so the label is desktop-only. */}
-            <TooltipContent side="right" className="hidden font-mono text-[11px] md:inline-flex">
+            <TooltipContent
+              side="right"
+              sideOffset={12}
+              arrow={false}
+              className="hidden rounded-full border bg-popover px-3 py-1.5 font-os text-[15px] text-popover-foreground md:inline-flex"
+            >
               {app.label}
             </TooltipContent>
           </Tooltip>

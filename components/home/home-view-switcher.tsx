@@ -18,7 +18,9 @@ type HomeViewSwitcherProps = {
 // blocks clicks on the canvas.
 export function HomeViewSwitcher({ activeView, onSelectView }: HomeViewSwitcherProps) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex justify-center">
+    // Clear of the Dock, which floats along the bottom on narrow screens and
+    // would otherwise sit behind this pill.
+    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-20 flex justify-center md:bottom-16">
       <div
         role="group"
         aria-label="Camera views"
