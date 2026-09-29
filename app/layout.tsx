@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s — Tony Wu",
   },
   icons: {
-    icon: "/miyamura.jpg",
+    icon: "/miyamura.png",
   },
 }
 
