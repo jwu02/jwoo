@@ -151,8 +151,11 @@
 /* The material the OS's panes are made of: the Dock and an application's
    surface are the same translucent, blurred pane over the view, which is what
    makes them read as one system rather than two panels. Border colour only —
-   each sets its own edges. */
-.os-glass {
+   each sets its own edges. A utility rather than a plain class so it can be
+   prefixed with a variant: an application's surface drops the material on
+   narrow screens, where there is no view behind it to blur and no room for a
+   pane to float in. */
+@utility os-glass {
   background: oklch(1 0 0 / 6%);
   border-color: oklch(1 0 0 / 12%);
   backdrop-filter: blur(24px) saturate(150%);

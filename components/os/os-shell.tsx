@@ -45,9 +45,10 @@ export function OSShell({ children }: { children: React.ReactNode }) {
       <main
         // The Shell floats over the frame, so an application's surface is
         // padded clear of it; the desktop is not, and its wallpaper runs on
-        // under the glass.
+        // under the glass. On narrow screens there is no floating to do — the
+        // surface fills the viewport edge to edge under the Dock.
         className={`relative isolate min-h-0 flex-1 overflow-hidden print:overflow-visible ${
-          desktop ? "" : "p-2 md:p-3 print:p-0"
+          desktop ? "" : "md:p-3 print:p-0"
         }`}
       >
         {/* Keyed on the route so switching applications remounts the view and
@@ -63,7 +64,7 @@ export function OSShell({ children }: { children: React.ReactNode }) {
           <section
             key={pathname}
             data-os-surface
-            className="os-glass os-app-enter h-full overflow-auto rounded-2xl border shadow-2xl"
+            className="os-app-enter h-full overflow-auto md:os-glass md:rounded-2xl md:border md:shadow-2xl"
           >
             {children}
           </section>
