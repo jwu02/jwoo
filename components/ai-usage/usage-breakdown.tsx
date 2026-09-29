@@ -42,7 +42,10 @@ function StatCell({
   const pct = shareOfTotal(rawValue, total);
   return (
     <td className="py-2 pr-4 tabular-nums whitespace-nowrap">
-      <div className="flex items-center justify-start gap-2">
+      <div className="flex items-center gap-2">
+        {/* Fixed-minimum, right-aligned value column: values end flush against
+            the bar and the bars all start at the same x. */}
+        <span className="min-w-20 shrink-0 text-right">{display}</span>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -65,7 +68,6 @@ function StatCell({
               cache hit rate — the page's percentages read at one precision. */}
           <TooltipContent>{formatNumber(pct, 1)}%</TooltipContent>
         </Tooltip>
-        <span>{display}</span>
       </div>
     </td>
   );
