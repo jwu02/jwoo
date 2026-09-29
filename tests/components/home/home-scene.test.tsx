@@ -34,13 +34,12 @@ describe("HomeScene", () => {
 
   // The greeting ("Hi, I'm Tony.") and the hover tooltips are drei <Html>
   // labels, which write an inline z-index in the millions — drei's default
-  // zIndexRange is [16777271, 0]. The nav overlay is a portaled dialog at z-50
-  // (z-10 for the desktop sidebar), so with no stacking context between the
-  // canvas and <body> those labels paint straight over the open nav menu.
+  // zIndexRange is [16777271, 0]. With no stacking context between the canvas
+  // and <body> those labels paint straight over the Top Bar and the Dock.
   //
   // jsdom has no layout engine and the Tailwind classes carry no stylesheet
   // here, so this cannot assert paint order. It guards the structural fix.
-  it("isolates the canvas in a stacking context so scene labels stay behind app chrome", () => {
+  it("isolates the canvas in a stacking context so scene labels stay behind OS chrome", () => {
     // getContext is overloaded and TS resolves the spy to the webgpu overload;
     // any non-null object satisfies isWebGLAvailable at runtime.
     jest
@@ -52,9 +51,11 @@ describe("HomeScene", () => {
     // The boundary renders no DOM of its own, so the container is the parent.
     const container = screen.getByTestId("home-canvas").parentElement!
     expect(container.className).toContain("isolate")
-    // The scene is a clipped full-viewport box; the fallback above is
-    // deliberately not, so its card grid can scroll.
-    expect(container.className).toContain("h-[calc(100vh-3.5rem)]")
+    // The scene is the desktop: it fills the application area the shell hands
+    // it. The fallback above is deliberately not a clipped box, so its card
+    // grid can scroll.
+    expect(container.className).toContain("absolute")
+    expect(container.className).toContain("inset-0")
     expect(container.className).toContain("overflow-hidden")
   })
 })

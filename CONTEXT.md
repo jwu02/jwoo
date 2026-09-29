@@ -4,6 +4,28 @@ A personal site: a 3D home scene, an activity-telemetry dashboard, AI-usage char
 
 ## Language
 
+### OS shell
+
+**Application**:
+One part of the site presented as a thing you are inside of: the top-level area the Dock selects and the Top Bar names. Exactly one is active at a time, and each is a real route — an application is a page seen as a place.
+_Avoid_: nav item, section, tab, window
+
+**Active application**:
+The one application the visitor is currently in. There is never more than one: selecting an application from the Dock replaces the active one rather than opening beside it.
+_Avoid_: open app, current window
+
+**Dock**:
+The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications.
+_Avoid_: sidebar, menu, launcher
+
+**Top Bar**:
+The persistent strip above everything: the active application's name on the left, the time on the right, and nothing else. It exists to answer "where am I", not to offer actions.
+_Avoid_: header, navbar, menu bar
+
+**Desktop**:
+Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, and it names the person rather than a place.
+_Avoid_: home screen, landing page, wallpaper (that is the picture behind it)
+
 ### 3D scenes
 
 **Scene**:

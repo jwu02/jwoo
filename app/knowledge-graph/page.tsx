@@ -12,22 +12,10 @@ import { ErrorBanner } from "@/components/polled/error-banner";
 import { usePolledJson } from "@/hooks/use-polled-json";
 import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 
-// The one place the page's height is written down, because every state has to
-// agree on it: a page that resized between loading and loaded would re-frame a
-// graph the viewer had already looked at.
-//
-// Viewport math rather than `h-full`, because the app shell sizes its column to
-// `min-h-svh` — a minimum, not a height — so a percentage on the page has
-// nothing to resolve against, and the graph is stretched to whatever the note
-// list's rows happen to add up to instead.
-//
-// Each number comes from the shell, and `HomeScene` is sized the same way for
-// the same reason:
-//   - below `md` the shell keeps its `h-14` (3.5rem) header above the page;
-//   - from `md` up the header is hidden and `md:-mx-4 md:-mb-4` cancels the
-//     content padding, so the page is the whole viewport.
-const PAGE_HEIGHT = "h-[calc(100vh-3.5rem)] md:h-[100vh]";
-
+// The page fills its application's surface and no more, because every state has
+// to agree on the height: a page that resized between loading and loaded would
+// re-frame a graph the viewer had already looked at. The surface gives it a
+// definite height, so `h-full` resolves here.
 export default function KnowledgeGraphPage() {
   // A one-shot: the url is loaded once rather than polled, because a snapshot's
   // life is measured in hours. The countdown below is the only thing that ever
@@ -186,7 +174,7 @@ export default function KnowledgeGraphPage() {
   );
 
   return (
-    <div className={`flex flex-col md:-mx-4 md:-mb-4 ${PAGE_HEIGHT}`}>
+    <div className="flex h-full flex-col">
       {/* Held above the graph's row rather than inside it, so the banner that
           appears when a refresh fails costs the page its overflow instead of
           the canvas its height. */}

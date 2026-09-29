@@ -1,22 +1,24 @@
 import type { Metadata } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
-import { Roboto_Mono } from "next/font/google"
+import { Geist, Roboto_Mono } from "next/font/google"
 
 import "./globals.css"
-import { AppSidebar } from "@/components/app-sidebar"
-import { ThemeProvider } from "@/components/theme-provider"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { OSShell } from "@/components/os/os-shell"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-const robotoMono = Roboto_Mono({
+// Two voices, and the split is what makes the frame read as a system: Geist is
+// what an application says, Roboto Mono is what the OS chrome (Top Bar, Dock
+// labels) says.
+const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
+})
+
+const robotoMono = Roboto_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
 })
 
 export const metadata: Metadata = {
@@ -35,27 +37,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
+    // `dark` is fixed rather than resolved: an OS has one appearance, and the
+    // glass surfaces this design is built from only read as glass on a dark
+    // wallpaper. The resume sheet opts back into print's light tokens itself.
     <html
       lang="en"
-      suppressHydrationWarning
-      className={cn("antialiased", robotoMono.variable, "font-sans")}
+      className={cn("dark antialiased", geist.variable, robotoMono.variable, "font-sans")}
     >
       <body>
-        <ThemeProvider>
-          <TooltipProvider>
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset>
-                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
-                  <SidebarTrigger className="-ml-1" />
-                </header>
-                <div className="flex flex-1 flex-col gap-4 pt-0 md:p-4 md:pt-0 print:p-0">
-                  {children}
-                </div>
-              </SidebarInset>
-            </SidebarProvider>
-          </TooltipProvider>
-        </ThemeProvider>
+        <TooltipProvider>
+          <OSShell>{children}</OSShell>
+        </TooltipProvider>
         <Analytics />
         <SpeedInsights />
       </body>
