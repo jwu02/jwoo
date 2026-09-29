@@ -185,6 +185,71 @@
   }
 }
 
+/* The knowledge graph's loading state. The pacman is a pie with a wedge missing
+   rather than an SVG: the mouth is one angle, and `conic-gradient` can be told
+   to leave it transparent. Registering that angle is what makes it animatable —
+   an unregistered custom property interpolates as a string and the mouth would
+   snap between open and shut instead of moving. The keyframe alternates rather
+   than running one way, so the mouth opens and closes and the pie never spins.
+   Nothing moves across the screen on its own, which is why this needs no
+   `will-change`: one element repaints a gradient it was already painting.
+
+   Reduced motion leaves both frozen at their initial values: a nearly shut
+   pacman with its three dots beside it still reads as a graph being fetched,
+   and the label under them says so outright. */
+@property --kg-pacman-mouth {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 3deg;
+}
+
+@keyframes kg-pacman-chomp {
+  from {
+    --kg-pacman-mouth: 3deg;
+  }
+  to {
+    --kg-pacman-mouth: 70deg;
+  }
+}
+
+.kg-pacman {
+  border-radius: 50%;
+  background: conic-gradient(
+    from calc(90deg - var(--kg-pacman-mouth) / 2),
+    transparent 0 var(--kg-pacman-mouth),
+    currentColor var(--kg-pacman-mouth) 360deg
+  );
+  animation: kg-pacman-chomp 0.15s ease-in-out infinite alternate;
+}
+
+@keyframes kg-pacman-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(0.6);
+  }
+}
+
+.kg-pacman-dot {
+  animation: kg-pacman-dot 0.45s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Held open rather than frozen shut: the initial angle is three degrees, and
+     a motionless yellow circle is a bullet point, not a pacman. The wedge is
+     what says which character this is once the chomping is gone. */
+  .kg-pacman {
+    --kg-pacman-mouth: 45deg;
+    animation: none;
+  }
+  .kg-pacman-dot {
+    animation: none;
+  }
+}
+
 /* Resume A4 sheet (archived TonyWuCV port): force light tokens + archive base type.
    `color` is set here, not just `--foreground`, because `body { @apply text-foreground }`
    resolves `var(--foreground)` once against the site theme (white in dark mode) and

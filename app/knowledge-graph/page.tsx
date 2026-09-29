@@ -7,6 +7,7 @@ import {
 } from "@/components/knowledge-graph/force-graph";
 import { NoteList } from "@/components/knowledge-graph/note-list";
 import { CacheNotice } from "@/components/knowledge-graph/cache-notice";
+import { PacmanLoader } from "@/components/knowledge-graph/pacman-loader";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
 import { usePolledJson } from "@/hooks/use-polled-json";
@@ -110,7 +111,7 @@ export default function KnowledgeGraphPage() {
 
   const body = loading ? (
     <div className="flex min-h-0 flex-1 items-center justify-center">
-      Loading knowledge graph…
+      <PacmanLoader />
     </div>
   ) : graph ? (
     // The panel is a sibling of the graph, not an overlay, so the graph frames
@@ -157,7 +158,7 @@ export default function KnowledgeGraphPage() {
           graph that is not mounted cannot report that. */}
       {!drawn && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background">
-          Loading knowledge graph…
+          <PacmanLoader />
         </div>
       )}
     </div>
