@@ -17,6 +17,11 @@ import { APPS } from "./apps"
  * at desktop widths, a bottom bar on narrow ones — the same applications in the
  * same order either way, since the model being presented is the same.
  *
+ * It is a floating pane in both orientations: sized to its contents rather than
+ * to its column, so the wallpaper shows around it the way it does around an
+ * application's surface. Desktop centres it against the viewport height by
+ * absorbing the free space as margin; narrow widths let it span the width.
+ *
  * Icons carry an `aria-label`, so the hover tooltip is an affordance and never
  * the only way to read an app's name.
  */
@@ -27,7 +32,7 @@ export function Dock() {
     <nav
       data-os-chrome
       aria-label="Applications"
-      className="os-glass flex shrink-0 items-center justify-center gap-1 border-t px-2 py-2 md:flex-col md:justify-start md:gap-1.5 md:border-t-0 md:border-r md:py-3"
+      className="os-glass mx-2 mb-2 flex shrink-0 items-center justify-center gap-1 rounded-2xl border p-1.5 shadow-2xl md:my-auto md:flex-col md:gap-1.5 md:p-2"
     >
       {APPS.map((app) => {
         const active = pathname === app.href
@@ -41,13 +46,13 @@ export function Dock() {
                   aria-label={app.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex size-10 items-center justify-center rounded-xl transition duration-150 ease-out",
+                    "flex size-12 items-center justify-center rounded-xl transition duration-150 ease-out",
                     active
                       ? "bg-foreground/15 text-foreground ring-1 ring-foreground/15 shadow-[inset_0_1px_0_oklch(1_0_0/12%)]"
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",
                   )}
                 >
-                  <app.icon className="size-5" aria-hidden />
+                  <app.icon className="size-6" aria-hidden />
                 </Link>
               }
             />
