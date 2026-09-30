@@ -48,7 +48,12 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
         // the row it used to centre itself in being the viewport tall anyway.
         overlay
           ? "absolute bottom-2 left-2 right-2 z-20 md:bottom-auto md:right-auto md:top-1/2 md:-translate-y-1/2"
-          : "mx-2 mb-2 md:my-auto",
+          : // Its right margin is given up from `md` up, where the surface's
+            // own `p-3` is the whole of the room between the two panes: a
+            // window stands 12px off the viewport edge, so the Dock stands
+            // 12px off the window. Left at `mx-2` the Dock's own 8px would
+            // stack on the surface's 12, and the gap would read as 20.
+            "mx-2 mb-2 md:my-auto md:mr-0",
       )}
     >
       {APPS.map((app) => {
