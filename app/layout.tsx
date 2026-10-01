@@ -22,10 +22,7 @@ const robotoMono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: {
-    default: "Tony Wu",
-    template: "%s — Tony Wu",
-  },
+  title: "Tony Wu",
   icons: {
     icon: "/miyamura.png",
   },
