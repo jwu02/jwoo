@@ -40,14 +40,18 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       data-os-chrome
       aria-label="Applications"
       className={cn(
-        "os-glass flex shrink-0 items-center justify-center gap-1 rounded-2xl border p-1.5 shadow-2xl md:flex-col md:gap-1.5 md:p-2",
-        // Overlaid, the offsets are the margins the in-flow variant would have
-        // set (8px from the left, the same 8px from the viewport bottom on
-        // narrow) — so the Dock does not move when the visitor navigates, it
-        // only stops taking room. `md:my-auto` becomes an explicit centring,
-        // the row it used to centre itself in being the viewport tall anyway.
+        // `self-center` is what makes the bar hug its applications on narrow
+        // screens: a flex item in a column stretches to the full width by
+        // default, and centring it is what lets it size to its contents. In
+        // the row from `md` up it is inert — the rail was already that width.
+        "os-glass flex shrink-0 items-center justify-center gap-1 self-center rounded-2xl border p-1.5 shadow-2xl md:flex-col md:gap-1.5 md:p-2",
+        // Overlaid, the offsets are the position the in-flow variant would
+        // have had (centred, the same 8px from the viewport bottom on narrow)
+        // — so the Dock does not move when the visitor navigates, it only
+        // stops taking room. `md:my-auto` becomes an explicit centring, the
+        // row it used to centre itself in being the viewport tall anyway.
         overlay
-          ? "absolute bottom-2 left-2 right-2 z-20 md:bottom-auto md:right-auto md:top-1/2 md:-translate-y-1/2"
+          ? "absolute bottom-2 left-1/2 z-20 -translate-x-1/2 md:bottom-auto md:left-2 md:top-1/2 md:translate-x-0 md:-translate-y-1/2"
           : // Its right margin is given up from `md` up, where the surface's
             // own `p-3` is the whole of the room between the two panes: a
             // window stands 12px off the viewport edge, so the Dock stands
@@ -68,13 +72,13 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
                   aria-label={app.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex size-10 items-center justify-center overflow-hidden rounded-xl transition duration-150 ease-out",
+                    "flex size-11 items-center justify-center overflow-hidden rounded-xl transition duration-150 ease-out md:size-10",
                     active
                       ? "bg-foreground/15 text-foreground ring-1 ring-foreground/15 shadow-[inset_0_1px_0_oklch(1_0_0/12%)]"
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",
                   )}
                 >
-                  <app.icon className="size-7" aria-hidden />
+                  <app.icon className="size-8 md:size-7" aria-hidden />
                 </Link>
               }
             />
