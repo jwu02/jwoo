@@ -41,3 +41,6 @@ next-env.d.ts
 # git worktrees
 /.worktrees/
 /.claude/worktrees/
+
+# local scratch (specs, notes — never committed)
+/.scratch/
