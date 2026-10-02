@@ -14,7 +14,7 @@ import {
 import { ChartTooltipCard } from "@/components/chart-tooltip";
 import { Range } from "@/lib/ranges";
 import { ModelTimeSeries } from "@/lib/ai-usage/types";
-import { getTicksForRange } from "@/lib/ui/chart-ticks";
+import { getNiceYTicks, getTicksForRange } from "@/lib/ui/chart-ticks";
 import {
   formatTick,
   formatTooltip,
@@ -251,6 +251,20 @@ function MiniStackedBarChart({
     [data, range]
   );
 
+  // The axis tracks what is on screen: Recharts drops hidden bars from the
+  // stack, so the max is the tallest stack of the still-visible models, and
+  // the ticks come from the shared nice-step rule (clean values, 0 baseline).
+  const y = useMemo(() => {
+    const visible = series.filter((entry) => !hidden.has(entry.name));
+    const stackMax = Math.max(
+      0,
+      ...data.map((row) =>
+        visible.reduce((sum, entry) => sum + Number(row[entry.dataKey] ?? 0), 0)
+      )
+    );
+    return getNiceYTicks(stackMax);
+  }, [data, series, hidden]);
+
   return (
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
@@ -272,6 +286,8 @@ function MiniStackedBarChart({
                 on narrow screens, where 60px is a quarter of the width. */}
           <YAxis
             width="auto"
+            domain={[0, y.max]}
+            ticks={y.ticks}
             tickFormatter={(value: number) => yTickFormatter(value)}
             tick={{ fontSize: 12, fill: "var(--foreground)" }}
             stroke="var(--foreground)"

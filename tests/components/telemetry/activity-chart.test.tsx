@@ -33,6 +33,8 @@ function getYAxisProps() {
   const { __capturedYAxisProps } = jest.requireMock("recharts");
   return __capturedYAxisProps.current as {
     tickFormatter?: (value: number) => string;
+    ticks?: number[];
+    domain?: [number, number];
   };
 }
 
@@ -186,6 +188,23 @@ describe("ActivityChart", () => {
     expect(tickFormatter!(1_200_000)).toBe("1.2M");
     // Counts below a thousand stay exact.
     expect(tickFormatter!(750)).toBe("750");
+  });
+
+  it("picks clean y ticks sized to the visible series", () => {
+    render(<ActivityChart data={buildData()} range="24h" />);
+
+    // The largest visible value is movementMeters' 300 → 0/100/200/300.
+    expect(getYAxisProps().ticks).toEqual([0, 100, 200, 300]);
+    expect(getYAxisProps().domain).toEqual([0, 300]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Hide Mouse Movement \(m\)/i })
+    );
+
+    // With movement hidden the largest series is keyPresses at 60, and the
+    // axis re-scales to it instead of holding movement's headroom.
+    expect(getYAxisProps().ticks).toEqual([0, 20, 40, 60]);
+    expect(getYAxisProps().domain).toEqual([0, 60]);
   });
 
   it("renders legend items in canonical metric order", () => {

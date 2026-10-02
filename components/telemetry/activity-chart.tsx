@@ -14,7 +14,7 @@ import {
 import { ChartTooltipCard } from "@/components/chart-tooltip";
 import { Range } from "@/lib/ranges";
 import { TimeSeriesPoint } from "@/lib/telemetry/types";
-import { getTicksForRange } from "@/lib/ui/chart-ticks";
+import { getNiceYTicks, getTicksForRange } from "@/lib/ui/chart-ticks";
 import {
   estimateTickLabelWidth,
   formatCompactNumber,
@@ -81,6 +81,17 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
     [data, range]
   );
 
+  // Same nice-step y ticks as the AI-usage charts, sized to the series still
+  // visible (hidden lines must not hold the axis up).
+  const y = useMemo(() => {
+    const visible = SERIES.filter((series) => !hidden.has(series.dataKey));
+    const max = Math.max(
+      0,
+      ...data.flatMap((point) => visible.map((series) => point[series.dataKey]))
+    );
+    return getNiceYTicks(max);
+  }, [data, hidden]);
+
   // Recharts only shows a tick whose label fits inside the axis, and the last
   // tick's label is centred on the axis's right edge — so without this the axis
   // puts half the label past the SVG, drops a tick to make room, and leaves an
@@ -138,6 +149,8 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
                 on narrow screens, where 60px is a quarter of the width. */}
             <YAxis
               width="auto"
+              domain={[0, y.max]}
+              ticks={y.ticks}
               tickFormatter={(value: number) => formatCompactNumber(value)}
               tick={{ fontSize: 12, fill: "var(--foreground)" }}
               stroke="var(--foreground)"

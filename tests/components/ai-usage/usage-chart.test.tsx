@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
-import { cloneElement } from "react";
+import { cloneElement, createElement } from "react";
 import {
   UsageChart,
   formatCostAxisLabel,
@@ -27,10 +27,20 @@ function Chart({
   );
 }
 
+// Like the activity chart test: recharts does not lay out tick *labels* under
+// jsdom (most are culled), so the Y axis props are captured as they are handed
+// over and read back through `jest.requireMock`. The cost chart mounts before
+// the tokens chart, so the last capture pair is [cost, tokens].
 jest.mock("recharts", () => {
   const actual = jest.requireActual("recharts");
+  const capturedYAxisProps = { current: [] as Record<string, unknown>[] };
   return {
     ...actual,
+    __capturedYAxisProps: capturedYAxisProps,
+    YAxis: (props: Record<string, unknown>) => {
+      capturedYAxisProps.current.push(props);
+      return createElement(actual.YAxis, props);
+    },
     ResponsiveContainer: ({ children }: { children: React.ReactElement }) =>
       cloneElement(
         children as React.ReactElement<{ width?: number; height?: number }>,
@@ -38,6 +48,15 @@ jest.mock("recharts", () => {
       ),
   };
 });
+
+function getLastYAxisProps() {
+  const { __capturedYAxisProps } = jest.requireMock("recharts");
+  const captures = __capturedYAxisProps.current as {
+    ticks?: number[];
+    domain?: [number, number];
+  }[];
+  return captures.slice(-2);
+}
 
 const fakeRect = {
   width: 800,
@@ -689,6 +708,18 @@ describe("UsageChart", () => {
     expect(
       tickLabels.some((label) => /^0\.\d+/.test(label ?? ""))
     ).toBe(true);
+  });
+
+  it("picks clean 1/2/5 y ticks instead of Recharts' default stepping", () => {
+    render(<Chart data={buildModelData()} range="24h" />);
+
+    // Cost stacks reach ¥1.80 → 0/0.5/1/1.5/2; token stacks reach 1.5M →
+    // 0/0.5/1/1.5. Neither axis carries Recharts' default 0.095-style steps.
+    const [cost, tokens] = getLastYAxisProps();
+    expect(cost.ticks).toEqual([0, 0.5, 1, 1.5, 2]);
+    expect(cost.domain).toEqual([0, 2]);
+    expect(tokens.ticks).toEqual([0, 500_000, 1_000_000, 1_500_000]);
+    expect(tokens.domain).toEqual([0, 1_500_000]);
   });
 
   it("renders an interactive legend button per model", () => {
