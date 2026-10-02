@@ -97,7 +97,7 @@ The state that maps graph points to screen: zoom, pan, and the framings that cha
 _Avoid_: GraphView, zoom state
 
 **Fit**:
-The transform that frames the whole graph inside its viewport. Taken exactly once, at first paint, on a graph painted already settled — the camera never reframes on its own afterwards.
+The transform that frames the whole graph inside its viewport. Taken at first paint, on a graph painted already settled, and again whenever the visitor double-clicks past the nodes — the camera never reframes on its own, but a refit is asked for rather than conceded, so it is computed afresh against the viewport the graph is in now rather than replayed from the first.
 _Avoid_: reframe, zoom-to-fit, rough fit, precise fit
 
 **Focus**:
@@ -105,7 +105,7 @@ The persistent selection of one note: the camera flies to frame the note's neigh
 _Avoid_: highlight, pin, zoom-to-node
 
 **Press**:
-A pointer going down on a node, and the release that judges it: a release within a few pixels of where it went down is a click, and anything past them is the drag the graph has always had. A press is inert — it moves no camera, pins no node and reheats no layout — and while one is down the renderer refuses d3 every camera gesture, so the few pixels a click drifts cannot pan the graph under the visitor's hand. A double-click on a node is refused the zoom the background keeps.
+A pointer going down on a node, and the release that judges it: a release within a few pixels of where it went down is a click, and anything past them is the drag the graph has always had. A press is inert — it moves no camera, pins no node and reheats no layout — and while one is down the renderer refuses d3 every camera gesture, so the few pixels a click drifts cannot pan the graph under the visitor's hand. A double-click on a node is refused the fit the background asks for.
 _Avoid_: hold, grab
 
 **Label threshold**:

@@ -888,31 +888,29 @@ export const ForceGraph = memo(function ForceGraph({
     };
   }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus]);
 
-  // A double-click on a node is the two clicks on that note that made it, and
-  // the zoom d3 would read into it is not one of them. The graph zooms where
-  // the visitor double-clicked past the nodes, and focuses where they
-  // double-clicked a note — one gesture, two surfaces, each with its own
-  // meaning.
+  // A double-click past the nodes is the viewer asking for the whole graph
+  // back, and the camera answers it with a fit. A double-click on a node is
+  // nothing of the sort: it is the two clicks on that note that made it, which
+  // the press above has already read — so it is left alone here, and the zoom
+  // d3 used to read into either of them is given up by the camera.
   //
   // Over a node is what tells the two apart, and the hover is already the
   // answer to that: a pointer that has not left the node it entered is a
   // pointer over that node, whatever the click count says.
   //
-  // Capture phase because d3's own dblclick handler is on this same wrapper and
-  // stops immediate propagation on the way past: a bubble-phase listener here
-  // would never run at all.
+  // A bubble-phase listener, at last: the d3 handler that shared this wrapper
+  // and stopped immediate propagation on its way past is gone.
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const consumeDblclick = (event: MouseEvent) => {
-      if (hoveredIdRef.current === null) return;
-      event.preventDefault();
-      event.stopPropagation();
+    const refitPastNodes = () => {
+      if (hoveredIdRef.current !== null) return;
+      cameraRef.current?.refit();
     };
 
-    wrapper.addEventListener("dblclick", consumeDblclick, true);
-    return () => wrapper.removeEventListener("dblclick", consumeDblclick, true);
+    wrapper.addEventListener("dblclick", refitPastNodes);
+    return () => wrapper.removeEventListener("dblclick", refitPastNodes);
   }, []);
 
   // The Focus: fly the camera to frame the note with its neighbours, and hold

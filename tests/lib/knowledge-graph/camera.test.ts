@@ -3,6 +3,7 @@ import {
   createCamera,
   type CameraCallbacks,
   type Transform,
+  type TransformCause,
 } from "@/lib/knowledge-graph/camera";
 import {
   computeFitTransform,
@@ -140,6 +141,79 @@ describe("createCamera fits", () => {
     await pastAnimation();
     expectAt(camera.transform, focusFraming(nodes));
     expect(focusFraming(nodes)).not.toEqual(computeFitTransform(nodes, WIDTH, HEIGHT));
+  });
+});
+
+describe("createCamera refits", () => {
+  // The viewer's own ask for the whole graph: a double-click past the nodes.
+  // Unlike the fit at first paint this is not a framing the camera concedes to
+  // a viewer who has moved it — it is the one the viewer commands, and it is
+  // taken from wherever the camera is, over whatever moved it there.
+  it("frames the whole graph again after the viewer has moved the camera", async () => {
+    const { wrapper, camera } = setup();
+    const nodes = chain();
+    camera.setLayout(nodes, EDGES);
+    camera.layoutReady();
+
+    wheel(wrapper, deltaForScale(2));
+    // Away from the fit the viewer is asking back: the fit framed the graph at
+    // 1.2 here, and the wheel is a doubling on top of it.
+    expect(camera.transform.k).toBeGreaterThan(computeFitTransform(nodes, WIDTH, HEIGHT).k);
+
+    camera.refit();
+
+    await waitFor(() => expectAt(camera.transform, computeFitTransform(nodes, WIDTH, HEIGHT)));
+  });
+
+  it("frames the viewport the graph is in now, not the one it was first fitted in", async () => {
+    const { wrapper, camera } = setup();
+    const nodes = chain();
+    camera.setLayout(nodes, EDGES);
+    camera.layoutReady();
+    // The note panel came or went after the first fit: the transform the graph
+    // was first seen in no longer frames the graph it is drawn in, which is why
+    // a refit computes one rather than replaying it.
+    setWidth(wrapper, WIDTH + PANEL);
+
+    camera.refit();
+
+    await waitFor(() =>
+      expectAt(camera.transform, computeFitTransform(nodes, WIDTH + PANEL, HEIGHT))
+    );
+  });
+
+  it("reports the refit as the viewer's hand, on every frame of it", async () => {
+    const causes: TransformCause[] = [];
+    const { camera } = setup({ onTransformChange: (_transform, by) => causes.push(by) });
+    camera.setLayout(chain(), EDGES);
+    camera.layoutReady();
+    causes.length = 0;
+
+    camera.refit();
+    await pastAnimation();
+
+    // The move is applied by the graph, so not one of its frames carries a
+    // sourceEvent: the cause has to ride the move, or a refit would read as the
+    // graph's own and leave a focus standing.
+    expect(causes.length).toBeGreaterThan(0);
+    expect(new Set(causes)).toEqual(new Set<TransformCause>(["gesture"]));
+  });
+
+  it("ends a focus the viewer has refit away from", async () => {
+    const { camera } = setup();
+    const nodes = chain();
+    camera.setLayout(nodes, EDGES);
+    camera.layoutReady();
+    camera.setFocus("C.md");
+    await waitFor(() => expectAt(camera.transform, focusFraming(nodes)));
+
+    camera.refit();
+    await waitFor(() => expectAt(camera.transform, computeFitTransform(nodes, WIDTH, HEIGHT)));
+
+    // The dismissed focus does not come back with the next layout: the camera
+    // is the viewer's again, and no flight is made under a claim they let go of.
+    camera.layoutReady();
+    expectAt(camera.transform, computeFitTransform(nodes, WIDTH, HEIGHT));
   });
 });
 

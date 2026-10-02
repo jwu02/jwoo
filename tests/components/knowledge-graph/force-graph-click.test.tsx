@@ -3,15 +3,19 @@ import { useState, type ReactElement } from "react";
 import { forceSimulation } from "d3-force";
 import { zoomTransform } from "d3-zoom";
 import { ForceGraph } from "@/components/knowledge-graph/force-graph";
+import { computeFitTransform } from "@/lib/knowledge-graph/framing";
 import type { KnowledgeGraphData } from "@/lib/knowledge-graph/types";
 import {
   createSimulationMock,
+  deltaForScale,
   getContainers,
   mockViewport,
   nodeSpriteById,
   setCssVars,
   setPositions,
   waitForReady,
+  wheel,
+  VIEWPORT,
   type SimMock,
 } from "./harness";
 
@@ -403,7 +407,7 @@ describe("ForceGraph press against the zoom", () => {
   });
 });
 
-describe("ForceGraph double-click on a node", () => {
+describe("ForceGraph double-click", () => {
   // The browser's own sequence for a double-click: the pointer arrives on the
   // node, two presses and releases land on it, and the dblclick closes it out.
   // What the graph reads the double-click's surface from is that arrival: the
@@ -423,31 +427,44 @@ describe("ForceGraph double-click on a node", () => {
     });
   }
 
-  it("zooms nothing when the double-click landed on a node", async () => {
+  // The whole graph as the camera frames it once the layout has positions: the
+  // frame a double-click past the nodes asks for. The fit the graph was drawn
+  // with is the identity here — no node had a position yet when it was made.
+  const fitOf = () => computeFitTransform(POSITIONS, VIEWPORT.width, VIEWPORT.height);
+
+  it("moves no camera when the double-click landed on a node", async () => {
     const { container, wrapper } = await renderGraph();
-    // Registered on the wrapper after d3's own dblclick handler, so this stands
-    // for the event reaching the phase that handler runs in — the one a
-    // consumed event never gets to.
-    const bubbled = jest.fn();
-    wrapper.addEventListener("dblclick", bubbled);
+    setPositions(forceSimulationMock, POSITIONS);
+    // The viewer is somewhere else, so a camera that moved at all would show.
+    act(() => wheel(wrapper, deltaForScale(2)));
+    const zoomed = { ...transformOf(wrapper) };
 
     doubleClick(container, "C.md");
-    // A zoom runs on a d3 transition; give it longer than one to land, if it
-    // were going to.
+    // A camera move runs on a d3 transition; give it longer than one to land,
+    // if it were going to.
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(bubbled).not.toHaveBeenCalled();
-    expectAt(wrapper, { k: 1, x: 0, y: 0 });
+    // A double-click on a note is the two clicks on it that made it, and the
+    // camera's own move was never one of them.
+    expectAt(wrapper, zoomed);
   });
 
-  it("still zooms when the double-click landed past the nodes", async () => {
-    const { container, wrapper } = await renderGraph();
+  it("frames the whole graph when the double-click landed past the nodes", async () => {
+    const onClear = jest.fn();
+    const { container, wrapper, rerender } = await renderGraph({ onFocusClear: onClear });
+    setPositions(forceSimulationMock, POSITIONS);
+    // A focus, so the camera is far from the fit and the page believes in a
+    // note the graph is about to stop claiming.
+    focusOn(rerender, "C.md", { onFocusClear: onClear });
+    await waitFor(() => expectAt(wrapper, FOCUS_C), { timeout: 3000 });
 
     act(() => {
       canvasOf(container).dispatchEvent(mouse("dblclick", { x: 400, y: 300 }, 2));
     });
 
-    // d3's own step: doubled about the point, with no note involved.
-    await waitFor(() => expectAt(wrapper, { k: 2, x: -400, y: -300 }), { timeout: 3000 });
+    // The viewer's own fit, eased in — and the focus it was taken away from
+    // ended with it, the way any gesture ends one.
+    await waitFor(() => expectAt(wrapper, fitOf()), { timeout: 3000 });
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });

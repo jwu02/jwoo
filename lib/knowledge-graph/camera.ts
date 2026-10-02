@@ -59,6 +59,12 @@ export interface Camera {
   // camera frames the graph of its own accord. Nothing later moves it — from
   // here the viewer's hand and a focus are the only things that do.
   layoutReady(): void;
+  // The viewer asking for the whole graph back — a double-click on the
+  // background. Framed afresh rather than replayed from the first fit, because
+  // the panel may have come or gone since and the framing they asked for is the
+  // one this graph deserves now. Eased, and the viewer's own: it interrupts
+  // whatever the camera was doing and, like any other gesture, ends a focus.
+  refit(): void;
   // The note the page has taken the Focus, or null when it is over. A note
   // already flown to is not a new flight — a rebuild hands over new arrays for
   // the same focus, and the layout that follows re-frames it.
@@ -99,16 +105,30 @@ export function createCamera(
   // owes the viewer only the width that changed under the toggle that asked
   // for it.
   let viewportWidth = 0;
+  // The cause the move now in flight carries. A transition's frames are the
+  // graph's own and carry no sourceEvent, so a move the viewer asked for by
+  // hand — a double-click's refit — is declared rather than read off the event,
+  // or its frames would report as the graph's own and leave a focus standing.
+  let moveCause: TransformCause = "program";
+
+  const asTransform = (target: Transform) =>
+    zoomIdentity.translate(target.x, target.y).scale(target.k);
 
   // Takes the camera and eases it to a framing of the graph's own making. The
   // interrupt is not optional: d3 keeps one transition per element, so a fit
   // still in the air would fight this one for the camera.
-  const moveTo = (target: Transform) => {
+  const moveTo = (target: Transform, cause: TransformCause = "program") => {
+    moveCause = cause;
     selection.interrupt();
-    selection
-      .transition()
-      .duration(GRAPH_ANIMATION_MS)
-      .call(zoom.transform, zoomIdentity.translate(target.x, target.y).scale(target.k));
+    selection.transition().duration(GRAPH_ANIMATION_MS).call(zoom.transform, asTransform(target));
+  };
+
+  // The same move made without easing: the frame the graph is first seen in is
+  // drawn in the same turn as the layout that framed it, so there is no
+  // unframed frame for an animation to cover.
+  const snapTo = (target: Transform) => {
+    moveCause = "program";
+    selection.call(zoom.transform, asTransform(target));
   };
 
   const flyTo = (noteId: string) => {
@@ -122,12 +142,17 @@ export function createCamera(
     if (target) moveTo(target);
   };
 
+  const fitTransform = () =>
+    computeFitTransform(nodes, wrapper.clientWidth, wrapper.clientHeight);
+
   const zoom = createZoom<HTMLElement, unknown>()
     .scaleExtent([NODE_MIN_ZOOM, NODE_MAX_ZOOM])
     // A press on a node is not a camera gesture, and while it is down nothing
     // else is one either. Which gesture d3 is asking about is d3's business —
-    // it consults this at the start of each of them, a wheel, a pan, a
-    // double-click, a touch — so refusing here refuses all of them.
+    // it consults this at the start of each of them, a wheel, a pan, a touch —
+    // so refusing here refuses all of them. A double-click is not among them:
+    // d3's own is given up below, and the renderer's arrives after the press
+    // that made it has been released.
     .filter((event: { type: string; ctrlKey: boolean; button: number }) => {
       if (pressed) return false;
       // d3's own default, kept as it is: ctrl+wheel is a zoom because the
@@ -136,8 +161,10 @@ export function createCamera(
       return (!event.ctrlKey || event.type === "wheel") && !event.button;
     })
     .on("zoom", (event: D3ZoomEvent<HTMLElement, unknown>) => {
-      // A sourceEvent is the visitor's own hand. The graph's own transitions
-      // carry none, which is what tells a flight from the gesture that ends it.
+      // A sourceEvent is the visitor's own hand; a move the camera made itself
+      // reports the cause it was started with. Between them they tell a flight
+      // from the gesture that ends it, and a refit — the viewer's hand, but a
+      // move the graph applies — from the graph's own moves.
       //
       // What is deliberately *not* here is an interrupt. A gesture takes the
       // camera off whatever the graph was doing, but d3-zoom interrupts the
@@ -148,7 +175,7 @@ export function createCamera(
       // window reuses that gesture, and every frame of the graph's own camera
       // move would then read as the visitor's hand and cancel it on its first
       // frame.
-      const by: TransformCause = event.sourceEvent ? "gesture" : "program";
+      const by: TransformCause = event.sourceEvent ? "gesture" : moveCause;
       if (by === "gesture") {
         userInteracted = true;
         // The camera is the visitor's again: a focus already framed is over,
@@ -161,7 +188,11 @@ export function createCamera(
       callbacks.onTransformChange?.(transform, by);
     });
 
-  const selection = select(wrapper).call(zoom);
+  // `zoom.apply` is what hangs d3's double-click on the element — it zooms about
+  // the pointer — and it is taken off again here: the graph's double-click is
+  // the viewer asking for the whole graph instead, and two meanings for one
+  // gesture is one too many. What is left is the renderer's own.
+  const selection = select(wrapper).call(zoom).on("dblclick.zoom", null);
 
   // A window resize is not the graph's to compensate for — the surface follows
   // it and the camera is left where the viewer put it — but the width it leaves
@@ -198,17 +229,20 @@ export function createCamera(
       // the frame that arrives after it would be the graph moving itself.
       if (userInteracted) return;
 
-      // Snapped, not eased into: this is the frame the graph is first seen in,
-      // drawn in the same turn as the layout it frames, so there is no unframed
-      // flash to cover. The viewport is read live rather than taken from the
-      // build, because the panel beside the graph may have come or gone while
-      // the layout was being run.
-      const { k, x, y } = computeFitTransform(
-        nodes,
-        wrapper.clientWidth,
-        wrapper.clientHeight
-      );
-      selection.call(zoom.transform, zoomIdentity.translate(x, y).scale(k));
+      // The viewport is read live rather than taken from the build, because the
+      // panel beside the graph may have come or gone while the layout was being
+      // run — and computing it here is what lets a refit ask for the same frame
+      // later, in whatever viewport the graph is in by then.
+      snapTo(fitTransform());
+    },
+
+    refit() {
+      // The viewer's hand: a refit is the one fit that is asked for rather than
+      // conceded, so the yield rule is not consulted and the gesture is not
+      // refused for having been moved already. Framed afresh, because the
+      // transform the graph was first seen in belongs to the viewport it was
+      // first seen in.
+      moveTo(fitTransform(), "gesture");
     },
 
     setFocus(noteId) {
