@@ -145,7 +145,7 @@ describe("createCamera fits", () => {
 });
 
 describe("createCamera refits", () => {
-  // The viewer's own ask for the whole graph: a double-click past the nodes.
+  // The viewer's own ask for the whole graph: a multi-click past the nodes.
   // Unlike the fit at first paint this is not a framing the camera concedes to
   // a viewer who has moved it — it is the one the viewer commands, and it is
   // taken from wherever the camera is, over whatever moved it there.

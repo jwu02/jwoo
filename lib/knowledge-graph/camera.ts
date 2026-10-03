@@ -59,11 +59,12 @@ export interface Camera {
   // camera frames the graph of its own accord. Nothing later moves it — from
   // here the viewer's hand and a focus are the only things that do.
   layoutReady(): void;
-  // The viewer asking for the whole graph back — a double-click on the
-  // background. Framed afresh rather than replayed from the first fit, because
-  // the panel may have come or gone since and the framing they asked for is the
-  // one this graph deserves now. Eased, and the viewer's own: it interrupts
-  // whatever the camera was doing and, like any other gesture, ends a focus.
+  // The viewer asking for the whole graph back — the second and every later
+  // click of one burst past the nodes. Framed afresh rather than replayed from
+  // the first fit, because the panel may have come or gone since and the framing
+  // they asked for is the one this graph deserves now. Eased, and the viewer's
+  // own: it interrupts whatever the camera was doing and, like any other
+  // gesture, ends a focus — including the fit a click before it asked for.
   refit(): void;
   // The note the page has taken the Focus, or null when it is over. A note
   // already flown to is not a new flight — a rebuild hands over new arrays for

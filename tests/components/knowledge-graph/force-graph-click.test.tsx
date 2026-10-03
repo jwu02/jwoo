@@ -407,39 +407,60 @@ describe("ForceGraph press against the zoom", () => {
   });
 });
 
-describe("ForceGraph double-click", () => {
-  // The browser's own sequence for a double-click: the pointer arrives on the
-  // node, two presses and releases land on it, and the dblclick closes it out.
-  // What the graph reads the double-click's surface from is that arrival: the
-  // pointer over a node is what tells a double-click on a note from one on the
-  // background.
-  function doubleClick(container: HTMLElement, id: string, point = POINT) {
-    hover(container, id);
-    for (const detail of [1, 2]) {
-      press(container, id, point);
+describe("ForceGraph multi-click", () => {
+  // The browser's own sequence for a burst of clicks on one place: a press and a
+  // release per click, each carrying the count the browser has reached. That
+  // count is what tells a burst's tail from its first — and the mousedown is
+  // dispatched even though the graph listens for nothing on it, because d3-zoom
+  // does, and interrupting the camera mid-flight is exactly what the third
+  // click of a burst does to the second's fit.
+  //
+  // The dblclick the browser also fires alongside the second click is not
+  // dispatched at all: nothing listens for it any more, and a test that sent
+  // one would be asserting on an event the graph has stopped reading.
+  function burst(
+    container: HTMLElement,
+    point: { x: number; y: number },
+    clicks: number,
+    id?: string
+  ) {
+    if (id) hover(container, id);
+    for (let detail = 1; detail <= clicks; detail++) {
+      if (id) press(container, id, point);
       act(() => {
         canvasOf(container).dispatchEvent(mouse("mousedown", point, detail));
       });
-      release(point);
+      if (id) release(point);
+      act(() => {
+        canvasOf(container).dispatchEvent(mouse("click", point, detail));
+      });
     }
-    act(() => {
-      canvasOf(container).dispatchEvent(mouse("dblclick", point, 2));
-    });
   }
 
   // The whole graph as the camera frames it once the layout has positions: the
-  // frame a double-click past the nodes asks for. The fit the graph was drawn
+  // frame a multi-click past the nodes asks for. The fit the graph was drawn
   // with is the identity here — no node had a position yet when it was made.
   const fitOf = () => computeFitTransform(POSITIONS, VIEWPORT.width, VIEWPORT.height);
 
-  it("moves no camera when the double-click landed on a node", async () => {
+  async function renderFocusedGraph() {
+    const onClear = jest.fn();
+    const rendered = await renderGraph({ onFocusClear: onClear });
+    setPositions(forceSimulationMock, POSITIONS);
+    // A focus, so the camera is far from the fit and the page believes in a
+    // note the graph is about to stop claiming.
+    focusOn(rendered.rerender, "C.md", { onFocusClear: onClear });
+    await waitFor(() => expectAt(rendered.wrapper, FOCUS_C), { timeout: 3000 });
+    return { ...rendered, onClear };
+  }
+
+  it("moves no camera when the multi-click landed on a node", async () => {
     const { container, wrapper } = await renderGraph();
     setPositions(forceSimulationMock, POSITIONS);
     // The viewer is somewhere else, so a camera that moved at all would show.
     act(() => wheel(wrapper, deltaForScale(2)));
     const zoomed = { ...transformOf(wrapper) };
 
-    doubleClick(container, "C.md");
+    burst(container, POINT, 2, "C.md");
     // A camera move runs on a d3 transition; give it longer than one to land,
     // if it were going to.
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -449,22 +470,28 @@ describe("ForceGraph double-click", () => {
     expectAt(wrapper, zoomed);
   });
 
-  it("frames the whole graph when the double-click landed past the nodes", async () => {
-    const onClear = jest.fn();
-    const { container, wrapper, rerender } = await renderGraph({ onFocusClear: onClear });
-    setPositions(forceSimulationMock, POSITIONS);
-    // A focus, so the camera is far from the fit and the page believes in a
-    // note the graph is about to stop claiming.
-    focusOn(rerender, "C.md", { onFocusClear: onClear });
-    await waitFor(() => expectAt(wrapper, FOCUS_C), { timeout: 3000 });
+  it("frames the whole graph when the multi-click landed past the nodes", async () => {
+    const { container, wrapper, onClear } = await renderFocusedGraph();
 
-    act(() => {
-      canvasOf(container).dispatchEvent(mouse("dblclick", { x: 400, y: 300 }, 2));
-    });
+    burst(container, { x: 400, y: 300 }, 2);
 
     // The viewer's own fit, eased in — and the focus it was taken away from
     // ended with it, the way any gesture ends one.
     await waitFor(() => expectAt(wrapper, fitOf()), { timeout: 3000 });
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  // The third click's mousedown is what d3-zoom interrupts the second's fit
+  // with, and a burst that ends odd would leave the camera stranded between the
+  // focus and the fit if the fit were only ever asked for on the second click.
+  it.each([
+    ["a third click", 3],
+    ["a fourth click", 4],
+  ])("lands on the whole graph after %s", async (_name, clicks) => {
+    const { container, wrapper } = await renderFocusedGraph();
+
+    burst(container, { x: 400, y: 300 }, clicks);
+
+    await waitFor(() => expectAt(wrapper, fitOf()), { timeout: 3000 });
   });
 });

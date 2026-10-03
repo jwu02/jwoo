@@ -888,29 +888,37 @@ export const ForceGraph = memo(function ForceGraph({
     };
   }, [app, graphNodes, graphEdges, degrees, applyHover, positionLabel, positionAllLabels, startPress, updateLinkSprite, setHovered, clearFocus]);
 
-  // A double-click past the nodes is the viewer asking for the whole graph
-  // back, and the camera answers it with a fit. A double-click on a node is
-  // nothing of the sort: it is the two clicks on that note that made it, which
-  // the press above has already read — so it is left alone here, and the zoom
-  // d3 used to read into either of them is given up by the camera.
+  // Past the second click of a burst, a click on the background is the viewer
+  // asking for the whole graph back, and the camera answers it with a fit. A
+  // click on a node is nothing of the sort: it is the click on that note the
+  // press above has already read — so it is left alone here, and the zoom d3
+  // used to read into either of them is given up by the camera.
+  //
+  // `click` rather than the `dblclick` this used to be, and the count rather
+  // than the event, because a `dblclick` closes out only a burst that ends on
+  // an even click. d3-zoom interrupts the camera's transition on every mousedown
+  // — a press it may read nothing else from — so the third click of a rapid
+  // burst kills the fit the second asked for and, as the burst's last, raises no
+  // `dblclick` to ask again: the camera is left stranded halfway between the
+  // focus and the fit. `detail` is the browser's own count of the burst, and it
+  // keeps counting past two, so the tail of any burst restarts the fit the click
+  // before it interrupted, and a burst ends fitted however many clicks it took.
+  // A dblclick still fires alongside the clicks and is simply not listened for.
   //
   // Over a node is what tells the two apart, and the hover is already the
   // answer to that: a pointer that has not left the node it entered is a
   // pointer over that node, whatever the click count says.
-  //
-  // A bubble-phase listener, at last: the d3 handler that shared this wrapper
-  // and stopped immediate propagation on its way past is gone.
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const refitPastNodes = () => {
-      if (hoveredIdRef.current !== null) return;
+    const refitPastNodes = (event: MouseEvent) => {
+      if (event.detail < 2 || hoveredIdRef.current !== null) return;
       cameraRef.current?.refit();
     };
 
-    wrapper.addEventListener("dblclick", refitPastNodes);
-    return () => wrapper.removeEventListener("dblclick", refitPastNodes);
+    wrapper.addEventListener("click", refitPastNodes);
+    return () => wrapper.removeEventListener("click", refitPastNodes);
   }, []);
 
   // The Focus: fly the camera to frame the note with its neighbours, and hold
