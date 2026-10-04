@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tetris arcade pixel skin — prototype (jwoo#32)</title>
+<!--
+  PROTOTYPE — throwaway. jwoo#32 "Prototype: the arcade pixel skin".
+
+  One skin for /tetris: CABINET — a header band of readouts, side panels for hold and the next
+  queue, and the well framed between them. Settled from this prototype's own alternatives:
+  cabinet layout, Guideline piece colours, a gray outline ghost, and flat solid minos (no bevel).
+  The bottom bar is dev chrome, not part of the skin — hide it with ?chrome=0.
+
+  Pure code: no images, no font files, no CDN, no build step. Every glyph is a 5x7 bitmap
+  and every mino is drawn from code, on a canvas whose backing store is 1 unit per art pixel,
+  integer-scaled up with image-rendering: pixelated.
+
+  Deliberately rough: instant-start Enter-to-play, no touch, no sound, no high scores, no pause,
+  no T-spin detection, a 6-offset kick instead of the full SRS tables. State lives in memory.
+  ?demo=1 freezes a mid-game mock so it can be screenshotted or stared at.
+-->
+<style>
+  :root { color-scheme: dark }
+  html, body { margin: 0; height: 100%; background: #05050a; overflow: hidden }
+  #stage { position: fixed; inset: 0 0 48px 0; display: flex; align-items: center; justify-content: center }
+  canvas { display: block; image-rendering: pixelated }
+  #bar {
+    position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 9;
+    display: flex; align-items: center; gap: 2px; padding: 4px 8px; white-space: nowrap;
+    border: 1px solid #3b3b46; border-radius: 999px; background: #15151b; color: #c9c9d4;
+    font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: 0 6px 20px #0008;
+  }
+  #bar .sep { width: 1px; height: 16px; background: #3b3b46; margin: 0 5px }
+  #bar .lbl { opacity: .5; padding: 0 4px; letter-spacing: .08em }
+  #dock { display: flex; gap: 4px; color: #c9c9d4 }
+  #bar[hidden] { display: none }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="bar">
+    <span class="lbl">DOCK ICON</span><span id="dock"></span>
+    <span class="sep"></span>
+    <span class="lbl">3 CANDIDATES</span>
+  </div>
+<script>
+"use strict";
+
+/* ─────────────────────────────── pure-code pixel font (5x7) ─────────────────────────────── */
+const FONT = {
+  " ":"00000 00000 00000 00000 00000 00000 00000",
+  A:"01110 10001 10001 11111 10001 10001 10001",
+  B:"11110 10001 10001 11110 10001 10001 11110",
+  C:"01110 10001 10000 10000 10000 10001 01110",
+  D:"11110 10001 10001 10001 10001 10001 11110",
+  E:"11111 10000 10000 11110 10000 10000 11111",
+  F:"11111 10000 10000 11110 10000 10000 10000",
+  G:"01110 10001 10000 10111 10001 10001 01111",
+  H:"10001 10001 10001 11111 10001 10001 10001",
+  I:"11111 00100 00100 00100 00100 00100 11111",
+  J:"00111 00010 00010 00010 00010 10010 01100",
+  K:"10001 10010 10100 11000 10100 10010 10001",
+  L:"10000 10000 10000 10000 10000 10000 11111",
+  M:"10001 11011 10101 10101 10001 10001 10001",
+  N:"10001 11001 10101 10011 10001 10001 10001",
+  O:"01110 10001 10001 10001 10001 10001 01110",
+  P:"11110 10001 10001 11110 10000 10000 10000",
+  Q:"01110 10001 10001 10001 10101 10010 01101",
+  R:"11110 10001 10001 11110 10100 10010 10001",
+  S:"01111 10000 10000 01110 00001 00001 11110",
+  T:"11111 00100 00100 00100 00100 00100 00100",
+  U:"10001 10001 10001 10001 10001 10001 01110",
+  V:"10001 10001 10001 10001 10001 01010 00100",
+  W:"10001 10001 10001 10101 10101 11011 10001",
+  X:"10001 10001 01010 00100 01010 10001 10001",
+  Y:"10001 10001 01010 00100 00100 00100 00100",
+  Z:"11111 00001 00010 00100 01000 10000 11111",
+  "0":"01110 10001 10011 10101 11001 10001 01110",
+  "1":"00100 01100 00100 00100 00100 00100 01110",
+  "2":"01110 10001 00001 00110 01000 10000 11111",
+  "3":"11111 00010 00100 00010 00001 10001 01110",
+  "4":"00010 00110 01010 10010 11111 00010 00010",
+  "5":"11111 10000 11110 00001 00001 10001 01110",
+  "6":"00110 01000 10000 11110 10001 10001 01110",
+  "7":"11111 00001 00010 00100 01000 01000 01000",
+  "8":"01110 10001 10001 01110 10001 10001 01110",
+  "9":"01110 10001 10001 01111 00001 00010 01100",
+  "-":"00000 00000 00000 11111 00000 00000 00000",
+  ".":"00000 00000 00000 00000 00000 01100 01100",
+  ":":"00000 01100 01100 00000 01100 01100 00000",
+  "!":"00100 00100 00100 00100 00100 00000 00100",
+  "?":"01110 10001 00001 00110 00100 00000 00100",
+  "/":"00001 00010 00100 00100 01000 01000 10000",
+  "'":"00100 00100 00000 00000 00000 00000 00000",
+  "+":"00000 00100 00100 11111 00100 00100 00000",
+  "(":"00010 00100 01000 01000 01000 00100 00010",
+  ")":"01000 00100 00010 00010 00010 00100 01000",
+  "<":"00010 00100 01000 10000 01000 00100 00010",
+  ">":"01000 00100 00010 00001 00010 00100 01000",
+};
+
+const ctx = document.getElementById("c").getContext("2d");
+
+function textW(s, sc) { return s.length * 6 * sc - sc; }
+function text(s, x, y, col, sc) {
+  sc = sc || 1;
+  ctx.fillStyle = col;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    const rows = (FONT[ch] || FONT[ch.toUpperCase()] || FONT["?"]).split(" ");
+    for (let r = 0; r < 7; r++) {
+      const row = rows[r];
+      for (let k = 0; k < 5; k++) if (row[k] === "1") ctx.fillRect(x + (i * 6 + k) * sc, y + r * sc, sc, sc);
+    }
+  }
+}
+function textC(s, cx, y, col, sc) { sc = sc || 1; text(s, Math.round(cx - textW(s, sc) / 2), y, col, sc); }
+function textR(s, rx, y, col, sc) { sc = sc || 1; text(s, Math.round(rx - textW(s, sc)), y, col, sc); }
+const pad = (n, w) => String(n).padStart(w, "0");
+
+/* ─────────────────────────────── the palette: Guideline, flat ─────────────────────────────── */
+/* The seven Guideline hues exactly. J is #0000f0 — on black it is the dark one, by the book. */
+const PAL = { I: "#00f0f0", J: "#0000f0", L: "#f0a000", O: "#f0f000", S: "#00f000", T: "#a000f0", Z: "#f00000",
+  ink: "#d8d8e4", dim: "#7a7a90", line: "#3c3c52", bg: "#08080e" };
+const GHOST_COL = "#8c8ca0"; // the ghost is gray, never the piece's own colour
+
+/* the mino: a flat solid tile with a 1px gutter, so neighbours stay countable */
+function block(x, y, s, col) { ctx.fillStyle = col; ctx.fillRect(x, y, s - 1, s - 1); }
+/* the ghost: the same footprint, as a gray ring instead of a tile */
+function ghostBlock(x, y, s) {
+  ctx.fillStyle = GHOST_COL;
+  ctx.fillRect(x, y, s - 1, 1); ctx.fillRect(x, y + s - 2, s - 1, 1);
+  ctx.fillRect(x, y, 1, s - 1); ctx.fillRect(x + s - 2, y, 1, s - 1);
+}
+
+/* ─────────────────────────────── the game ─────────────────────────────── */
+const COLS = 10, ROWS = 22, HIDDEN = 2, CELL = 10, WELL_W = COLS * CELL, WELL_H = 20 * CELL;
+const SHAPES = {
+  I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]],
+  J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]],
+  L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
+  O: [[1, 1], [1, 1]],
+  S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
+  T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]],
+  Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]],
+};
+const KEYS = ["I", "J", "L", "O", "S", "T", "Z"];
+const LINE_SCORE = [0, 100, 300, 500, 800];
+
+function minis(m) { const out = []; for (let y = 0; y < m.length; y++) for (let x = 0; x < m[y].length; x++) if (m[y][x]) out.push([x, y]); return out; }
+function rot(m, dir) {
+  const n = m.length, o = [];
+  for (let y = 0; y < n; y++) o.push(new Array(n).fill(0));
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { if (dir > 0) o[x][n - 1 - y] = m[y][x]; else o[n - 1 - x][y] = m[y][x]; }
+  return o;
+}
+function mulberry32(a) {
+  return function () {
+    a = a + 0x6d2b79f5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const g = {
+  board: emptyBoard(), cur: null, queue: [], hold: null, canHold: true, phase: "start",
+  score: 0, lines: 0, level: 1, clearRows: [], clearT: 0, gravityT: 0, lockT: 0, locks: 0,
+  soft: false, dasDir: 0, das: 0, arrT: 0, frozen: false, rng: mulberry32(1984),
+};
+
+function emptyBoard() { return Array.from({ length: ROWS }, () => new Array(COLS).fill(0)); }
+function hits(m, px, py) {
+  for (const [x, y] of minis(m)) {
+    const bx = px + x, by = py + y;
+    if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+    if (by >= 0 && g.board[by][bx]) return true;
+  }
+  return false;
+}
+function nextKey() {
+  if (g.queue.length < 8) {
+    const bag = KEYS.slice();
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(g.rng() * (i + 1)); const t = bag[i]; bag[i] = bag[j]; bag[j] = t; }
+    g.queue.push(...bag);
+  }
+  return g.queue.shift();
+}
+function spawn(key) {
+  key = key || nextKey();
+  const m = SHAPES[key], top = Math.min(...minis(m).map((c) => c[1]));
+  g.cur = { key, m, x: key === "O" ? 4 : 3, y: HIDDEN - top };
+  g.gravityT = 0; g.lockT = 0; g.locks = 0;
+  if (hits(m, g.cur.x, g.cur.y)) { g.cur = null; g.phase = "over"; }
+}
+function startGame() {
+  g.board = emptyBoard(); g.queue = []; g.hold = null; g.canHold = true;
+  g.score = 0; g.lines = 0; g.level = 1; g.clearRows = []; g.clearT = 0; g.locks = 0;
+  g.dasDir = 0; g.soft = false; g.phase = "play";
+  spawn();
+}
+function gravityMs() { return 1000 * Math.pow(0.8 - (g.level - 1) * 0.007, g.level - 1); }
+function grounded() { return g.cur ? hits(g.cur.m, g.cur.x, g.cur.y + 1) : false; }
+function resetLock() { if (g.locks < 15 && g.lockT > 0) { g.lockT = 0; g.locks++; } }
+function move(dx, dy) {
+  if (!g.cur || hits(g.cur.m, g.cur.x + dx, g.cur.y + dy)) return false;
+  g.cur.x += dx; g.cur.y += dy;
+  if (dy) g.lockT = 0; else resetLock();
+  return true;
+}
+function doRot(dir) {
+  if (!g.cur) return;
+  const m = rot(g.cur.m, dir);
+  for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [2, 0], [-2, 0], [0, -1]]) {
+    if (!hits(m, g.cur.x + dx, g.cur.y + dy)) { g.cur.m = m; g.cur.x += dx; g.cur.y += dy; resetLock(); return; }
+  }
+}
+function lock() {
+  for (const [x, y] of minis(g.cur.m)) { const by = g.cur.y + y; if (by >= 0) g.board[by][g.cur.x + x] = g.cur.key; }
+  g.cur = null; g.soft = false;
+  const rows = [];
+  for (let y = 0; y < ROWS; y++) if (g.board[y].every(Boolean)) rows.push(y);
+  if (rows.length) { g.clearRows = rows; g.clearT = 0; g.phase = "clear"; }
+  else { g.canHold = true; spawn(); }
+}
+function finishClear() {
+  const n = g.clearRows.length;
+  g.score += LINE_SCORE[n] * g.level;
+  g.lines += n;
+  const lv = Math.floor(g.lines / 10) + 1;
+  if (lv > g.level) g.level = lv;
+  g.board = g.board.filter((_, y) => !g.clearRows.includes(y));
+  while (g.board.length < ROWS) g.board.unshift(new Array(COLS).fill(0));
+  g.clearRows = []; g.canHold = true; g.phase = "play";
+  spawn();
+}
+function hardDrop() {
+  let d = 0;
+  while (g.cur && !hits(g.cur.m, g.cur.x, g.cur.y + 1)) { g.cur.y++; d++; }
+  g.score += 2 * d;
+  if (g.cur) lock();
+}
+function holdPiece() {
+  if (!g.canHold || !g.cur || g.phase !== "play") return;
+  const k = g.cur.key;
+  if (g.hold === null) { g.hold = k; spawn(nextKey()); }
+  else { const h = g.hold; g.hold = k; spawn(h); }
+  g.canHold = false;
+}
+function update(dt) {
+  if (g.phase === "clear") { g.clearT += dt; if (g.clearT >= 240) finishClear(); return; }
+  if (g.phase !== "play" || g.frozen || !g.cur) return;
+  if (g.dasDir) {
+    g.das -= dt;
+    if (g.das <= 0) { g.arrT += dt; while (g.arrT >= 33) { g.arrT -= 33; if (!move(g.dasDir, 0)) break; } }
+  }
+  const interval = g.soft ? Math.min(40, gravityMs()) : gravityMs();
+  g.gravityT += dt;
+  let guard = 8;
+  while (g.gravityT >= interval && guard--) {
+    g.gravityT -= interval;
+    if (!grounded()) { g.cur.y++; if (g.soft) g.score += 1; } else break;
+  }
+  if (grounded()) { g.lockT += dt; if (g.lockT >= 500) lock(); }
+  else g.lockT = 0;
+}
+function press(dir) {
+  if (move(dir, 0)) { g.dasDir = dir; g.das = 167; g.arrT = 0; }
+}
+
+/* ─────────────────────────────── shared drawing vocabulary ─────────────────────────────── */
+function frame(x, y, w, h, col) {
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1);
+  ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+}
+function drawStack(x, y, pal) {
+  for (let by = 0; by < ROWS; by++) {
+    const vy = by - HIDDEN;
+    if (vy < 0) continue;
+    const row = g.board[by];
+    const clearing = g.clearRows.includes(by);
+    const on = Math.floor(g.clearT / 60) % 2 === 0;
+    for (let bx = 0; bx < COLS; bx++) {
+      if (!row[bx]) continue;
+      block(x + bx * CELL, y + vy * CELL, CELL, clearing && on ? "#ffffff" : pal[row[bx]]);
+    }
+  }
+}
+function drawFalling(x, y, pal) {
+  if (!g.cur) return;
+  let gy = g.cur.y;
+  while (!hits(g.cur.m, g.cur.x, gy + 1)) gy++;
+  for (const [cx, cy] of minis(g.cur.m)) {
+    const vy = cy + gy - HIDDEN;
+    if (vy >= 0) ghostBlock(x + (g.cur.x + cx) * CELL, y + vy * CELL, CELL);
+  }
+  for (const [cx, cy] of minis(g.cur.m)) {
+    const vy = cy + g.cur.y - HIDDEN;
+    if (vy >= 0) block(x + (g.cur.x + cx) * CELL, y + vy * CELL, CELL, pal[g.cur.key]);
+  }
+}
+function drawPreview(x, y, w, h, key, pal, cs) {
+  if (!key) return;
+  const cs2 = minis(SHAPES[key]);
+  const xs = cs2.map((c) => c[0]), ys = cs2.map((c) => c[1]);
+  const minx = Math.min(...xs), miny = Math.min(...ys);
+  const pw = (Math.max(...xs) - minx + 1) * cs, ph = (Math.max(...ys) - miny + 1) * cs;
+  const ox = Math.round(x + (w - pw) / 2) - minx * cs, oy = Math.round(y + (h - ph) / 2) - miny * cs;
+  for (const [cx, cy] of cs2) block(ox + cx * cs, oy + cy * cs, cs, pal[key]);
+}
+function readout(x, y, w, h, label, value, pal) {
+  frame(x, y, w, h, pal.line);
+  text(label, x + 4, y + 3, pal.dim, 1);
+  textR(value, x + w - 4, y + 12, pal.ink, 1);
+}
+function blink(now) { return Math.floor(now / 450) % 2 === 0; }
+function dimWell(x, y, pal) { ctx.fillStyle = pal.bg; ctx.fillRect(x, y, WELL_W, WELL_H); }
+
+/* ─────────────────────────────── variant 1: CABINET (header band + side panels) ─────────────────────────────── */
+const CAB = { w: 260, h: 248, well: [80, 30] };
+function cabinetChrome(pal) {
+  ctx.fillStyle = pal.bg; ctx.fillRect(0, 0, CAB.w, CAB.h);
+  // the well's own 2px frame: the one heavy border of the whole screen
+  ctx.fillStyle = pal.line;
+  ctx.fillRect(76, 26, 108, 2); ctx.fillRect(76, 230, 108, 2);
+  ctx.fillRect(76, 26, 2, 206); ctx.fillRect(182, 26, 2, 206);
+  readout(4, 4, 80, 22, "SCORE", pad(g.score, 7), pal);
+  readout(88, 4, 80, 22, "LEVEL", pad(g.level, 2), pal);
+  readout(172, 4, 84, 22, "LINES", pad(g.lines, 3), pal);
+  // left column: hold, then the seven minos
+  frame(4, 30, 68, 32, pal.line); text("HOLD", 8, 33, pal.dim, 1); drawPreview(8, 41, 60, 18, g.hold, pal, 4);
+  frame(4, 66, 68, 164, pal.line); text("PIECES", 8, 69, pal.dim, 1);
+  KEYS.forEach((k, i) => drawPreview(6, 84 + i * 20, 64, 18, k, pal, 4));
+  // right column: the next queue, five deep
+  frame(188, 30, 68, 200, pal.line); text("NEXT", 192, 33, pal.dim, 1);
+  for (let i = 0; i < 5; i++) drawPreview(190, 48 + i * 36, 64, 34, g.queue[i], pal, 5);
+  textC("ARROWS MOVE  Z X ROT  SPACE DROP  C HOLD", CAB.w / 2, 238, pal.dim, 1);
+}
+function drawCabinet(now) {
+  const pal = PAL, [x, y] = CAB.well;
+  cabinetChrome(pal);
+  dimWell(x, y, pal);
+  drawStack(x, y, pal);
+  drawFalling(x, y, pal);
+  if (g.phase === "start") {
+    textC("TETRIS", CAB.w / 2, 74, pal.ink, 5);
+    ctx.fillStyle = pal.line; ctx.fillRect(60, 122, 140, 1);
+    if (blink(now)) textC("PRESS ENTER", CAB.w / 2, 140, pal.ink, 2);
+    textC("1 PLAYER", CAB.w / 2, 176, pal.dim, 1);
+  }
+  if (g.phase === "over") {
+    textC("GAME OVER", CAB.w / 2, 106, pal.ink, 3);
+    textC("SCORE " + pad(g.score, 7), CAB.w / 2, 146, pal.dim, 1);
+    if (blink(now)) textC("PRESS ENTER", CAB.w / 2, 166, pal.ink, 1);
+  }
+}
+
+/* ─────────────────────────────── boot, chrome, input ─────────────────────────────── */
+const q = new URLSearchParams(location.search);
+const el = (id) => document.getElementById(id);
+
+function resize() {
+  const s = Math.max(1, Math.min(8, Math.floor(Math.min(innerWidth / CAB.w, (innerHeight - 60) / CAB.h))));
+  const c = ctx.canvas;
+  c.width = CAB.w; c.height = CAB.h;
+  c.style.width = CAB.w * s + "px"; c.style.height = CAB.h * s + "px";
+}
+
+if (q.get("chrome") === "0") el("bar").hidden = true;
+el("dock").innerHTML = [0, 1, 2].map((k) => dockIcon(k)).join("");
+
+function dockIcon(kind) {
+  const head = '<svg width="20" height="20" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" fill="none"><title>dock icon candidate ' + (kind + 1) + "</title>";
+  const fill = (x, y) => '<rect x="' + x + '" y="' + y + '" width="6" height="6" rx="1" fill="' + PAL.T + '"/>';
+  const stroke = (x, y) => '<rect x="' + (x + 0.6) + '" y="' + (y + 0.6) + '" width="4.8" height="4.8" rx="1" stroke="currentColor" stroke-width="1.4"/>';
+  if (kind === 0) return head + fill(8, 2) + fill(2, 10) + fill(8, 10) + fill(14, 10) + "</svg>";
+  if (kind === 1) return head + stroke(8, 2) + stroke(2, 10) + stroke(8, 10) + stroke(14, 10) + "</svg>";
+  return head + '<rect x="3.5" y="3.5" width="15" height="15" rx="2" stroke="currentColor" stroke-width="1.6"/>'
+    + stroke(6, 10) + stroke(11, 10) + stroke(6, 15) + stroke(11, 15) + "</svg>";
+}
+
+addEventListener("keydown", (e) => {
+  const k = e.key;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "Enter"].includes(k)) e.preventDefault();
+  if (g.phase === "start" || g.phase === "over") { if (k === "Enter") startGame(); return; }
+  if (!g.cur) return;
+  if (e.repeat && (k === "ArrowUp" || k === "x" || k === "X" || k === " ")) return;
+  switch (k) {
+    case "ArrowLeft": case "a": case "A": press(-1); break;
+    case "ArrowRight": case "d": case "D": press(1); break;
+    case "ArrowDown": case "s": case "S": g.soft = true; break;
+    case "ArrowUp": case "x": case "X": doRot(1); break;
+    case "z": case "Z": case "Control": doRot(-1); break;
+    case " ": hardDrop(); break;
+    case "c": case "C": case "Shift": holdPiece(); break;
+  }
+});
+addEventListener("keyup", (e) => {
+  const k = e.key;
+  if ((k === "ArrowLeft" || k === "a" || k === "A") && g.dasDir === -1) g.dasDir = 0;
+  if ((k === "ArrowRight" || k === "d" || k === "D") && g.dasDir === 1) g.dasDir = 0;
+  if (k === "ArrowDown" || k === "s" || k === "S") g.soft = false;
+});
+addEventListener("resize", resize);
+
+/* the frozen mid-game mock: a hand-authored stack, so a screenshot is always worth looking at */
+const DEMO_ROWS = [
+  "..........",
+  "...L......",
+  "..LLL.....",
+  ".ZJJJ.....",
+  "SSZJJLOO..",
+  "SSZZJLOOT.",
+  "TSSZZLLOT.",
+  "TTTSSZLLT.",
+];
+function demo() {
+  g.board = emptyBoard();
+  DEMO_ROWS.forEach((row, i) => {
+    const by = ROWS - DEMO_ROWS.length + i;
+    for (let x = 0; x < COLS; x++) if (row[x] !== ".") g.board[by][x] = row[x];
+  });
+  g.queue = ["S", "Z", "L", "I", "O", "T", "J", "S"];
+  g.hold = "J";
+  g.canHold = false;
+  g.score = 42500; g.lines = 27; g.level = 3;
+  g.phase = "play"; g.cur = null;
+  spawn("T");
+  g.cur.y = HIDDEN + 2;
+  g.frozen = true;
+}
+
+resize();
+if (q.get("demo") === "1") demo();
+
+let last = performance.now();
+drawCabinet(last); // first paint now: a frame loop is not a guarantee the browser ran one
+function tick(now) {
+  const dt = Math.min(100, now - last);
+  last = now;
+  update(dt);
+  drawCabinet(now);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
