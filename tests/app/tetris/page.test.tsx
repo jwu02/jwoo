@@ -111,6 +111,24 @@ describe("the Tetris application", () => {
     expect(surface()).toHaveFocus()
   })
 
+  it("auto-pauses when the tab is hidden, keeping the game state", () => {
+    render(<TetrisPage />)
+    fireEvent.keyDown(surface(), { key: "Enter" })
+    const { engine } = mockCanvasProps!
+
+    // Hiding the tab is the other way to stop playing: the driver stops paying
+    // Ticks, so the piece must not lock while the visitor is away.
+    const hidden = jest.spyOn(document, "hidden", "get").mockReturnValue(true)
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"))
+    })
+    hidden.mockRestore()
+
+    expect(announcement()).toMatch(/paused/i)
+    // Hidden is a pause, not a reset: the run is still in play underneath.
+    expect(engine.readout.phase).toBe("playing")
+  })
+
   it("announces the end of a game, and restarts on Enter", () => {
     render(<TetrisPage />)
     fireEvent.keyDown(surface(), { key: "Enter" })
@@ -124,15 +142,38 @@ describe("the Tetris application", () => {
     expect(mockCanvasProps!.engine.readout.score).toBe(0)
   })
 
-  it("leaves browser shortcuts alone", () => {
+  it("leaves browser shortcuts and the Control key alone", () => {
     render(<TetrisPage />)
     fireEvent.keyDown(surface(), { key: "Enter" })
     const { engine, controller } = mockCanvasProps!
     const piece = { ...engine.active! }
 
-    // Cmd+R, Ctrl+Tab, Alt+Left: the modifiers mean the browser, not the game.
-    fireEvent.keyDown(surface(), { key: "ArrowLeft", metaKey: true })
-    fireEvent.keyDown(surface(), { key: "ArrowRight", ctrlKey: true })
+    // Cmd+R, Ctrl+Tab, Alt+Left: the modifiers mean the browser, not the game,
+    // and none of them is preventDefaulted.
+    expect(
+      fireEvent.keyDown(surface(), { key: "ArrowLeft", metaKey: true })
+    ).toBe(true)
+    expect(
+      fireEvent.keyDown(surface(), { key: "ArrowRight", ctrlKey: true })
+    ).toBe(true)
+    expect(
+      fireEvent.keyDown(surface(), { key: "ArrowUp", altKey: true })
+    ).toBe(true)
+    // Control is unbound: the key is not a game key, so it reaches the browser.
+    expect(fireEvent.keyDown(surface(), { key: "Control" })).toBe(true)
+    act(() => engine.tick(controller.nextIntent()))
+    expect(engine.active).toEqual(piece)
+  })
+
+  it("reads keys only from the focused cabinet", () => {
+    render(<TetrisPage />)
+    fireEvent.keyDown(surface(), { key: "Enter" })
+    const { engine, controller } = mockCanvasProps!
+    const piece = { ...engine.active! }
+
+    // A key pressed elsewhere in the page is not the game's: the handler lives
+    // on the cabinet surface, which has to hold focus.
+    expect(fireEvent.keyDown(document.body, { key: "ArrowLeft" })).toBe(true)
     act(() => engine.tick(controller.nextIntent()))
     expect(engine.active).toEqual(piece)
   })

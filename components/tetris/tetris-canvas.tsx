@@ -350,7 +350,12 @@ function drawScreens(
     return
   }
   if (paused) {
-    textCentered(gfx, "PAUSED", 106, INK, 3)
+    // The well dims under a blinking PAUSED: the board stays faintly visible so
+    // the visitor can see what they are coming back to, and the label makes the
+    // state unmistakable without hiding it.
+    const { x, y, width, height } = CABINET.well
+    gfx.rect(x, y, width, height).fill({ color: BG, alpha: 0.7 })
+    if (blink(now)) textCentered(gfx, "PAUSED", 106, INK, 3)
     textCentered(gfx, "ESC TO RESUME", 146, DIM)
   }
 }

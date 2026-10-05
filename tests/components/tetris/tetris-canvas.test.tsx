@@ -15,6 +15,7 @@ import { pieceCells } from "@/lib/tetris/pieces"
 
 interface RecordedGraphics extends Graphics {
   __rects: { x: number; y: number; width: number; height: number }[]
+  __fills: unknown[]
 }
 
 interface RecordedApp extends Application {
@@ -50,7 +51,7 @@ async function setUp(paused = false) {
     return gfx.__rects
   }
 
-  return { engine, controller, pausedRef, pay, unmount }
+  return { engine, controller, pausedRef, gfx, pay, unmount }
 }
 
 /** Whether a mino was drawn as the nine-pixel tile its gutter leaves. */
@@ -172,5 +173,52 @@ describe("the cabinet's renderer", () => {
     controller.setDirection("left", true)
     pay(1000 / 60)
     expect(engine.active!.x).toBe(before.x - 1)
+  })
+
+  it("dims the well under a blinking PAUSED, and clears both when play resumes", async () => {
+    const { engine, pausedRef, pay, gfx } = await setUp()
+    engine.start()
+
+    // The overlay is the one rect the size of the well; nothing else is.
+    const dimAt = (rects: RecordedGraphics["__rects"]) =>
+      rects.findIndex(
+        (rect) =>
+          rect.x === CABINET.well.x &&
+          rect.y === CABINET.well.y &&
+          rect.width === CABINET.well.width &&
+          rect.height === CABINET.well.height
+      )
+
+    expect(dimAt(pay(0, 1000))).toBe(-1)
+
+    pausedRef.current = true
+    // The blink is the PAUSED label's pixels going on and off; the dim stays.
+    // Copies, not the live arrays: each frame clears and refills `__rects`.
+    const lit = [...pay(0, 1000)]
+    const dark = [...pay(0, 450)]
+    expect(dimAt(lit)).toBeGreaterThanOrEqual(0)
+    expect(dimAt(dark)).toBeGreaterThanOrEqual(0)
+    expect(lit.length).toBeGreaterThan(dark.length)
+    expect(gfx.__fills[dimAt(lit)]).toEqual({ color: "#08080e", alpha: 0.7 })
+
+    pausedRef.current = false
+    expect(dimAt(pay(0, 1000))).toBe(-1)
+  })
+
+  it("mutes the controller while paused, so no held key survives into play", async () => {
+    const { engine, controller, pausedRef, pay } = await setUp()
+    engine.start()
+    const before = { ...engine.active! }
+
+    pausedRef.current = true
+    controller.setDirection("left", true)
+    pay(1000)
+    expect(engine.ticks).toBe(0)
+    expect(engine.active).toEqual(before)
+
+    // Resuming pays a Tick, and the direction held during the pause is gone.
+    pausedRef.current = false
+    pay(1000 / 60)
+    expect(engine.active!.x).toBe(before.x)
   })
 })

@@ -92,6 +92,10 @@ class Graphics extends Container {
     // cabinet is drawn out of whole rectangles, and the coordinates are the
     // only part of it that can be wrong without throwing.
     this.__rects = [];
+    // The fill of each rect, by the same index: a parallel array so __rects'
+    // objects keep exactly their geometry (tests compare them with toEqual).
+    this.__fills = [];
+    this.__filledUpTo = 0;
   }
   circle(x, y, radius) {
     this.__circleRadius = radius;
@@ -103,9 +107,16 @@ class Graphics extends Container {
   }
   clear() {
     this.__rects.length = 0;
+    this.__fills.length = 0;
+    this.__filledUpTo = 0;
     return this;
   }
-  fill() {
+  fill(style) {
+    // Mirrors Graphics.fill: it styles every rect added since the last fill.
+    for (let i = this.__filledUpTo; i < this.__rects.length; i++) {
+      this.__fills[i] = style;
+    }
+    this.__filledUpTo = this.__rects.length;
     return this;
   }
 }
