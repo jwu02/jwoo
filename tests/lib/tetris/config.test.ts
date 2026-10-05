@@ -14,7 +14,7 @@ describe("the Guideline numbers", () => {
       tickHz: 60,
       columns: 10,
       visibleRows: 20,
-      previewCount: 6,
+      previewCount: 3,
       maxGravity: 20,
       softDropFactor: 20,
       softDropPoints: 1,

@@ -8,10 +8,8 @@ describe("the cabinet's pixel font", () => {
     expect(textWidth("A")).toBe(5)
     expect(textWidth("AB")).toBe(11)
     expect(textWidth("AB", 2)).toBe(22)
-    // The footer strip has to fit the 260-pixel cabinet.
-    expect(textWidth("ARROWS MOVE  Z X ROT  SPACE DROP  C HOLD")).toBeLessThan(
-      260
-    )
+    // The title screen's widest hint line has to fit the 100-pixel well.
+    expect(textWidth("ARROWS MOVE")).toBeLessThan(100)
   })
 
   it("draws the glyph's own bits, at the scale it was asked for", () => {

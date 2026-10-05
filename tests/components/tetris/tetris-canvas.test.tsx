@@ -151,12 +151,13 @@ describe("the cabinet's renderer", () => {
     const { engine, controller, pay, gfx } = await setUp()
     engine.start()
 
-    // The hold preview draws 3×3 mino tiles (scale 4), the only 3×3 rects on
-    // the skin in the slot's own rows — the label, the frame and the pieces
-    // reference below it never reach them. The slot's box is the skin's
-    // preview(8, 41, 60, 18); the hard numbers are the point of the test.
-    const SLOT = { x: 8, y: 41, right: 68, bottom: 59 }
-    const TILE = 3
+    // The hold preview draws 2×2 mino tiles (scale 3), the only 2×2 rects on
+    // the skin in the slot's own rows — the NEXT minis draw at the same scale
+    // but share the row only to its right, so the slot is fenced on both
+    // sides. The slot's box is the skin's preview(8, 35, 32, 9); the hard
+    // numbers are the point of the test.
+    const SLOT = { x: 8, y: 35, right: 44, bottom: 44 }
+    const TILE = 2
     const slotTiles = (rects: RecordedGraphics["__rects"]) =>
       rects
         .map((rect, index) => ({ rect, fill: gfx.__fills[index] }))
@@ -164,6 +165,8 @@ describe("the cabinet's renderer", () => {
           ({ rect }) =>
             rect.width === TILE &&
             rect.height === TILE &&
+            rect.x >= SLOT.x &&
+            rect.x < SLOT.right &&
             rect.y >= SLOT.y &&
             rect.y < SLOT.bottom
         )

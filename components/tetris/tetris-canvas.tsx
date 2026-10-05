@@ -9,12 +9,7 @@ import { createTickClock } from "@/lib/tetris/clock"
 import { DEFAULT_CONFIG } from "@/lib/tetris/config"
 import type { Controller } from "@/lib/tetris/controller"
 import type { Engine, Readout } from "@/lib/tetris/engine"
-import {
-  pieceCells,
-  PIECE_COLORS,
-  PIECE_KEYS,
-  type PieceKey,
-} from "@/lib/tetris/pieces"
+import { pieceCells, PIECE_COLORS, type PieceKey } from "@/lib/tetris/pieces"
 
 import { textPixels, textWidth } from "./pixel-font"
 
@@ -46,7 +41,7 @@ const BG = "#08080e"
 const GHOST = "#8c8ca0"
 
 /**
- * The cabinet is a fixed 260×248 art canvas at resolution 1 — not a scene that
+ * The cabinet is a fixed 108×208 art canvas at resolution 1 — not a scene that
  * follows its box. Following it would blur the art and put the skin's whole
  * pixel grid at the mercy of the layout; the adapter scales the finished
  * backing store with CSS instead (ADR 0007).
@@ -185,31 +180,6 @@ function textCentered(
   text(gfx, value, x, y, color, scale)
 }
 
-function textRight(
-  gfx: Graphics,
-  value: string,
-  right: number,
-  y: number,
-  color: string,
-  scale = 1
-) {
-  text(gfx, value, Math.round(right - textWidth(value, scale)), y, color, scale)
-}
-
-function panel(
-  gfx: Graphics,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  label: string,
-  value: string
-) {
-  frame(gfx, x, y, w, h)
-  text(gfx, label, x + 4, y + 3, DIM)
-  textRight(gfx, value, x + w - 4, y + 12, INK)
-}
-
 /** A piece drawn to fit its slot, centered on its own bounding box. */
 function preview(
   gfx: Graphics,
@@ -248,35 +218,35 @@ function blink(now: number): boolean {
 }
 
 function drawChrome(gfx: Graphics, state: Readout) {
-  // The well's own heavy frame: the one double border on the whole screen.
-  gfx.rect(76, 26, 108, 2).fill(LINE)
-  gfx.rect(76, 230, 108, 2).fill(LINE)
-  gfx.rect(76, 26, 2, 206).fill(LINE)
-  gfx.rect(182, 26, 2, 206).fill(LINE)
+  // The well's own heavy frame: the one border on the whole screen.
+  gfx.rect(0, 0, CABINET.width, 2).fill(LINE)
+  gfx.rect(0, CABINET.height - 2, CABINET.width, 2).fill(LINE)
+  gfx.rect(0, 0, 2, CABINET.height).fill(LINE)
+  gfx.rect(CABINET.width - 2, 0, 2, CABINET.height).fill(LINE)
 
-  panel(gfx, 4, 4, 80, 22, "SCORE", pad(state.score, 7))
-  panel(gfx, 88, 4, 80, 22, "LEVEL", pad(state.level, 2))
-  panel(gfx, 172, 4, 84, 22, "LINES", pad(state.lines, 3))
+  // The stats band: a veil across the well's first rows, labels over values,
+  // so the stack reads through it and no side panels are needed.
+  gfx.rect(4, 4, CABINET.well.width, 16).fill({ color: BG, alpha: 0.65 })
+  text(gfx, "SC", 8, 6, DIM)
+  text(gfx, pad(state.score, 7), 8, 13, INK)
+  text(gfx, "LV", 58, 6, DIM)
+  text(gfx, pad(state.level, 2), 58, 13, INK)
+  text(gfx, "LN", 80, 6, DIM)
+  text(gfx, pad(state.lines, 3), 80, 13, INK)
 
-  // The left column: the hold slot, then the seven minos for reference.
-  frame(gfx, 4, 30, 68, 32)
-  text(gfx, "HOLD", 8, 33, DIM)
-  preview(gfx, 8, 41, 60, 18, state.hold, 4)
+  // The hold slot and the next queue — three deep — share the row under the
+  // band, their interiors veiled so the minos read over whatever is beneath.
+  gfx.rect(7, 25, 34, 20).fill({ color: BG, alpha: 0.55 })
+  frame(gfx, 6, 24, 36, 22)
+  text(gfx, "HOLD", 9, 27, DIM)
+  preview(gfx, 8, 35, 32, 9, state.hold, 3)
 
-  frame(gfx, 4, 66, 68, 164)
-  text(gfx, "PIECES", 8, 69, DIM)
-  PIECE_KEYS.forEach((key, index) => {
-    preview(gfx, 6, 84 + index * 20, 64, 18, key, 4)
-  })
-
-  // The right column: the queue, six deep.
-  frame(gfx, 188, 30, 68, 200)
-  text(gfx, "NEXT", 192, 33, DIM)
+  gfx.rect(47, 25, 54, 20).fill({ color: BG, alpha: 0.55 })
+  frame(gfx, 46, 24, 56, 22)
+  text(gfx, "NEXT", 49, 27, DIM)
   for (let index = 0; index < DEFAULT_CONFIG.previewCount; index++) {
-    preview(gfx, 190, 46 + index * 30, 64, 28, state.next[index] ?? null, 5)
+    preview(gfx, 48 + index * 17, 35, 15, 9, state.next[index] ?? null, 3)
   }
-
-  textCentered(gfx, "ARROWS MOVE  Z X ROT  SPACE DROP  C HOLD", 238, DIM)
 }
 
 function drawWell(gfx: Graphics, engine: Engine) {
@@ -337,16 +307,24 @@ function drawScreens(
 ) {
   const { phase, score } = engine.readout
   if (phase === "ready") {
-    textCentered(gfx, "TETRIS", 74, INK, 5)
-    gfx.rect(60, 122, 140, 1).fill(LINE)
-    if (blink(now)) textCentered(gfx, "PRESS ENTER", 140, INK, 2)
-    textCentered(gfx, "1 PLAYER", 176, DIM)
+    textCentered(gfx, "TETRIS", 70, INK, 2)
+    gfx.rect(24, 92, 60, 1).fill(LINE)
+    if (blink(now)) textCentered(gfx, "PRESS ENTER", 110, INK)
+    textCentered(gfx, "1 PLAYER", 130, DIM)
+    // The control hints live here and only here: during play the skin stays
+    // clean, and a touch player is not served keyboard hints mid-game.
+    textCentered(gfx, "ARROWS MOVE", 152, DIM)
+    textCentered(gfx, "Z X ROT", 164, DIM)
+    textCentered(gfx, "SPACE DROP", 176, DIM)
+    textCentered(gfx, "C HOLD", 188, DIM)
     return
   }
   if (phase === "over") {
-    textCentered(gfx, "GAME OVER", 106, INK, 3)
-    textCentered(gfx, `SCORE ${pad(score, 7)}`, 146, DIM)
-    if (blink(now)) textCentered(gfx, "PRESS ENTER", 166, INK)
+    // Two stacked lines: nine glyphs at a proud scale do not fit the well.
+    textCentered(gfx, "GAME", 78, INK, 3)
+    textCentered(gfx, "OVER", 102, INK, 3)
+    textCentered(gfx, `SCORE ${pad(score, 7)}`, 136, DIM)
+    if (blink(now)) textCentered(gfx, "PRESS ENTER", 162, INK)
     return
   }
   if (paused) {
@@ -355,8 +333,8 @@ function drawScreens(
     // state unmistakable without hiding it.
     const { x, y, width, height } = CABINET.well
     gfx.rect(x, y, width, height).fill({ color: BG, alpha: 0.7 })
-    if (blink(now)) textCentered(gfx, "PAUSED", 106, INK, 3)
-    textCentered(gfx, "ESC TO RESUME", 146, DIM)
+    if (blink(now)) textCentered(gfx, "PAUSED", 96, INK, 2)
+    textCentered(gfx, "ESC TO RESUME", 120, DIM)
   }
 }
 
@@ -368,7 +346,9 @@ function drawCabinet(
 ) {
   gfx.clear()
   gfx.rect(0, 0, CABINET.width, CABINET.height).fill(BG)
-  drawChrome(gfx, engine.readout)
+  // The well first, the HUD over it: a piece reaching the top rows passes
+  // under the veiled panels, and the stats stay readable to the last.
   drawWell(gfx, engine)
+  drawChrome(gfx, engine.readout)
   drawScreens(gfx, engine, now, paused)
 }

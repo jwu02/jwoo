@@ -20,7 +20,7 @@ export interface TetrisConfig {
    * spawn rows are ever used by this Engine's bottom-out rules.
    */
   bufferRows: number
-  /** How many pieces the Next queue shows. The dossier's default is the upper end of official practice. */
+  /** How many pieces the Next queue shows. Three — the dossier's lower end of official practice, the mobile titles' choice — keeps the overlaid HUD compact. */
   previewCount: number
   /** Refill a whole bag whenever the queue drops below this, so previews never see a seam. */
   refillAt: number
@@ -56,7 +56,7 @@ export const DEFAULT_CONFIG: TetrisConfig = {
   columns: 10,
   visibleRows: 20,
   bufferRows: 2,
-  previewCount: 6,
+  previewCount: 3,
   refillAt: 7,
   gravityBase: 0.8,
   gravityStep: 0.007,

@@ -176,10 +176,10 @@ describe("a fresh engine", () => {
     }
   })
 
-  it("shows six upcoming pieces from the queue", () => {
+  it("shows three upcoming pieces from the queue", () => {
     const engine = newGame(1)
     expect(engine.readout.next).toHaveLength(DEFAULT_CONFIG.previewCount)
-    expect(engine.readout.next).toHaveLength(6)
+    expect(engine.readout.next).toHaveLength(3)
   })
 })
 
