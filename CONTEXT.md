@@ -1,6 +1,6 @@
 # jwoo
 
-A personal site: a 3D home scene, an activity-telemetry dashboard, AI-usage charts, a knowledge graph, and a resume.
+A personal site: a 3D home scene, an activity-telemetry dashboard, AI-usage charts, a knowledge graph, a resume, and an arcade Tetris.
 
 ## Language
 
@@ -219,3 +219,29 @@ _Avoid_: social link, contact detail
 **Locale parity**:
 The invariant that the two locales are one document: the same sections, the same entries, and the same number of bullets within each. Only the words themselves differ.
 _Avoid_: translation sync, i18n completeness
+
+### Tetris
+
+**Engine**:
+The deterministic simulation of a Tetris game — playfield, falling piece, gravity, lock delay, scoring — everything but what draws it or collects input. It advances only in Ticks and never reads the clock, the DOM or the network, so one seed plus one input log replays one game.
+_Avoid_: game loop (that belongs to the renderer's driver), simulation (unqualified)
+
+**Tick**:
+One fixed step of game time, the only time the Engine knows. Real elapsed time is accumulated by the driver and paid out in whole Ticks, so a throttled tab or a fast display changes nothing about the game's outcome, and pausing is just the driver paying no Ticks.
+_Avoid_: frame (a render moment, not an Engine step), delta
+
+**Controller**:
+The source of play the Engine consumes — what the keyboard, a gesture, or an AI did, expressed per Tick as held directions and one-shot actions. Every Controller speaks the same shape, so swapping one in is a swap, not a rewrite. While paused, Controllers are muted.
+_Avoid_: input handler, event stream
+
+**Readout**:
+The HUD-facing slice of the game — score, lines, level, next queue, hold, combo, back-to-back — republished only when one of those changes, never once per frame. The board itself is Engine state the renderer reads each frame; the Readout is the slice the HUD is allowed to see.
+_Avoid_: HUD state, stats
+
+**Observation**:
+The plain-JSON snapshot of the game an AI reads: the visible board, the active piece, the next queue, hold and progress counters. What kevala consumes — distinct from the Readout (for the HUD) and from the Engine's internal state.
+_Avoid_: state dump, export
+
+**Placement**:
+One candidate destination for the current piece: a rotation and a column it can be hard-dropped into legally. The Engine enumerates Placements for an AI to score; landings reachable only through wall kicks are not enumerated — a documented ceiling, not an oversight.
+_Avoid_: move, candidate
