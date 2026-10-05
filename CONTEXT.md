@@ -245,3 +245,11 @@ _Avoid_: state dump, export
 **Placement**:
 One candidate destination for the current piece: a rotation and a column it can be hard-dropped into legally. The Engine enumerates Placements for an AI to score; landings reachable only through wall kicks are not enumerated — a documented ceiling, not an oversight.
 _Avoid_: move, candidate
+
+**Cabinet**:
+The game's presentation drawn as one framed design: the header band of readouts, the hold and next-queue panels, and the well between them. One fixed pixel-art design size, scaled up as a unit so its pixels stay square.
+_Avoid_: screen, layout, board
+
+**Well**:
+The 10×20 visible playfield the cabinet frames. The Engine's board runs two rows higher — spawn rows the visitor never sees — so the well is the visible slice, not the whole board.
+_Avoid_: board, grid, playfield (that is the full board, hidden rows included)
