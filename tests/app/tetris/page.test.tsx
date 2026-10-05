@@ -142,6 +142,47 @@ describe("the Tetris application", () => {
     expect(mockCanvasProps!.engine.readout.score).toBe(0)
   })
 
+  it("holds on Shift, C and c, once per piece", () => {
+    render(<TetrisPage />)
+    fireEvent.keyDown(surface(), { key: "Enter" })
+    const { engine, controller } = mockCanvasProps!
+
+    // Shift holds into the empty slot: the active piece goes up, the next one
+    // comes down. The engine seam proves the swap's details; what only this
+    // level proves is which keys produce the hold intent.
+    const piece = engine.active!.key
+    const queued = engine.readout.next[0]
+    fireEvent.keyDown(surface(), { key: "Shift" })
+    act(() => engine.tick(controller.nextIntent()))
+    expect(engine.readout.hold).toBe(piece)
+    expect(engine.active!.key).toBe(queued)
+
+    // A second hold before the piece locks does nothing — whichever key asks.
+    const held = engine.active!.key
+    fireEvent.keyDown(surface(), { key: "c" })
+    act(() => engine.tick(controller.nextIntent()))
+    expect(engine.active!.key).toBe(held)
+
+    // The lock restores the swap, and C — the same action, uppercased — holds
+    // again; the held piece comes back spawn-fresh.
+    fireEvent.keyDown(surface(), { key: " " })
+    act(() => engine.tick(controller.nextIntent()))
+    const third = engine.active!.key
+    fireEvent.keyDown(surface(), { key: "C" })
+    act(() => engine.tick(controller.nextIntent()))
+    expect(engine.readout.hold).toBe(third)
+    expect(engine.active!.key).toBe(piece)
+    expect(engine.active!.rotation).toBe(0)
+
+    // And the lowercase key holds once more after the next lock, pulling the
+    // piece the C hold left waiting in the slot.
+    fireEvent.keyDown(surface(), { key: " " })
+    act(() => engine.tick(controller.nextIntent()))
+    fireEvent.keyDown(surface(), { key: "c" })
+    act(() => engine.tick(controller.nextIntent()))
+    expect(engine.active!.key).toBe(third)
+  })
+
   it("leaves browser shortcuts and the Control key alone", () => {
     render(<TetrisPage />)
     fireEvent.keyDown(surface(), { key: "Enter" })

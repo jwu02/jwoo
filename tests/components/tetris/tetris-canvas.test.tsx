@@ -5,7 +5,7 @@ import { TetrisCanvas } from "@/components/tetris/tetris-canvas"
 import { CABINET } from "@/lib/tetris/cabinet"
 import { createController } from "@/lib/tetris/controller"
 import { createEngine } from "@/lib/tetris/engine"
-import { pieceCells } from "@/lib/tetris/pieces"
+import { pieceCells, PIECE_COLORS } from "@/lib/tetris/pieces"
 
 // The cabinet's drawing is ~700 rectangles a frame, and the only part of it that
 // can be wrong without throwing is where they land: a piece drawn a row off, or
@@ -144,6 +144,43 @@ describe("the cabinet's renderer", () => {
     )) {
       const visible = row - 2
       if (visible >= 0) expect(drawsTile(pay(0), column, visible)).toBe(true)
+    }
+  })
+
+  it("draws the held piece in its slot, and nothing while the slot is empty", async () => {
+    const { engine, controller, pay, gfx } = await setUp()
+    engine.start()
+
+    // The hold preview draws 3×3 mino tiles (scale 4), the only 3×3 rects on
+    // the skin in the slot's own rows — the label, the frame and the pieces
+    // reference below it never reach them. The slot's box is the skin's
+    // preview(8, 41, 60, 18); the hard numbers are the point of the test.
+    const SLOT = { x: 8, y: 41, right: 68, bottom: 59 }
+    const TILE = 3
+    const slotTiles = (rects: RecordedGraphics["__rects"]) =>
+      rects
+        .map((rect, index) => ({ rect, fill: gfx.__fills[index] }))
+        .filter(
+          ({ rect }) =>
+            rect.width === TILE &&
+            rect.height === TILE &&
+            rect.y >= SLOT.y &&
+            rect.y < SLOT.bottom
+        )
+
+    expect(slotTiles(pay(0))).toHaveLength(0)
+
+    controller.press("hold")
+    pay(1000 / 60)
+    const hold = engine.readout.hold
+    expect(hold).not.toBeNull()
+
+    // The held piece itself: four minos in its own colour, inside the slot.
+    const tiles = slotTiles(pay(0))
+    expect(tiles).toHaveLength(4)
+    for (const { rect, fill } of tiles) {
+      expect(rect.x).toBeGreaterThanOrEqual(SLOT.x)
+      expect(fill).toBe(PIECE_COLORS[hold!])
     }
   })
 
