@@ -28,7 +28,7 @@ The site is framed as an OS: every route is an *application* the Dock selects. `
 - **Next.js 16 has breaking changes** vs. prior versions — read the relevant guide in `node_modules/next/dist/docs/` before writing framework code.
 - **Non-trivial work is planned through the interview** (`/grill-with-docs`), approved in-session, then implemented — no committed spec docs.
 - **Use the `shadcn` skill** for shadcn component work (project skill, symlinked in `.claude/skills/`) rather than hand-writing UI primitives.
-- **three must never enter a route's eager module graph.** Each scene is a three-free adapter (`*-scene.tsx`) plus a lazily loaded implementation (`*-canvas.tsx`, the only place three is imported); `next/dynamic({ ssr: false })` sits outside the implementation. See `docs/adr/0001-scene-chunk-isolation.md`; `tests/lib/three/eager-graph-is-three-free.test.ts` enforces it.
+- **three must never enter a route's eager module graph.** Each scene is a three-free adapter (`*-scene.tsx`) plus a lazily loaded implementation (`*-canvas.tsx`, the only place three is imported); `next/dynamic({ ssr: false })` sits outside the implementation. The same gate covers the pixi Tetris cabinet. See `docs/adr/0001-scene-chunk-isolation.md`; `tests/lib/eager-graph-is-renderer-free.test.ts` enforces it.
 
 ## Agent skills
 

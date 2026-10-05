@@ -7,4 +7,17 @@ describe("applications", () => {
     const hrefs = APPS.map((app) => app.href)
     expect(new Set(hrefs).size).toBe(hrefs.length)
   })
+
+  // An application's place in the rail is its place on the desktop: the
+  // visitor's own ordering, and not a thing to drift as routes are added.
+  it("keeps the applications in their settled order", () => {
+    expect(APPS.map((app) => app.href)).toEqual([
+      "/",
+      "/activity-telemetry",
+      "/ai-usage",
+      "/knowledge-graph",
+      "/resume",
+      "/tetris",
+    ])
+  })
 })

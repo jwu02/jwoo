@@ -14,6 +14,6 @@ A scene therefore costs two files (`-scene.tsx` for the adapter, `-canvas.tsx` f
 
 ## Consequences
 
-`tests/lib/three/eager-graph-is-three-free.test.ts` walks static imports from each page entry and stops at dynamic ones, asserting no WebGL package is reachable. When it fails, the fix is to move the offending import below the boundary — never to relax the test.
+`tests/lib/eager-graph-is-renderer-free.test.ts` walks static imports from every route entry and stops at dynamic ones, asserting no renderer package is reachable — three's, and pixi's for the Tetris cabinet. When it fails, the fix is to move the offending import below the boundary — never to relax the test.
 
 The fallback renders *outside* the scene's box, because a scene's container is a clipped viewport (home's is `absolute inset-0 isolate overflow-hidden`, filling the desktop the OS shell hands it) while its fallback is ordinary scrolling content.

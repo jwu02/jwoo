@@ -94,8 +94,9 @@ export function SceneGate<P extends object>({
   const [mode, setMode] = useState<SceneMode>("loading")
 
   const SceneContent = useMemo(
-    () => dynamic(load, { ssr: false, loading: () => null }) as ComponentType<P>,
-    [load],
+    () =>
+      dynamic(load, { ssr: false, loading: () => null }) as ComponentType<P>,
+    [load]
   )
 
   useEffect(() => {

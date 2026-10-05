@@ -88,9 +88,21 @@ class Graphics extends Container {
   constructor() {
     super();
     this.__circleRadius = null;
+    // Recorded so a test can assert what a scene drew, and where. The tetris
+    // cabinet is drawn out of whole rectangles, and the coordinates are the
+    // only part of it that can be wrong without throwing.
+    this.__rects = [];
   }
   circle(x, y, radius) {
     this.__circleRadius = radius;
+    return this;
+  }
+  rect(x, y, width, height) {
+    this.__rects.push({ x, y, width, height });
+    return this;
+  }
+  clear() {
+    this.__rects.length = 0;
     return this;
   }
   fill() {
@@ -125,8 +137,16 @@ class Application {
       },
     };
     this.ticker = {
-      add: () => {},
-      remove: () => {},
+      // Frames are the scene's own business: the mock records what was
+      // subscribed so a test can pay a frame by hand.
+      callbacks: [],
+      add: (fn) => {
+        this.ticker.callbacks.push(fn);
+      },
+      remove: (fn) => {
+        const index = this.ticker.callbacks.indexOf(fn);
+        if (index >= 0) this.ticker.callbacks.splice(index, 1);
+      },
     };
     this.__destroyed = false;
     this.__size = null;
