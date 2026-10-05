@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react"
 import { HomeScene } from "@/components/home/home-scene"
 
 // The gate's own behaviour — capability check, fallback, error boundary — is
-// tested once in tests/components/three/scene-gate.test.tsx. What's left here is
+// tested once in tests/components/scene-gate.test.tsx. What's left here is
 // what home decides for itself: its fallback content and its scene container.
 //
 // next/dynamic is stubbed so the WebGL canvas never loads; a marker is enough to

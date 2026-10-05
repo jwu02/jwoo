@@ -45,9 +45,10 @@ type SceneMode = "loading" | "scene" | "fallback"
 
 export interface SceneGateProps<P extends object> {
   /**
-   * Module holding the scene's canvas — the only place three is imported for
-   * this scene. Must be a module-scope constant: the gate resolves it once, so
-   * an inline arrow would rebuild the loaded component on every render.
+   * Module holding the scene's canvas — the only place its renderer (three,
+   * pixi) is imported for this scene. Must be a module-scope constant: the gate
+   * resolves it once, so an inline arrow would rebuild the loaded component on
+   * every render.
    */
   load: () => Promise<{ default: ComponentType<P> }>
   /** Props forwarded to the loaded canvas component. */
@@ -73,12 +74,12 @@ export interface SceneGateProps<P extends object> {
  *    thrown error inside the renderer.
  *  - **Isolation.** A scene that throws while building its GLB must take down
  *    only itself, not the page around it.
- *  - **Deferred loading.** three must never enter the route's eager module
- *    graph. The canvas is imported with `ssr: false`, so the server never
+ *  - **Deferred loading.** The renderer must never enter the route's eager
+ *    module graph. The canvas is imported with `ssr: false`, so the server never
  *    evaluates it and it stays out of the first client chunk. That is why the
  *    canvas lives behind `load` instead of arriving as `children` — a statically
- *    imported child would pull three straight back into this module, and pages
- *    import this module (see ADR 0001).
+ *    imported child would pull the renderer straight back into this module, and
+ *    pages import this module (see ADR 0001).
  *
  * The "loading" state renders the empty container rather than the fallback, so
  * hydration matches the server and a slow chunk does not flash the "no WebGL"

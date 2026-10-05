@@ -1,6 +1,6 @@
 "use client"
 
-import { SceneGate } from "@/components/three/scene-gate"
+import { SceneGate } from "@/components/scene-gate"
 
 import type { MouseCanvasApi } from "./mouse-model"
 import type { MouseRegion } from "@/lib/telemetry/mouse-node-map"

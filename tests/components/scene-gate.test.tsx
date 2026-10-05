@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { createElement, type ComponentType } from "react"
 
-import { SceneGate } from "@/components/three/scene-gate"
+import { SceneGate } from "@/components/scene-gate"
 
 // next/dynamic is mocked the way home-scene.test.tsx mocks it: its real
 // implementation resolves its chunk in a way that logs act() warnings, and what
