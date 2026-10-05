@@ -168,12 +168,14 @@ class Application {
 
   destroy(rendererDestroyOptions, options) {
     // Mirror real PixiJS v8: destroying the Application destroys the stage's
-    // children and nulls app.stage, so any later `app.stage.removeChild(...)`
-    // throws. The mock previously left `stage` intact, hiding the bug.
+    // children and nulls app.stage, and its TickerPlugin nulls app.ticker —
+    // so any later `app.stage.removeChild(...)` or `app.ticker.remove(...)`
+    // throws. The mock previously left both intact, hiding the bug.
     this.__destroyed = true;
     this.stage.destroy(options);
     this.stage = null;
     this.renderer = null;
+    this.ticker = null;
   }
 }
 

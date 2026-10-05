@@ -107,10 +107,12 @@ export function TetrisCanvas({
 
     app.ticker.add(frame)
     return () => {
+      // usePixiApp's cleanup runs first and destroys the Application, which
+      // nulls its stage, renderer and ticker. Once it has, there is nothing
+      // left to unsubscribe from or remove: the frame went with the ticker.
+      if (!app.stage) return
       app.ticker.remove(frame)
-      // Application.destroy() has already nulled the stage by the time the
-      // hook's own cleanup runs, so this is guarded rather than assumed.
-      if (app.stage) app.stage.removeChild(gfx)
+      app.stage.removeChild(gfx)
       gfx.destroy()
     }
   }, [app, engine, controller, pausedRef])

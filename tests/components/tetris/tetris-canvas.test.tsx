@@ -28,7 +28,7 @@ async function setUp(paused = false) {
   const controller = createController()
   const pausedRef = { current: paused }
 
-  const { container } = render(
+  const { container, unmount } = render(
     <TetrisCanvas
       engine={engine}
       controller={controller}
@@ -50,7 +50,7 @@ async function setUp(paused = false) {
     return gfx.__rects
   }
 
-  return { engine, controller, pausedRef, pay }
+  return { engine, controller, pausedRef, pay, unmount }
 }
 
 /** Whether a mino was drawn as the nine-pixel tile its gutter leaves. */
@@ -76,6 +76,15 @@ function drawsTile(
 }
 
 describe("the cabinet's renderer", () => {
+  it("unsubscribes its frame without touching the destroyed Application's ticker", async () => {
+    const { unmount } = await setUp()
+    // Navigating away unmounts the cabinet. usePixiApp's own cleanup runs
+    // first and destroys the Application, which nulls app.ticker — so the
+    // frame's cleanup must not reach for it. This is the bug that threw
+    // "Cannot read properties of null (reading 'remove')" on route change.
+    expect(() => unmount()).not.toThrow()
+  })
+
   it("draws the whole cabinet, the well included, inside the art's own box", async () => {
     const { pay } = await setUp()
     const rects = pay(0)
