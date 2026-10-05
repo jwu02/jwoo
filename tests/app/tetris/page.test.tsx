@@ -197,9 +197,9 @@ describe("the Tetris application", () => {
     expect(
       fireEvent.keyDown(surface(), { key: "ArrowRight", ctrlKey: true })
     ).toBe(true)
-    expect(
-      fireEvent.keyDown(surface(), { key: "ArrowUp", altKey: true })
-    ).toBe(true)
+    expect(fireEvent.keyDown(surface(), { key: "ArrowUp", altKey: true })).toBe(
+      true
+    )
     // Control is unbound: the key is not a game key, so it reaches the browser.
     expect(fireEvent.keyDown(surface(), { key: "Control" })).toBe(true)
     act(() => engine.tick(controller.nextIntent()))
@@ -217,5 +217,179 @@ describe("the Tetris application", () => {
     expect(fireEvent.keyDown(document.body, { key: "ArrowLeft" })).toBe(true)
     act(() => engine.tick(controller.nextIntent()))
     expect(engine.active).toEqual(piece)
+  })
+
+  describe("playing by touch", () => {
+    // jsdom has no layout, so the surface sits at its own art scale: one cell
+    // is ten screen pixels. jsdom's PointerEvent also drops pointerType, so a
+    // mouse gesture has to be dispatched natively with the property defined.
+    function gesture(
+      event: "pointerDown" | "pointerMove" | "pointerUp" | "pointerCancel",
+      pointerId: number,
+      x: number,
+      y: number,
+      pointerType: string = "touch"
+    ) {
+      return fireEvent[event](surface(), {
+        pointerId,
+        pointerType,
+        clientX: x,
+        clientY: y,
+      })
+    }
+
+    function mouseGesture(
+      type: "pointerdown" | "pointermove" | "pointerup",
+      pointerId: number,
+      x: number,
+      y: number
+    ) {
+      const event = new PointerEvent(type, {
+        bubbles: true,
+        clientX: x,
+        clientY: y,
+      })
+      Object.defineProperty(event, "pointerType", { value: "mouse" })
+      Object.defineProperty(event, "pointerId", { value: pointerId })
+      surface().dispatchEvent(event)
+    }
+
+    it("shifts the piece one column per cell-width dragged", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+      const piece = { ...engine.active! }
+
+      gesture("pointerDown", 1, 130, 130)
+      // Two and a half cells right: two shifts, each a tap the Engine can tell
+      // apart — one, a quiet Tick, then the other.
+      gesture("pointerMove", 1, 155, 130)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.x).toBe(piece.x + 1)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.x).toBe(piece.x + 1)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.x).toBe(piece.x + 2)
+      gesture("pointerUp", 1, 155, 130)
+    })
+
+    it("rotates clockwise on a tap", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+      // The O piece occupies the same cells in every rotation; swap it away.
+      while (engine.active!.key === "O") {
+        controller.press("hardDrop")
+        act(() => engine.tick(controller.nextIntent()))
+      }
+      const piece = { ...engine.active! }
+
+      gesture("pointerDown", 1, 130, 130)
+      gesture("pointerUp", 1, 130, 130)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.rotation).toBe((piece.rotation + 1) % 4)
+    })
+
+    it("starts on a tap, and restarts after game over", () => {
+      render(<TetrisPage />)
+
+      gesture("pointerDown", 1, 130, 124)
+      gesture("pointerUp", 1, 130, 124)
+      expect(announcement()).toMatch(/playing/i)
+
+      playToGameOver()
+      expect(announcement()).toMatch(/game over/i)
+
+      gesture("pointerDown", 2, 130, 124)
+      gesture("pointerUp", 2, 130, 124)
+      expect(announcement()).toMatch(/playing/i)
+      expect(mockCanvasProps!.engine.readout.score).toBe(0)
+    })
+
+    it("soft-drops while a slow drag holds the finger down", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+      const before = engine.active!.y
+
+      gesture("pointerDown", 1, 130, 100)
+      gesture("pointerMove", 1, 130, 130)
+      // One Tick of soft drop is a fraction of a row at level 1; three pay one.
+      act(() => {
+        engine.tick(controller.nextIntent())
+        engine.tick(controller.nextIntent())
+        engine.tick(controller.nextIntent())
+      })
+      expect(engine.active!.y).toBeGreaterThan(before)
+      // Lifting the finger lets go of the drop.
+      gesture("pointerUp", 1, 130, 130)
+    })
+
+    it("hard-drops on a fast downward flick", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+
+      // A flick is a speed, and the gesture clock is performance.now — pin it.
+      let ms = 0
+      const now = jest.spyOn(performance, "now").mockImplementation(() => ms)
+      gesture("pointerDown", 1, 130, 100)
+      ms = 20
+      gesture("pointerMove", 1, 130, 110)
+      ms = 40
+      gesture("pointerMove", 1, 130, 150)
+      ms = 60
+      gesture("pointerUp", 1, 130, 180)
+      now.mockRestore()
+
+      act(() => engine.tick(controller.nextIntent()))
+      // The flick locked the piece onto the floor of the well.
+      expect(
+        engine.board.some((row) => row.some((cell) => cell !== null))
+      ).toBe(true)
+      // …and the next piece is already falling in its place.
+      expect(engine.active).not.toBeNull()
+    })
+
+    it("holds on a swipe up", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+      const piece = engine.active!.key
+      const queued = engine.readout.next[0]
+
+      gesture("pointerDown", 1, 130, 130)
+      gesture("pointerMove", 1, 130, 110)
+      gesture("pointerUp", 1, 130, 90)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.readout.hold).toBe(piece)
+      expect(engine.active!.key).toBe(queued)
+    })
+
+    it("plays nothing from a mouse, and no rotation from a resume tap", () => {
+      render(<TetrisPage />)
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      const { engine, controller } = mockCanvasProps!
+      const piece = { ...engine.active! }
+
+      // A mouse drag on the surface gestures nothing: the desktop has the
+      // keyboard, and a click that played would be a surprise.
+      mouseGesture("pointerdown", 1, 130, 130)
+      mouseGesture("pointermove", 1, 155, 130)
+      mouseGesture("pointerup", 1, 155, 130)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.x).toBe(piece.x)
+      expect(engine.active!.rotation).toBe(piece.rotation)
+
+      // A tap that lands on a paused cabinet resumes it — and nothing else.
+      fireEvent.keyDown(surface(), { key: "Escape" })
+      expect(announcement()).toMatch(/paused/i)
+      gesture("pointerDown", 2, 130, 130)
+      gesture("pointerUp", 2, 130, 130)
+      expect(announcement()).toMatch(/playing/i)
+      act(() => engine.tick(controller.nextIntent()))
+      expect(engine.active!.x).toBe(piece.x)
+      expect(engine.active!.rotation).toBe(piece.rotation)
+    })
   })
 })

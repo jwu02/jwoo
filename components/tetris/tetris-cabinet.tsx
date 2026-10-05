@@ -16,6 +16,7 @@ import {
   type Action,
   type Direction,
 } from "@/lib/tetris/controller"
+import { createTouchController } from "@/lib/tetris/touch"
 import { createEngine, type Phase } from "@/lib/tetris/engine"
 
 // Module scope so the gate resolves the canvas once, rather than rebuilding the
@@ -82,7 +83,6 @@ export function TetrisCabinet() {
   // A fresh bag every time the application is opened. The seed reaches no
   // markup, so drawing it at random costs hydration nothing.
   const engine = useMemo(() => createEngine({ seed: randomSeed() }), [])
-  const controller = useMemo(() => createController(), [])
 
   const boxRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
@@ -91,14 +91,41 @@ export function TetrisCabinet() {
   const pausedRef = useRef(false)
   const [paused, setPaused] = useState(false)
   const [scale, setScale] = useState(1)
-
   const getPhase = useCallback(() => engine.readout.phase, [engine])
   const phase = useSyncExternalStore(engine.subscribe, getPhase, getPhase)
 
-  const setPause = useCallback((value: boolean) => {
-    pausedRef.current = value
-    setPaused(value)
-  }, [])
+  // One Controller behind both devices: the keyboard writes its held flags and
+  // presses, and the touch layer merges its gestures into the same intents —
+  // the object the renderer pays Ticks from (ADR 0006).
+  const controller = useMemo(
+    () =>
+      createTouchController(createController(), {
+        cellWidth: CABINET.cell * scale,
+        isPlaying: () => engine.readout.phase === "playing",
+        // A tap only asks for a game when phase is ready or over — and the
+        // game cannot end while paused, so the cabinet is never paused here.
+        // The reset is what Enter does too: nothing held or owed survives it.
+        onStart: () => {
+          controller.reset()
+          engine.start()
+        },
+      }),
+    // scale is only the seed value; the measure effect keeps the controller
+    // told, so a resize never needs this object rebuilt mid-gesture.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine]
+  )
+
+  const setPause = useCallback(
+    (value: boolean) => {
+      pausedRef.current = value
+      // Pausing mutes the Controllers: a gesture under the finger dies with the
+      // pause, so its release cannot act on a game it resumes later.
+      if (value) controller.cancelGesture()
+      setPaused(value)
+    },
+    [controller]
+  )
 
   const pauseIfPlaying = useCallback(() => {
     if (engine.readout.phase === "playing") setPause(true)
@@ -132,14 +159,16 @@ export function TetrisCabinet() {
     if (box === null) return
     const measure = () => {
       const rect = box.getBoundingClientRect()
-      setScale(cabinetScale(rect.width, rect.height))
+      const next = cabinetScale(rect.width, rect.height)
+      controller.setCellWidth(CABINET.cell * next)
+      setScale(next)
     }
     measure()
     if (typeof ResizeObserver === "undefined") return
     const observer = new ResizeObserver(measure)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [])
+  }, [controller])
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -189,6 +218,38 @@ export function TetrisCabinet() {
     setPause(false)
   }, [setPause])
 
+  // Touch plays through the same Controller the keyboard feeds: a drag shifts
+  // by cells, a slow drag down soft-drops, a fast flick hard-drops, a tap
+  // rotates, a swipe up holds. A mouse click stays focus-and-resume only —
+  // desktop has the keyboard, and a click that rotated would be a surprise —
+  // and a tap that lands on a paused cabinet only resumes: the gesture is
+  // never started, so the release cannot sneak a rotation in behind it.
+  const onSurfacePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (pausedRef.current || event.pointerType === "mouse") return
+      controller.pointerDown(event.pointerId, event.clientX, event.clientY)
+    },
+    [controller]
+  )
+  const onSurfacePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      controller.pointerMove(event.pointerId, event.clientX, event.clientY)
+    },
+    [controller]
+  )
+  const onSurfacePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      controller.pointerUp(event.pointerId, event.clientX, event.clientY)
+    },
+    [controller]
+  )
+  const onSurfacePointerCancel = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      controller.pointerCancel(event.pointerId)
+    },
+    [controller]
+  )
+
   return (
     <div
       ref={boxRef}
@@ -202,14 +263,20 @@ export function TetrisCabinet() {
         tabIndex={0}
         className="outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-white/40"
         // The scaled box, with the art's own pixels asked for back: the
-        // renderer draws 260×248 and CSS stretches it (ADR 0007).
+        // renderer draws 260×248 and CSS stretches it (ADR 0007). Touch-action
+        // none keeps a drag from scrolling the surface behind the well.
         style={{
           width: CABINET.width * scale,
           height: CABINET.height * scale,
           imageRendering: "pixelated",
+          touchAction: "none",
         }}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}
+        onPointerDown={onSurfacePointerDown}
+        onPointerMove={onSurfacePointerMove}
+        onPointerUp={onSurfacePointerUp}
+        onPointerCancel={onSurfacePointerCancel}
       >
         <SceneGate
           load={loadTetrisCanvas}
