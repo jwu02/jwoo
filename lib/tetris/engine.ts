@@ -104,7 +104,12 @@ export function clearScore(
   return total
 }
 
-/** One candidate destination for the active piece: a rotation and a column it can be dropped into. */
+/**
+ * One candidate destination for the active piece: a rotation and a column it can
+ * be hard-dropped into. Rows are the Engine's board rows — the two spawn buffer
+ * rows included, the same frame `applyPlacement` consumes — not the visible
+ * well's frame the Observation uses.
+ */
 export interface Placement {
   rotation: Rotation
   x: number
@@ -574,24 +579,45 @@ export function createEngine({
     },
     legalPlacements() {
       if (active === null) return []
+      // Walk the (rotation, column) states reachable from where the piece stands
+      // by shifting and rotating in place — a rotation only counts when its
+      // un-kicked position (kick test [0,0]) fits. Landings reachable only
+      // through a wall kick are therefore not enumerated (ADR 0006): the
+      // enumeration is sound, and its ceiling is documented.
+      const visited = new Set([`${active.rotation},${active.x}`])
+      const frontier: [Rotation, number][] = [[active.rotation, active.x]]
       const seen = new Set<string>()
       const placements: Placement[] = []
-      for (const rotation of [0, 1, 2, 3] as Rotation[]) {
-        // Landings reachable only through a wall kick are not enumerated (ADR 0006).
-        if (collides(active.key, rotation, active.x, active.y)) continue
-        for (let x = 0; x < config.columns; x++) {
-          if (collides(active.key, rotation, x, active.y)) continue
-          let y = active.y
-          while (!collides(active.key, rotation, x, y + 1)) y += 1
-          const cells = pieceCells(active.key, rotation, x, y)
-          // The same landing from two rotations (O, and S/Z's repeats) is one placement.
-          const landing = cells
-            .map(([cx, cy]) => `${cx},${cy}`)
-            .sort()
-            .join("|")
-          if (seen.has(landing)) continue
+      while (frontier.length > 0) {
+        const [rotation, x] = frontier.shift()!
+        let y = active.y
+        while (!collides(active.key, rotation, x, y + 1)) y += 1
+        const cells = pieceCells(active.key, rotation, x, y)
+        // The same landing from two rotations (O, and S/Z's repeats) is one placement.
+        const landing = cells
+          .map(([cx, cy]) => `${cx},${cy}`)
+          .sort()
+          .join("|")
+        if (!seen.has(landing)) {
           seen.add(landing)
           placements.push({ rotation, x, y })
+        }
+
+        // A neighbour is one more column over, or one rotation step — both at
+        // the piece's own row, so neither is a wall kick.
+        const neighbours: [Rotation, number][] = [
+          [rotation, x - 1],
+          [rotation, x + 1],
+          [rotateState(rotation, 1), x],
+          [rotateState(rotation, -1), x],
+        ]
+        for (const [next, column] of neighbours) {
+          const key = `${next},${column}`
+          if (column < 0 || column >= config.columns) continue
+          if (visited.has(key)) continue
+          if (collides(active.key, next, column, active.y)) continue
+          visited.add(key)
+          frontier.push([next, column])
         }
       }
       return placements

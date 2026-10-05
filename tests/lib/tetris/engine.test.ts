@@ -1,6 +1,8 @@
 /**
  * @jest-environment node
  */
+import { join, resolve } from "node:path"
+import { readdirSync, readFileSync } from "node:fs"
 import {
   createBag,
   createEngine,
@@ -15,6 +17,7 @@ import {
   SPAWN_Y,
   pieceCells,
   type PieceKey,
+  type Rotation,
 } from "@/lib/tetris/pieces"
 
 function input(partial: Partial<Intent>): Intent {
@@ -73,6 +76,47 @@ function packLowest(engine: Engine) {
     b.y > a.y || (b.y === a.y && b.x < a.x) ? b : a
   )
   engine.applyPlacement(best)
+}
+
+/**
+ * Whether the active piece can reach a placement's rotation and column by
+ * shifting and rotating in place, never taking a wall kick (the documented
+ * ceiling of legalPlacements).
+ */
+function reachableWithoutKick(
+  engine: Engine,
+  placement: { rotation: Rotation; x: number }
+): boolean {
+  const piece = activePiece(engine)
+  const fits = (rotation: Rotation, x: number) =>
+    pieceCells(piece.key, rotation, x, piece.y).every(
+      ([cx, cy]) =>
+        cx >= 0 &&
+        cx < DEFAULT_CONFIG.columns &&
+        cy >= 0 &&
+        cy < DEFAULT_CONFIG.visibleRows + DEFAULT_CONFIG.bufferRows &&
+        engine.board[cy][cx] === null
+    )
+  const seen = new Set([`${piece.rotation},${piece.x}`])
+  const queue: [Rotation, number][] = [[piece.rotation, piece.x]]
+  while (queue.length > 0) {
+    const [rotation, x] = queue.shift()!
+    if (rotation === placement.rotation && x === placement.x) return true
+    const neighbours: [Rotation, number][] = [
+      [rotation, x - 1],
+      [rotation, x + 1],
+      [((rotation + 1) % 4) as Rotation, x],
+      [((rotation + 3) % 4) as Rotation, x],
+    ]
+    for (const [next, column] of neighbours) {
+      const key = `${next},${column}`
+      if (column < 0 || column >= DEFAULT_CONFIG.columns) continue
+      if (seen.has(key) || !fits(next, column)) continue
+      seen.add(key)
+      queue.push([next, column])
+    }
+  }
+  return false
 }
 
 /** Every line-clearing placement of a flat-pack game, as `[lines, score gained]`. */
@@ -372,6 +416,8 @@ describe("Extended Placement lock delay", () => {
 describe("line clears and scoring", () => {
   it("scores a single, a double and a triple at the level before the clear", () => {
     // Golden fixtures: the drop points (2 a cell) are part of the gain.
+    // The packer tops out after its fifth clear — the reachable placements are
+    // a subset of the columns it used to teleport into (see legalPlacements).
     expect(clears(1)).toEqual([
       [1, 134, 1],
       [1, 126, 1],
@@ -379,7 +425,6 @@ describe("line clears and scoring", () => {
       // A combo of 1 adds 50 × 1 × level to the second clear in a row.
       [1, 166, 1],
       [1, 104, 1],
-      [1, 102, 1],
     ])
     expect(clears(6, {}, 24)).toEqual([
       [1, 136, 1],
@@ -403,7 +448,6 @@ describe("line clears and scoring", () => {
       [1, 314, 3],
       [1, 616, 4],
       [1, 504, 5],
-      [1, 602, 6],
     ])
     expect(clears(1, { linesPerLevel: 1, maxLevel: 2 })).toEqual([
       [1, 134, 1],
@@ -411,7 +455,6 @@ describe("line clears and scoring", () => {
       [1, 214, 2],
       [1, 316, 2],
       [1, 204, 2],
-      [1, 202, 2],
     ])
   })
 
@@ -487,7 +530,7 @@ describe("the end of a game", () => {
     }
     // …which ends the game on the lock that spawns into it, not after a wait.
     expect(engine.readout.phase).toBe("over")
-    expect(placements).toBe(18)
+    expect(placements).toBe(13)
     expect(engine.active).toBeNull()
   })
 
@@ -565,6 +608,141 @@ describe("legalPlacements and applyPlacement", () => {
     dropped.tick(input({ hardDrop: true }))
     expect(engine.observe().board).toEqual(dropped.observe().board)
     expect(engine.readout.score).toBe(dropped.readout.score)
+  })
+
+  it("lands a rotated placement exactly as a scripted rotation, shift and hard drop do", () => {
+    for (const key of ["I", "J", "L", "S", "T", "Z"] as PieceKey[]) {
+      const engine = gameWith(key)
+      const piece = activePiece(engine)
+      const target = engine
+        .legalPlacements()
+        .find((p) => p.rotation === 1 && p.x !== piece.x)!
+      engine.applyPlacement(target)
+
+      // The same destination driven by the Controller's vocabulary: rotate once
+      // (no kick at spawn), shift a column at a time, hard-drop.
+      const scripted = gameWith(key)
+      scripted.tick(input({ rotateCW: true }))
+      const direction = target.x > piece.x ? "right" : "left"
+      while (activePiece(scripted).x !== target.x) {
+        scripted.tick(input({ [direction]: true }))
+        scripted.tick(NO_INTENT)
+      }
+      scripted.tick(input({ hardDrop: true }))
+
+      expect(engine.observe().board).toEqual(scripted.observe().board)
+      expect(engine.readout.score).toBe(scripted.readout.score)
+    }
+  })
+
+  it("enumerates only destinations reachable by shifting and rotating in place", () => {
+    // The documented ceiling (ADR 0006): a landing a wall kick alone reaches is
+    // not enumerated, and neither is a column the piece cannot slide to.
+    for (const seed of [1, 2, 3, 5, 8, 13]) {
+      const engine = newGame(seed)
+      for (let i = 0; i < 150 && engine.readout.phase === "playing"; i++) {
+        for (const placement of engine.legalPlacements()) {
+          expect(reachableWithoutKick(engine, placement)).toBe(true)
+        }
+        engine.tick(
+          input({
+            left: i % 3 === 0,
+            right: i % 5 === 0,
+            down: i % 2 === 0,
+            rotateCW: i % 7 === 0,
+            hardDrop: i % 11 === 0,
+            hold: i % 13 === 0,
+          })
+        )
+      }
+    }
+  })
+
+  it("excludes the landing a settled T can only reach by a wall kick", () => {
+    // Rotating a T on the floor is refused; the Engine kicks it up and to the
+    // side. That kicked destination is not among the Placements, which are
+    // plain drops at the piece's own row.
+    const engine = gameWith("T")
+    settle(engine)
+
+    const kicked = gameWith("T")
+    settle(kicked)
+    kicked.tick(input({ rotateCW: true }))
+    expect(activePiece(kicked)).toMatchObject({ rotation: 1, x: 2, y: 19 })
+
+    expect(
+      engine.legalPlacements().some((p) => p.rotation === 1 && p.x === 2)
+    ).toBe(false)
+  })
+})
+
+describe("the Observation", () => {
+  it("returns the visible well, active piece, queue, hold and counters", () => {
+    const engine = gameWith("T")
+    const observation = engine.observe()
+    expect(observation).toMatchObject({
+      phase: "playing",
+      score: 0,
+      lines: 0,
+      level: 1,
+      tick: 0,
+      combo: -1,
+      backToBack: false,
+      hold: null,
+    })
+    expect(observation.next).toEqual(engine.readout.next)
+    expect(observation.next).toHaveLength(DEFAULT_CONFIG.previewCount)
+    expect(observation.board).toHaveLength(DEFAULT_CONFIG.visibleRows)
+    expect(
+      observation.board.every((row) => row.length === DEFAULT_CONFIG.columns)
+    ).toBe(true)
+    expect(
+      observation.board.every((row) => row.every((cell) => cell === null))
+    ).toBe(true)
+    expect(observation.active).toEqual({
+      key: "T",
+      rotation: 0,
+      x: SPAWN_X.T,
+      y: SPAWN_Y.T + 1 - DEFAULT_CONFIG.bufferRows,
+    })
+    expect(observation.ghostY).toBe(engine.ghostY! - DEFAULT_CONFIG.bufferRows)
+  })
+
+  it("carries the held piece and the progress counters as they move", () => {
+    const engine = newGame(1)
+    engine.tick(input({ hold: true }))
+    expect(engine.observe().hold).toBe(engine.readout.hold)
+    expect(engine.observe().hold).not.toBeNull()
+
+    engine.tick(input({ hardDrop: true }))
+    expect(engine.observe().score).toBeGreaterThan(0)
+    expect(engine.observe().tick).toBe(2)
+  })
+
+  it("keeps React, pixi and three out of the Engine's sources", () => {
+    // The read surface is plain data in a headless module (this file's node
+    // environment): a renderer or React sneaking in would break that contract.
+    // Pixi and three are also guarded from the page by the eager-graph walk.
+    const renderers = ["react", "react-dom", "pixi.js", "three"]
+    const dir = resolve(__dirname, "../../../lib/tetris")
+    const offenders = readdirSync(dir)
+      .filter((name) => name.endsWith(".ts"))
+      .flatMap((name) => {
+        const source = readFileSync(join(dir, name), "utf8")
+        return [
+          ...source.matchAll(
+            /^\s*import\s+(?!type\s)(?:[^"']*?from\s+)?["']([^"']+)["']/gm
+          ),
+        ]
+          .map((match) => match[1])
+          .filter((specifier) =>
+            renderers.some(
+              (pkg) => specifier === pkg || specifier.startsWith(`${pkg}/`)
+            )
+          )
+          .map((specifier) => `lib/tetris/${name} imports ${specifier}`)
+      })
+    expect(offenders).toEqual([])
   })
 })
 

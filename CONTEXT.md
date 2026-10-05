@@ -243,7 +243,7 @@ The plain-JSON snapshot of the game an AI reads: the visible board, the active p
 _Avoid_: state dump, export
 
 **Placement**:
-One candidate destination for the current piece: a rotation and a column it can be hard-dropped into legally. The Engine enumerates Placements for an AI to score; landings reachable only through wall kicks are not enumerated — a documented ceiling, not an oversight.
+One candidate destination for the current piece: a rotation and a column it can be hard-dropped into legally from where it stands. The Engine enumerates Placements for an AI to score by shifting and rotating the piece in place at its own row; landings that need a wall kick — or a descent before the rotation — are not enumerated, a documented ceiling, not an oversight.
 _Avoid_: move, candidate
 
 **Cabinet**:
