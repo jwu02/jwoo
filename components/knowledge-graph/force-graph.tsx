@@ -39,7 +39,7 @@ import {
 } from "@/lib/knowledge-graph/graph-data";
 import { graphPointFromClient, isDragGesture } from "@/lib/knowledge-graph/framing";
 import { createCamera, type Camera } from "@/lib/knowledge-graph/camera";
-import { usePixiApp } from "./use-pixi-app";
+import { usePixiApp } from "@/hooks/use-pixi-app";
 
 interface ForceGraphProps {
   graph: KnowledgeGraphData;
