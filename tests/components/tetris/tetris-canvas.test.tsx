@@ -90,7 +90,8 @@ describe("the cabinet's renderer", () => {
     const { pay } = await setUp()
     const rects = pay(0)
 
-    // The ground, then the well's one heavy frame.
+    // The ground, then the well's one heavy frame, which wraps the well box
+    // two pixels out on every side.
     expect(rects[0]).toEqual({
       x: 0,
       y: 0,
@@ -98,9 +99,9 @@ describe("the cabinet's renderer", () => {
       height: CABINET.height,
     })
     expect(rects).toContainEqual({
-      x: CABINET.well.x - 4,
-      y: CABINET.well.y - 4,
-      width: CABINET.well.width + 8,
+      x: CABINET.well.x - 2,
+      y: CABINET.well.y - 2,
+      width: CABINET.well.width + 4,
       height: 2,
     })
     // Everything drawn is inside the art: a stray coordinate would be a rect
@@ -151,13 +152,13 @@ describe("the cabinet's renderer", () => {
     const { engine, controller, pay, gfx } = await setUp()
     engine.start()
 
-    // The hold preview draws 2×2 mino tiles (scale 3), the only 2×2 rects on
-    // the skin in the slot's own rows — the NEXT minis draw at the same scale
-    // but share the row only to its right, so the slot is fenced on both
-    // sides. The slot's box is the skin's preview(8, 35, 32, 9); the hard
-    // numbers are the point of the test.
-    const SLOT = { x: 8, y: 35, right: 44, bottom: 44 }
-    const TILE = 2
+    // The hold preview draws 1×1 mino tiles (scale 2), the only 1×1 rects on
+    // the skin in the slot's own rows — the NEXT column's minos draw at the
+    // same scale but share the rows only to its right, so the slot is fenced
+    // on both sides. The slot's box is the skin's preview(8, 45, 32, 9); the
+    // hard numbers are the point of the test.
+    const SLOT = { x: 8, y: 45, right: 44, bottom: 54 }
+    const TILE = 1
     const slotTiles = (rects: RecordedGraphics["__rects"]) =>
       rects
         .map((rect, index) => ({ rect, fill: gfx.__fills[index] }))

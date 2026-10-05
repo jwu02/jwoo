@@ -247,12 +247,12 @@ One candidate destination for the current piece: a rotation and a column it can 
 _Avoid_: move, candidate
 
 **Cabinet**:
-The game's presentation drawn as one framed design: the well and its frame, with the HUD overlaid on the well's top rows. One fixed pixel-art design size, scaled up as a unit so its pixels stay square.
+The game's presentation drawn as one framed design: the stats readouts in a header above the well and its frame, with the hold slot and next queue overlaid on the well. One fixed pixel-art design size, scaled up as a unit so its pixels stay square.
 _Avoid_: screen, layout, board
 
 **HUD**:
-The translucent panels drawn over the well's top rows — the stats band, the hold slot and the next queue. Part of the cabinet's skin, veiled so the stack reads through it; there are no panels beside the well.
-_Avoid_: chrome, side panels, header band
+The translucent panels drawn over the well — the hold slot and the next queue. Part of the cabinet's skin, veiled so the stack reads through it; the stats readouts sit above the well, outside the playfield.
+_Avoid_: chrome, side panels
 
 **Well**:
 The 10×20 visible playfield the cabinet frames. The Engine's board runs two rows higher — spawn rows the visitor never sees — so the well is the visible slice, not the whole board.

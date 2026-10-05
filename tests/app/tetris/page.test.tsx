@@ -57,9 +57,9 @@ describe("the Tetris application", () => {
     // The surface is the focusable box the keys are read from; autofocus is what
     // makes the machine playable without a click first.
     expect(surface()).toHaveFocus()
-    // Whole-number scaling of the 108×208 art, measured from the box: jsdom
+    // Whole-number scaling of the 108×234 art, measured from the box: jsdom
     // reports no layout, so this is the art's own size.
-    expect(surface()).toHaveStyle({ width: "108px", height: "208px" })
+    expect(surface()).toHaveStyle({ width: "108px", height: "234px" })
     expect(announcement()).toMatch(/ready/i)
   })
 

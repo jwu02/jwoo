@@ -263,7 +263,7 @@ export function TetrisCabinet() {
         tabIndex={0}
         className="outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-white/40"
         // The scaled box, with the art's own pixels asked for back: the
-        // renderer draws 108×208 and CSS stretches it (ADR 0007). Touch-action
+        // renderer draws 108×234 and CSS stretches it (ADR 0007). Touch-action
         // none keeps a drag from scrolling the surface behind the well.
         style={{
           width: CABINET.width * scale,

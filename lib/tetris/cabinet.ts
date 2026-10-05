@@ -2,15 +2,15 @@
 //
 // One unit per art pixel: the canvas backing store is exactly this size, and
 // everything the visitor sees is drawn one-to-one and scaled by CSS. The
-// design is the well and its frame alone — the stats band, the hold slot and
-// the next queue are translucent HUD panels overlaid on the well's top rows,
-// not panels beside it.
+// stats read out in a header above the well; the well and its frame fill the
+// rest; the hold slot and the next queue are translucent panels overlaid on
+// the well, not panels beside it.
 
 export const CABINET = {
   width: 108,
-  height: 208,
+  height: 234,
   /** The well's box, and the size of one mino inside it. */
-  well: { x: 4, y: 4, width: 100, height: 200 },
+  well: { x: 4, y: 30, width: 100, height: 200 },
   cell: 10,
 } as const
 
