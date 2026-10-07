@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 
 import TetrisPage from "@/app/tetris/page"
 import type { TetrisCanvasProps } from "@/components/tetris/tetris-canvas"
+import { READY_MENU } from "@/lib/tetris/cabinet"
+import { CONSENT_KEY } from "@/lib/tetris/kevala"
 
 // The renderer is stubbed so pixi never loads, and the stub keeps the props it
 // was handed: that is the engine and the controller, so the tests below drive
@@ -40,14 +42,25 @@ function playToGameOver() {
   })
 }
 
+/** A touch tap on the cabinet, at one y in screen pixels. */
+function tapAt(y: number, pointerId = 1) {
+  const point = { pointerId, pointerType: "touch", clientX: 54, clientY: y }
+  fireEvent.pointerDown(surface(), point)
+  fireEvent.pointerUp(surface(), point)
+}
+
 beforeEach(() => {
   mockCanvasProps = null
+  localStorage.clear()
   jest
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockReturnValue({} as never)
 })
 
-afterEach(() => jest.restoreAllMocks())
+afterEach(() => {
+  jest.restoreAllMocks()
+  Reflect.deleteProperty(navigator, "gpu")
+})
 
 describe("the Tetris application", () => {
   it("mounts a cabinet at its own art size and takes the keyboard", () => {
@@ -217,6 +230,82 @@ describe("the Tetris application", () => {
     expect(fireEvent.keyDown(document.body, { key: "ArrowLeft" })).toBe(true)
     act(() => engine.tick(controller.nextIntent()))
     expect(engine.active).toEqual(piece)
+  })
+
+  describe("the kevala offer", () => {
+    function grantWebGPU() {
+      Object.defineProperty(navigator, "gpu", { value: {}, configurable: true })
+    }
+
+    it("hands the ready screen what the device and the record say", () => {
+      render(<TetrisPage />)
+      expect(mockCanvasProps!.offer).toEqual({
+        available: false,
+        pending: true,
+      })
+      // Nothing drawn carries meaning on its own: the offer is said, too.
+      expect(announcement()).toMatch(/needs webgpu/i)
+    })
+
+    it("offers kevala where WebGPU exists and the Checkpoint is unconsented", () => {
+      grantWebGPU()
+      localStorage.setItem(CONSENT_KEY, "1")
+      render(<TetrisPage />)
+      expect(mockCanvasProps!.offer).toEqual({
+        available: true,
+        pending: false,
+      })
+      expect(announcement()).toMatch(/press K for kevala/i)
+    })
+
+    it("enters the kevala flow on K, and leaves Enter to 1 PLAYER", () => {
+      grantWebGPU()
+      render(<TetrisPage />)
+
+      fireEvent.keyDown(surface(), { key: "k" })
+      expect(announcement()).toMatch(/kevala/i)
+
+      // The offer takes nothing from the game: Enter still plays 1 PLAYER.
+      fireEvent.keyDown(surface(), { key: "Enter" })
+      expect(announcement()).toMatch(/playing/i)
+      expect(mockCanvasProps!.engine.readout.phase).toBe("playing")
+    })
+
+    it("refuses K where WebGPU is missing, dimming the line instead", () => {
+      render(<TetrisPage />)
+
+      fireEvent.keyDown(surface(), { key: "k" })
+
+      expect(announcement()).toMatch(/ready/i)
+      expect(mockCanvasProps!.engine.readout.phase).toBe("ready")
+    })
+
+    it("enters the kevala flow from the KEVALA tap zone where WebGPU exists", () => {
+      grantWebGPU()
+      render(<TetrisPage />)
+
+      tapAt(READY_MENU.kevala.y)
+
+      expect(announcement()).toMatch(/kevala/i)
+      expect(mockCanvasProps!.engine.readout.phase).toBe("ready")
+    })
+
+    it("refuses the KEVALA tap zone without WebGPU — no kevala, and no game either", () => {
+      render(<TetrisPage />)
+
+      tapAt(READY_MENU.kevala.y)
+
+      expect(announcement()).toMatch(/ready/i)
+      expect(mockCanvasProps!.engine.readout.phase).toBe("ready")
+    })
+
+    it("still starts 1 PLAYER from the rest of the ready screen", () => {
+      render(<TetrisPage />)
+
+      tapAt(READY_MENU.player.y)
+
+      expect(announcement()).toMatch(/playing/i)
+    })
   })
 
   describe("playing by touch", () => {

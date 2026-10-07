@@ -21,6 +21,15 @@ describe("the touch Controller", () => {
     expect(touch.nextIntent()).toEqual(NO_INTENT)
   })
 
+  it("hands the start screen where the tap landed, for its menu", () => {
+    // The ready screen's lines are picked by tap zones, so the start callback
+    // carries the release point rather than a bare "someone tapped".
+    const { touch, startedAt } = setUp({ playing: false })
+    touch.pointerDown(1, 14, 150)
+    touch.pointerUp(1, 14, 152)
+    expect(startedAt()).toEqual({ x: 14, y: 152 })
+  })
+
   it("does not tap a release that has already paid a shift", () => {
     const { touch } = setUp()
     touch.pointerDown(1, 0, 0)
@@ -209,11 +218,13 @@ function setUp({ playing = true }: { playing?: boolean } = {}) {
   const inner = createController()
   let clock = 1000
   let starts = 0
+  let start: { x: number; y: number } | null = null
   const touch = createTouchController(inner, {
     cellWidth: 10,
     isPlaying: () => playing,
-    onStart: () => {
+    onStart: (x, y) => {
       starts += 1
+      start = { x, y }
     },
     now: () => clock,
   })
@@ -221,5 +232,6 @@ function setUp({ playing = true }: { playing?: boolean } = {}) {
     touch,
     advance: (ms: number) => (clock += ms),
     started: () => starts,
+    startedAt: () => start,
   }
 }

@@ -4,7 +4,11 @@
 // Intent at the Tick they are paid, so the two devices can coexist without
 // fighting over the same held flags.
 //
-// The gestures, in art cells (the caller converts to screen pixels):
+// It speaks one coordinate space and never learns which: the caller converts its
+// pointer events into the cabinet's own art pixels, so every measurement here is
+// in art cells and none of it changes when the cabinet is scaled up.
+//
+// The gestures, in art cells:
 //
 //  - a horizontal drag shifts one column per cell-width crossed, paid one per
 //    Tick — the finger mirrors the piece, and dragging back cancels what the
@@ -20,8 +24,6 @@ import type { Controller } from "./controller"
 
 /** A touch Controller: the same Controller interface plus the pointer events. */
 export interface TouchController extends Controller {
-  /** Re-measure the cell after the cabinet is resized. */
-  setCellWidth(px: number): void
   /** Abort the gesture in progress, if any — the caller mutes on pause. */
   cancelGesture(): void
   pointerDown(pointerId: number, x: number, y: number): void
@@ -31,12 +33,16 @@ export interface TouchController extends Controller {
 }
 
 export interface TouchOptions {
-  /** Screen pixels one well cell spans; the caller updates it on resize. */
+  /** One well cell in the caller's coordinates — art pixels for the cabinet. */
   cellWidth: number
   /** A tap rotates while playing; otherwise it asks for a new game. */
   isPlaying(): boolean
-  /** Called when a tap lands on the start or game-over screen. */
-  onStart(): void
+  /**
+   * Called when a tap lands on the start or game-over screen, with where it
+   * landed in the caller's coordinates — the ready screen picks its line by the
+   * release point.
+   */
+  onStart(x: number, y: number): void
   /** The gesture clock, for flick velocity. Injectable so tests can flick. */
   now?(): number
 }
@@ -57,7 +63,7 @@ export function createTouchController(
   options: TouchOptions
 ): TouchController {
   const now = options.now ?? (() => performance.now())
-  let cellPx = Math.max(1, options.cellWidth)
+  const cellPx = Math.max(1, options.cellWidth)
 
   function cell(): number {
     return cellPx
@@ -104,10 +110,6 @@ export function createTouchController(
     setDirection: (direction, held) => controller.setDirection(direction, held),
     press: (action) => controller.press(action),
 
-    setCellWidth(px) {
-      cellPx = Math.max(1, px)
-    },
-
     cancelGesture: forget,
 
     pointerDown(id, x, y) {
@@ -153,7 +155,7 @@ export function createTouchController(
         Math.abs(dy) < TAP_SLOP_CELLS * c
       ) {
         if (options.isPlaying()) controller.press("rotateCW")
-        else options.onStart()
+        else options.onStart(x, y)
       } else {
         samples.push({ x, y, t: now() })
         const { vx, vy } = velocity()

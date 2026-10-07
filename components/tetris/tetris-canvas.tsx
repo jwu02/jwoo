@@ -4,11 +4,12 @@ import { useEffect, useRef, type RefObject } from "react"
 import { Graphics, type ApplicationOptions, type Ticker } from "pixi.js"
 
 import { usePixiApp } from "@/hooks/use-pixi-app"
-import { CABINET } from "@/lib/tetris/cabinet"
+import { CABINET, READY_MENU } from "@/lib/tetris/cabinet"
 import { createTickClock } from "@/lib/tetris/clock"
 import { DEFAULT_CONFIG } from "@/lib/tetris/config"
 import type { Controller } from "@/lib/tetris/controller"
 import type { Engine, Readout } from "@/lib/tetris/engine"
+import type { KevalaOffer } from "@/lib/tetris/kevala"
 import { pieceCells, PIECE_COLORS, type PieceKey } from "@/lib/tetris/pieces"
 
 import { textPixels, textWidth } from "./pixel-font"
@@ -65,12 +66,14 @@ export interface TetrisCanvasProps {
   controller: Controller
   /** Read each frame: true while the adapter holds the game paused. */
   pausedRef: RefObject<boolean>
+  offer: KevalaOffer
 }
 
 export function TetrisCanvas({
   engine,
   controller,
   pausedRef,
+  offer,
 }: TetrisCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const app = usePixiApp(hostRef, PIXI_OPTIONS)
@@ -97,7 +100,7 @@ export function TetrisCanvas({
           engine.tick(controller.nextIntent())
         }
       }
-      drawCabinet(gfx, engine, ticker.lastTime, paused)
+      drawCabinet(gfx, engine, ticker.lastTime, paused, offer)
     }
 
     app.ticker.add(frame)
@@ -110,7 +113,7 @@ export function TetrisCanvas({
       app.stage.removeChild(gfx)
       gfx.destroy()
     }
-  }, [app, engine, controller, pausedRef])
+  }, [app, engine, controller, pausedRef, offer])
 
   // The backing store is the art's size and CSS stretches it into the box the
   // adapter sized: `autoDensity` is off so pixi writes no inline width on the
@@ -310,14 +313,28 @@ function drawScreens(
   gfx: Graphics,
   engine: Engine,
   now: number,
-  paused: boolean
+  paused: boolean,
+  offer: KevalaOffer
 ) {
   const { phase, score } = engine.readout
   if (phase === "ready") {
     textCentered(gfx, "TETRIS", 96, INK, 2)
     gfx.rect(24, 118, 60, 1).fill(LINE)
-    if (blink(now)) textCentered(gfx, "PRESS ENTER", 136, INK)
-    textCentered(gfx, "1 PLAYER", 156, DIM)
+    // The two-option menu: every line names its own key, and the adapter
+    // hit-tests a tap against the same bands READY_MENU declares.
+    const { player, kevala, missing } = READY_MENU
+    textCentered(gfx, player.label, player.y, INK)
+    if (offer.available) {
+      // A new Checkpoint blinks; a consented one sits still.
+      if (!offer.pending || blink(now)) {
+        textCentered(gfx, kevala.label, kevala.y, INK)
+      }
+    } else {
+      // The honest fallback rather than a slow path: the line says what it
+      // would need, and nothing about it invites a press.
+      textCentered(gfx, kevala.label, kevala.y, DIM)
+      textCentered(gfx, missing.label, missing.y, DIM)
+    }
     // The control hints live here and only here: during play the skin stays
     // clean, and a touch player is not served keyboard hints mid-game.
     textCentered(gfx, "ARROWS MOVE", 178, DIM)
@@ -349,7 +366,8 @@ function drawCabinet(
   gfx: Graphics,
   engine: Engine,
   now: number,
-  paused: boolean
+  paused: boolean,
+  offer: KevalaOffer
 ) {
   gfx.clear()
   gfx.rect(0, 0, CABINET.width, CABINET.height).fill(BG)
@@ -358,5 +376,5 @@ function drawCabinet(
   // cover the playfield at all.
   drawWell(gfx, engine)
   drawSkin(gfx, engine.readout)
-  drawScreens(gfx, engine, now, paused)
+  drawScreens(gfx, engine, now, paused, offer)
 }

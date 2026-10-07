@@ -15,6 +15,40 @@ export const CABINET = {
 } as const
 
 /**
+ * The ready screen's two-option menu, in art pixels. Each line names its key and
+ * carries its own row band: the renderer draws the line at `y`, and the adapter
+ * hit-tests a tap against `band`, so a drawn line and its tap zone cannot drift
+ * apart (ADR-0008).
+ */
+export const READY_MENU = {
+  player: { y: 136, band: [128, 144], label: "ENTER 1 PLAYER" },
+  kevala: { y: 152, band: [144, 174], label: "K KEVALA" },
+  /**
+   * What the kevala line says in place of a choice this browser can make. It
+   * sits inside the kevala band, so the explanation refuses a tap exactly as
+   * the line it explains does.
+   */
+  missing: { y: 166, label: "NEEDS WEBGPU" },
+} as const
+
+const CHOICES = ["player", "kevala"] as const
+
+export type ReadyChoice = (typeof CHOICES)[number]
+
+/**
+ * Which ready-screen line an art-space y lands on, if any. Anything else — the
+ * title, the stats, the hints — answers nothing, and a tap there starts the
+ * 1 PLAYER game the screen is already asking for.
+ */
+export function readyChoiceAt(artY: number): ReadyChoice | null {
+  for (const choice of CHOICES) {
+    const [top, bottom] = READY_MENU[choice].band
+    if (artY >= top && artY < bottom) return choice
+  }
+  return null
+}
+
+/**
  * Surfaces whose smaller dimension is under this are small screens: the scale
  * goes fractional so the cabinet fills the box, because the whole-number floor
  * would pin a phone to a fraction of its screen. The number is the OS shell's

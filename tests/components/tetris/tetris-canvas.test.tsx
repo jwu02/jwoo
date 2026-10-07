@@ -1,10 +1,17 @@
-import { render, waitFor } from "@testing-library/react"
+import { fireEvent, render, waitFor } from "@testing-library/react"
 import type { Application, Graphics } from "pixi.js"
 
+import { TetrisCabinet } from "@/components/tetris/tetris-cabinet"
 import { TetrisCanvas } from "@/components/tetris/tetris-canvas"
-import { CABINET } from "@/lib/tetris/cabinet"
+import {
+  textPixels,
+  textWidth,
+  glyphSafe,
+} from "@/components/tetris/pixel-font"
+import { CABINET, READY_MENU } from "@/lib/tetris/cabinet"
 import { createController } from "@/lib/tetris/controller"
 import { createEngine } from "@/lib/tetris/engine"
+import type { KevalaOffer } from "@/lib/tetris/kevala"
 import { pieceCells, PIECE_COLORS } from "@/lib/tetris/pieces"
 
 // The cabinet's drawing is ~700 rectangles a frame, and the only part of it that
@@ -24,7 +31,9 @@ interface RecordedApp extends Application {
   }
 }
 
-async function setUp(paused = false) {
+const AVAILABLE: KevalaOffer = { available: true, pending: false }
+
+async function setUp(offer: KevalaOffer = AVAILABLE, paused = false) {
   const engine = createEngine({ seed: 1 })
   const controller = createController()
   const pausedRef = { current: paused }
@@ -34,6 +43,7 @@ async function setUp(paused = false) {
       engine={engine}
       controller={controller}
       pausedRef={pausedRef}
+      offer={offer}
     />
   )
 
@@ -62,6 +72,39 @@ function drawnTiles(rects: RecordedGraphics["__rects"]) {
   )
 }
 
+/**
+ * Whether every lit pixel of `value`, centered on the art at `y`, was drawn —
+ * the test's own reading of the renderer's line of text.
+ */
+function drawsText(
+  rects: RecordedGraphics["__rects"],
+  value: string,
+  y: number,
+  scale = 1
+) {
+  const x = Math.round((CABINET.width - textWidth(value, scale)) / 2)
+  return textPixels(value, x, y, scale).every((pixel) =>
+    rects.some(
+      (rect) =>
+        rect.x === pixel.x &&
+        rect.y === pixel.y &&
+        rect.width === pixel.size &&
+        rect.height === pixel.size
+    )
+  )
+}
+
+/** The fill of the first lit pixel of a line of text, for the dim/ink reading. */
+function textFill(gfx: RecordedGraphics, value: string, y: number, scale = 1) {
+  const x = Math.round((CABINET.width - textWidth(value, scale)) / 2)
+  const [pixel] = textPixels(value, x, y, scale)
+  const index = gfx.__rects.findIndex(
+    (rect) =>
+      rect.x === pixel.x && rect.y === pixel.y && rect.width === pixel.size
+  )
+  return gfx.__fills[index]
+}
+
 function drawsTile(
   rects: RecordedGraphics["__rects"],
   column: number,
@@ -84,6 +127,102 @@ describe("the cabinet's renderer", () => {
     // frame's cleanup must not reach for it. This is the bug that threw
     // "Cannot read properties of null (reading 'remove')" on route change.
     expect(() => unmount()).not.toThrow()
+  })
+
+  it("offers only copy the pixel font can draw", () => {
+    // ADR-0008: a glyph the font lacks draws a silent "?" on the cabinet, so
+    // every line of the menu is checked against the set before it is drawn.
+    // Lower case draws as upper case; a character with no glyph does not.
+    for (const line of Object.values(READY_MENU)) {
+      expect(glyphSafe(line.label)).toBe(true)
+    }
+    expect(glyphSafe("kevala 2026-a")).toBe(true)
+    expect(glyphSafe("100%")).toBe(false)
+  })
+
+  it("offers both lines on the ready screen, and leaves the hints alone", async () => {
+    const { pay } = await setUp()
+    const rects = pay(0)
+
+    expect(drawsText(rects, READY_MENU.player.label, READY_MENU.player.y)).toBe(
+      true
+    )
+    expect(drawsText(rects, READY_MENU.kevala.label, READY_MENU.kevala.y)).toBe(
+      true
+    )
+    // The fallback copy belongs to a browser that cannot run kevala.
+    expect(
+      drawsText(rects, READY_MENU.missing.label, READY_MENU.missing.y)
+    ).toBe(false)
+    // The control hints are exactly as they were: the menu took no rows from
+    // them, and each line is the copy it always was.
+    for (const [label, y] of [
+      ["TETRIS", 96],
+      ["ARROWS MOVE", 178],
+      ["Z X ROT", 190],
+      ["SPACE DROP", 202],
+      ["C HOLD", 214],
+    ] as const) {
+      expect(drawsText(rects, label, y, label === "TETRIS" ? 2 : 1)).toBe(true)
+    }
+  })
+
+  it("blinks the kevala line while the Checkpoint is new, and steadies it once consented", async () => {
+    // No consent record yet: the line toggles with the blink that marks a new
+    // offer.
+    const pending = await setUp({ available: true, pending: true })
+    expect(
+      drawsText(
+        pending.pay(0, 1000),
+        READY_MENU.kevala.label,
+        READY_MENU.kevala.y
+      )
+    ).toBe(true)
+    expect(
+      drawsText(
+        pending.pay(0, 450),
+        READY_MENU.kevala.label,
+        READY_MENU.kevala.y
+      )
+    ).toBe(false)
+
+    // Consent on record: the line stays lit through the same frames.
+    const consented = await setUp()
+    expect(
+      drawsText(
+        consented.pay(0, 1000),
+        READY_MENU.kevala.label,
+        READY_MENU.kevala.y
+      )
+    ).toBe(true)
+    expect(
+      drawsText(
+        consented.pay(0, 450),
+        READY_MENU.kevala.label,
+        READY_MENU.kevala.y
+      )
+    ).toBe(true)
+  })
+
+  it("dims the kevala line and names what it needs where WebGPU is missing", async () => {
+    const { gfx, pay } = await setUp({ available: false, pending: true })
+    const rects = pay(0, 450)
+
+    // Still drawn on both halves of the blink — it is an explanation, not an
+    // offer, so nothing about it asks for attention.
+    expect(drawsText(rects, READY_MENU.kevala.label, READY_MENU.kevala.y)).toBe(
+      true
+    )
+    expect(
+      drawsText(rects, READY_MENU.missing.label, READY_MENU.missing.y)
+    ).toBe(true)
+    expect(textFill(gfx, READY_MENU.kevala.label, READY_MENU.kevala.y)).toBe(
+      "#7a7a90"
+    )
+    // The 1 PLAYER line is untouched: the fallback dims kevala, not the game.
+    expect(textFill(gfx, READY_MENU.player.label, READY_MENU.player.y)).toBe(
+      "#d8d8e4"
+    )
   })
 
   it("draws the whole cabinet, the well included, inside the art's own box", async () => {
@@ -261,5 +400,74 @@ describe("the cabinet's renderer", () => {
     pausedRef.current = false
     pay(1000 / 60)
     expect(engine.active!.x).toBe(before.x)
+  })
+})
+
+describe("the ready screen's offer, over the real cabinet", () => {
+  // The adapter, its dynamic import and the pixi mock together: both doors into
+  // the kevala flow are asserted where the visitor's input meets the cabinet
+  // that draws, so a key or a tap that never leaves the adapter cannot pass.
+  beforeEach(() => {
+    jest
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({} as never)
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    Reflect.deleteProperty(navigator, "gpu")
+  })
+
+  async function mountCabinet() {
+    const { container } = render(<TetrisCabinet />)
+    await waitFor(() =>
+      expect(container.querySelector("canvas")).not.toBeNull()
+    )
+    const canvas = container.querySelector("canvas")!
+    const app = (canvas as unknown as { __pixiApp: RecordedApp }).__pixiApp
+    await waitFor(() => expect(app.ticker.callbacks.length).toBeGreaterThan(0))
+    const gfx = app.stage.children[0] as RecordedGraphics
+    for (const frame of app.ticker.callbacks) {
+      frame({ elapsedMS: 0, lastTime: 1000 })
+    }
+    const status = () =>
+      container.querySelector('[role="status"]')?.textContent ?? ""
+    const tap = (y: number) => {
+      const point = {
+        pointerId: 1,
+        pointerType: "touch",
+        clientX: 54,
+        clientY: y,
+      }
+      const surface = container.querySelector('[role="application"]')!
+      fireEvent.pointerDown(surface, point)
+      fireEvent.pointerUp(surface, point)
+    }
+    return { rects: gfx.__rects, status, tap }
+  }
+
+  it("opens the kevala flow on K, over the cabinet it drew the offer on", async () => {
+    Object.defineProperty(navigator, "gpu", { value: {}, configurable: true })
+    const { rects, status } = await mountCabinet()
+
+    expect(drawsText(rects, READY_MENU.kevala.label, READY_MENU.kevala.y)).toBe(
+      true
+    )
+
+    fireEvent.keyDown(document.querySelector('[role="application"]')!, {
+      key: "k",
+    })
+    expect(status()).toMatch(/kevala chosen/i)
+  })
+
+  it("refuses the KEVALA tap zone without WebGPU, and starts 1 PLAYER elsewhere", async () => {
+    const { status, tap } = await mountCabinet()
+
+    tap(READY_MENU.kevala.y)
+    expect(status()).toMatch(/needs webgpu/i)
+    expect(status()).not.toMatch(/chosen/i)
+
+    tap(READY_MENU.player.y)
+    expect(status()).toMatch(/playing/i)
   })
 })

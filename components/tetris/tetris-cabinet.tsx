@@ -10,7 +10,7 @@ import {
 } from "react"
 
 import { SceneGate } from "@/components/scene-gate"
-import { CABINET, cabinetScale } from "@/lib/tetris/cabinet"
+import { CABINET, cabinetScale, readyChoiceAt } from "@/lib/tetris/cabinet"
 import {
   createController,
   type Action,
@@ -18,6 +18,11 @@ import {
 } from "@/lib/tetris/controller"
 import { createTouchController } from "@/lib/tetris/touch"
 import { createEngine, type Phase } from "@/lib/tetris/engine"
+import {
+  consentPending,
+  webgpuAvailable,
+  type KevalaOffer,
+} from "@/lib/tetris/kevala"
 
 // Module scope so the gate resolves the canvas once, rather than rebuilding the
 // loaded component on every render.
@@ -63,11 +68,41 @@ const SWALLOWED = new Set([
   " ",
 ])
 
-function announcementFor(phase: Phase, paused: boolean): string {
+function announcementFor(
+  phase: Phase,
+  paused: boolean,
+  kevala: { chosen: boolean; available: boolean }
+): string {
   if (paused) return "Tetris paused. Press Escape to resume."
-  if (phase === "ready") return "Tetris ready. Press Enter to play."
+  if (phase === "ready") {
+    // The ready screen's menu is drawn (ADR-0008), so what it offers is said
+    // here too: the second door, or why there is none.
+    if (kevala.chosen) return "kevala chosen."
+    return kevala.available
+      ? "Tetris ready. Press Enter to play. Press K for kevala."
+      : "Tetris ready. Press Enter to play. kevala needs WebGPU."
+  }
   if (phase === "playing") return "Tetris playing."
   return "Game over. Press Enter to play again."
+}
+
+/**
+ * A pointer event's position in art pixels: the space the touch Controller
+ * measures gestures in and the ready screen's tap bands are declared in. The
+ * cabinet is one scaled design (ADR 0007), so the box's own height is the whole
+ * of the conversion. Without layout (jsdom, or a box nothing has measured) a
+ * screen pixel is an art pixel, which is what a cabinet at scale 1 is anyway.
+ */
+function toArt(event: React.PointerEvent<HTMLDivElement>): {
+  x: number
+  y: number
+} {
+  const box = event.currentTarget.getBoundingClientRect()
+  const scale = box.height > 0 ? box.height / CABINET.height : 1
+  return {
+    x: (event.clientX - box.left) / scale,
+    y: (event.clientY - box.top) / scale,
+  }
 }
 
 /**
@@ -91,29 +126,55 @@ export function TetrisCabinet() {
   const pausedRef = useRef(false)
   const [paused, setPaused] = useState(false)
   const [scale, setScale] = useState(1)
+  // The ready screen's second choice is the kevala flow's only door: once a
+  // visitor takes it, the flow owns the cabinet (ADR-0008). The consent ticket
+  // turns this flag into the flow's own screens.
+  const [kevalaChosen, setKevalaChosen] = useState(false)
+  // The offer is a fact about this device, so it is read after mount: the
+  // server renders the announcement as unoffered, and the first client render
+  // agrees with it (the same reason SceneGate checks WebGL in an effect).
+  const [offer, setOffer] = useState<KevalaOffer>({
+    available: false,
+    pending: true,
+  })
+  useEffect(() => {
+    // One-shot, after mount: a capability the server cannot know, resolved here
+    // so the server's announcement and the first client render agree, exactly
+    // as SceneGate's WebGL check does.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOffer({ available: webgpuAvailable(), pending: consentPending() })
+  }, [])
   const getPhase = useCallback(() => engine.readout.phase, [engine])
   const phase = useSyncExternalStore(engine.subscribe, getPhase, getPhase)
 
   // One Controller behind both devices: the keyboard writes its held flags and
   // presses, and the touch layer merges its gestures into the same intents —
-  // the object the renderer pays Ticks from (ADR 0006).
+  // the object the renderer pays Ticks from (ADR 0006). Touch gestures are
+  // measured in art pixels, so scaling the cabinet never changes what a drag
+  // means; the canvas size is the surface's business, not the Controller's.
   const controller = useMemo(
     () =>
       createTouchController(createController(), {
-        cellWidth: CABINET.cell * scale,
+        cellWidth: CABINET.cell,
         isPlaying: () => engine.readout.phase === "playing",
         // A tap only asks for a game when phase is ready or over — and the
         // game cannot end while paused, so the cabinet is never paused here.
         // The reset is what Enter does too: nothing held or owed survives it.
-        onStart: () => {
+        onStart: (_x, y) => {
+          // The ready screen's lines are picked by the row the tap landed in
+          // (READY_MENU), and a refused kevala line refuses the whole tap: it
+          // must not start the 1 PLAYER game hidden behind it.
+          const choice =
+            engine.readout.phase === "ready" ? readyChoiceAt(y) : null
+          if (choice === "kevala") {
+            if (offer.available) setKevalaChosen(true)
+            return
+          }
           controller.reset()
           engine.start()
         },
       }),
-    // scale is only the seed value; the measure effect keeps the controller
-    // told, so a resize never needs this object rebuilt mid-gesture.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [engine]
+    [engine, offer]
   )
 
   const setPause = useCallback(
@@ -159,16 +220,14 @@ export function TetrisCabinet() {
     if (box === null) return
     const measure = () => {
       const rect = box.getBoundingClientRect()
-      const next = cabinetScale(rect.width, rect.height)
-      controller.setCellWidth(CABINET.cell * next)
-      setScale(next)
+      setScale(cabinetScale(rect.width, rect.height))
     }
     measure()
     if (typeof ResizeObserver === "undefined") return
     const observer = new ResizeObserver(measure)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [controller])
+  }, [])
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -182,6 +241,12 @@ export function TetrisCabinet() {
           setPause(false)
           engine.start()
         }
+        return
+      }
+      if ((event.key === "k" || event.key === "K") && phase === "ready") {
+        // The keyboard's twin of the KEVALA tap zone: same refusal without
+        // WebGPU, same flow with it.
+        if (offer.available) setKevalaChosen(true)
         return
       }
       if (event.key === "Escape") {
@@ -200,7 +265,7 @@ export function TetrisCabinet() {
       // or a drop is one press, not a stream of them.
       if (action !== undefined && !event.repeat) controller.press(action)
     },
-    [controller, engine, phase, setPause]
+    [controller, engine, phase, setPause, offer]
   )
 
   const onKeyUp = useCallback(
@@ -227,19 +292,22 @@ export function TetrisCabinet() {
   const onSurfacePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (pausedRef.current || event.pointerType === "mouse") return
-      controller.pointerDown(event.pointerId, event.clientX, event.clientY)
+      const { x, y } = toArt(event)
+      controller.pointerDown(event.pointerId, x, y)
     },
     [controller]
   )
   const onSurfacePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      controller.pointerMove(event.pointerId, event.clientX, event.clientY)
+      const { x, y } = toArt(event)
+      controller.pointerMove(event.pointerId, x, y)
     },
     [controller]
   )
   const onSurfacePointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      controller.pointerUp(event.pointerId, event.clientX, event.clientY)
+      const { x, y } = toArt(event)
+      controller.pointerUp(event.pointerId, x, y)
     },
     [controller]
   )
@@ -281,7 +349,7 @@ export function TetrisCabinet() {
         <SceneGate
           load={loadTetrisCanvas}
           containerClassName="relative size-full"
-          contentProps={{ engine, controller, pausedRef }}
+          contentProps={{ engine, controller, pausedRef, offer }}
           fallback={
             <div className="flex size-full items-center justify-center p-4 text-center">
               <p className="text-sm text-muted-foreground">
@@ -295,7 +363,10 @@ export function TetrisCabinet() {
           things a screen reader can be told, and the only things that change
           between Ticks. `status` is the polite live region. */}
       <p role="status" className="sr-only">
-        {announcementFor(phase, paused)}
+        {announcementFor(phase, paused, {
+          chosen: kevalaChosen,
+          available: offer.available,
+        })}
       </p>
     </div>
   )

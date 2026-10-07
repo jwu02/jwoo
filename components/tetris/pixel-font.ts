@@ -71,6 +71,16 @@ export function textWidth(text: string, scale = 1): number {
 }
 
 /**
+ * Whether every character has a glyph. Copy is drawn from the font's fixed set
+ * (ADR-0008), and an unknown character draws a silent "?" otherwise.
+ */
+export function glyphSafe(text: string): boolean {
+  return [...text].every(
+    (char) => (FONT[char] ?? FONT[char.toUpperCase()]) !== undefined
+  )
+}
+
+/**
  * The lit pixels of `text`, its top-left corner at (x, y). Lower case is drawn
  * as upper case — the font has one case — and anything else falls back to "?".
  */

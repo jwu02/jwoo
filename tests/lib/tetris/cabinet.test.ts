@@ -1,7 +1,12 @@
 /**
  * @jest-environment node
  */
-import { CABINET, cabinetScale } from "@/lib/tetris/cabinet"
+import {
+  CABINET,
+  cabinetScale,
+  READY_MENU,
+  readyChoiceAt,
+} from "@/lib/tetris/cabinet"
 
 describe("the cabinet's own geometry", () => {
   it("is the header-over-well art size, with the well inside it", () => {
@@ -15,6 +20,39 @@ describe("the cabinet's own geometry", () => {
     // Ten art pixels to a mino, ten minos to the well.
     expect(CABINET.well.width / CABINET.cell).toBe(10)
     expect(CABINET.well.height / CABINET.cell).toBe(20)
+  })
+})
+
+describe("the ready screen's menu", () => {
+  it("gives every line its own row band, with none overlapping", () => {
+    const { player, kevala } = READY_MENU
+    expect(player.y).toBeLessThan(kevala.y)
+    expect(player.band[0]).toBeLessThan(player.y)
+    expect(player.band[1]).toBeLessThanOrEqual(kevala.band[0])
+    expect(kevala.band[0]).toBeLessThan(kevala.y)
+    expect(kevala.band[1]).toBeGreaterThan(kevala.y)
+    // The fallback copy is inside the kevala band: a tap on NEEDS WEBGPU
+    // refuses exactly as a tap on the line it explains does.
+    expect(readyChoiceAt(READY_MENU.missing.y)).toBe("kevala")
+    // Both bands sit over the well, where the menu is drawn, not in the stats.
+    for (const line of [player, kevala]) {
+      expect(line.band[0]).toBeGreaterThan(CABINET.well.y)
+      expect(line.band[1]).toBeLessThan(CABINET.height)
+    }
+  })
+
+  it("resolves a tap's row to a choice, and the rows between to nothing", () => {
+    expect(readyChoiceAt(READY_MENU.player.y)).toBe("player")
+    expect(readyChoiceAt(READY_MENU.kevala.y)).toBe("kevala")
+    // The tap's own band: the line's row plus the margin around it.
+    expect(readyChoiceAt(READY_MENU.kevala.band[0])).toBe("kevala")
+    expect(readyChoiceAt(READY_MENU.kevala.band[1] - 1)).toBe("kevala")
+    // Above the menu (the title, the stats), between the bands, and below them
+    // (the control hints) no line answers, so the tap starts a 1 PLAYER game.
+    expect(readyChoiceAt(0)).toBeNull()
+    expect(readyChoiceAt(READY_MENU.player.band[0] - 1)).toBeNull()
+    expect(readyChoiceAt(READY_MENU.kevala.band[1])).toBeNull()
+    expect(readyChoiceAt(CABINET.height)).toBeNull()
   })
 })
 
