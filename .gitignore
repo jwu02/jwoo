@@ -1,5 +1,8 @@
 # dependencies
 /node_modules
+
+# throwaway spike harnesses carry their own dependencies
+/spikes/*/node_modules/
 /.pnp
 .pnp.*
 .yarn/*

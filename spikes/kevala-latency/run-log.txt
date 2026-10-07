@@ -1,0 +1,19 @@
+Runner summary for the run that fired the decision (2026-10-07 06:41:44,
+Apple M3, Chrome 154.0.0.0, WebGPU metal-3). Per-forward progress lines
+elided; the runs arrays below are every timed sample.
+
+06:41:44 report received
+06:41:44 model        onnx-community/laya-ONNX@42e2a6e fp16
+06:41:44 gpu          {"vendor":"apple","architecture":"metal-3","device":"","description":""} (Chrome/154.0.0.0)
+06:41:44 load         tokenizer 861 ms + model 437019 ms = 437881 ms (5 files fetched)
+06:41:44 forward      warmup-b40    [40, 512] k=4  median null ms  min null ms  runs []  finite true
+06:41:44 forward      b40x512       [40, 512] k=4  median 48582 ms  min 47536 ms  runs [47536,48714,51070,48582,48109]  finite true
+06:41:44 forward      b5x512        [5, 512] k=4  median 5547 ms  min 5509 ms  runs [5509,5585,5531,5547,5978]  finite true
+06:41:44 forward      b40xnatural   [40, 213] k=4  median 16552 ms  min 15821 ms  runs [16041,16556,16552,15821,16755]  finite true
+06:41:44
+06:41:44 DECISION     batched-40 median at the 512-token context: 48582 ms vs budget 4000 ms → MODERNBERT PIVOT
+06:41:44              (b40 at kevala's natural state length: 16552 ms)
+
+The first forward of the run (untimed warm-up, shader compilation) was
+52 368 ms; the untimed first forward at each other shape was 49 638 ms
+(b40x512) and 17 392 ms (b40xnatural).

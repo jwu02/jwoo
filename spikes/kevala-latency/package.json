@@ -1,0 +1,10 @@
+{
+  "name": "kevala-latency",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Throwaway latency spike for the kevala spec (jwu02/jwoo#53). Not shipped runtime.",
+  "dependencies": {
+    "@huggingface/transformers": "3.8.1"
+  }
+}

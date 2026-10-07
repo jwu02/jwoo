@@ -1,0 +1,46 @@
+{
+  "type": "done",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 8,
+    "deviceMemory": 16,
+    "webgpu": true,
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    }
+  },
+  "report": {
+    "model": "onnx-community/laya-ONNX (tokenizer only)",
+    "specials": {
+      "cls": 50281,
+      "sep": 50282,
+      "mask": 50284,
+      "pad": 50283
+    },
+    "wrapped": {
+      "cls": 50281,
+      "sep": 50281,
+      "mask": 50281,
+      "pad": 50281
+    },
+    "load": {
+      "tokenizerMs": 1090,
+      "modelMs": 0,
+      "totalMs": 1090,
+      "fetched": [
+        {
+          "file": "tokenizer_config.json",
+          "bytes": 308
+        },
+        {
+          "file": "tokenizer.json",
+          "bytes": 3583228
+        }
+      ]
+    },
+    "results": []
+  }
+}
