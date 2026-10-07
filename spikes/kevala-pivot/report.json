@@ -1,0 +1,75 @@
+{
+  "type": "done",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 8,
+    "deviceMemory": 16,
+    "webgpu": true,
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    }
+  },
+  "report": {
+    "model": "Xenova/distilbert-base-uncased-mnli@main q8",
+    "ort": {
+      "common": "1.22.0-dev.20250409-89f8206ba4",
+      "web": "1.22.0-dev.20250409-89f8206ba4"
+    },
+    "localModels": false,
+    "load": {
+      "modelMs": 72462,
+      "fetched": [
+        {
+          "file": "tokenizer_config.json",
+          "bytes": 372
+        },
+        {
+          "file": "config.json",
+          "bytes": 753
+        },
+        {
+          "file": "tokenizer.json",
+          "bytes": 711396
+        },
+        {
+          "file": "onnx/model_quantized.onnx",
+          "bytes": 67581975
+        }
+      ]
+    },
+    "attempts": [
+      {
+        "dtype": "pipeline q8",
+        "ok": true,
+        "ms": 72168
+      },
+      {
+        "dtype": "AutoModel q8",
+        "ok": true,
+        "ms": 293
+      }
+    ],
+    "results": [
+      {
+        "name": "decision",
+        "batch": 1,
+        "options": 40,
+        "firstMs": 28898,
+        "runs": [
+          28041,
+          28028,
+          28042
+        ],
+        "medianMs": 28041,
+        "minMs": 28028,
+        "finite": true,
+        "probabilitySum": 1.0000000000000004,
+        "top": "dropping the T piece rotated 0 into column 0",
+        "topScore": 0.025
+      }
+    ]
+  }
+}

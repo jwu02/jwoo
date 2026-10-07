@@ -41,6 +41,7 @@ function Miyamura() {
       alt=""
       width={56}
       height={56}
+      loading="eager"
       className="size-full object-cover"
     />
   )

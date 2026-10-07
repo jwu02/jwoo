@@ -460,6 +460,32 @@ describe("the Autopilot", () => {
     expect(manual.calls[1].observation.tick).toBe(0)
   })
 
+  it("discards a judgment that failed, and the next sighting fires fresh", async () => {
+    let broken = true
+    const judge: Judge = {
+      judge(observation, placements) {
+        // A dead worker: the seam's failure is a rejected judgment, not a hang.
+        if (broken) return Promise.reject(new Error("the worker died"))
+        return argmax(placements.map((placement) => -placement.y))
+      },
+    }
+    const { engine, autopilot } = setUp({ judge, config: FAST })
+    engine.start()
+    autopilot.setEnabled(true)
+
+    // The failure voids the sighting without leaving it outstanding — the piece
+    // is gravity's, and the gate reopens.
+    autopilot.nextIntent()
+    await Promise.resolve()
+    broken = false
+
+    const run = play(engine, autopilot, (run) =>
+      run.intents.some((intent) => intent.hardDrop)
+    )
+    expect(run.intents.some((intent) => intent.hardDrop)).toBe(true)
+    expect(autopilot.margin).not.toBeNull()
+  })
+
   it("voids its plan when it is switched off, and starts fresh when switched on", () => {
     // The farthest column: a plan with several Ticks of walking in it.
     const scripted = picking((placement, observation) =>

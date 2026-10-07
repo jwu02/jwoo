@@ -170,8 +170,20 @@ export function createAutopilot(
     // Fire and forget: an answer that arrives after its sighting was voided is
     // dropped on identity, so a stale one can never land on a newer piece.
     if (answer instanceof Promise)
-      answer.then((result) => accept(sighting, result))
+      answer.then(
+        (result) => accept(sighting, result),
+        // A Judge that failed — a dead worker, a model that threw — answers
+        // nothing. That is a void response like any other: no plan, the gate
+        // reopens, and the next sighting fires fresh. Caught here so a rejected
+        // judgment is never an unhandled one.
+        () => discard(sighting)
+      )
     else accept(sighting, answer)
+  }
+
+  /** The judgment came back with nothing usable: the sighting is over, unplanned. */
+  function discard(sighting: Sighting) {
+    if (pending === sighting) pending = null
   }
 
   function accept(sighting: Sighting, answer: Judgment) {

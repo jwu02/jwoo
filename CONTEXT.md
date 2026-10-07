@@ -234,6 +234,10 @@ _Avoid_: frame (a render moment, not an Engine step), delta
 The source of play the Engine consumes — what the keyboard, a gesture, or an AI did, expressed per Tick as held directions and one-shot actions. Every Controller speaks the same shape, so swapping one in is a swap, not a rewrite. While paused, Controllers are muted.
 _Avoid_: input handler, event stream
 
+**Intent**:
+One Tick of play as the Engine consumes it: which directions are held and which one-shot actions fire. The whole of what any player — keyboard, gesture, Autopilot — can do; anything richer must be expressed as combinations, not new Engine concepts (ADR 0006).
+_Avoid_: input, command, keystroke
+
 **Readout**:
 The HUD-facing slice of the game — score, lines, level, next queue, hold, combo, back-to-back — republished only when one of those changes, never once per frame. The board itself is Engine state the renderer reads each frame; the Readout is the slice the HUD is allowed to see.
 _Avoid_: HUD state, stats
@@ -245,6 +249,30 @@ _Avoid_: state dump, export
 **Placement**:
 One candidate destination for the current piece: a rotation and a column it can be hard-dropped into legally from where it stands. The Engine enumerates Placements for an AI to score by shifting and rotating the piece in place at its own row; landings that need a wall kick — or a descent before the rotation — are not enumerated, a documented ceiling, not an oversight.
 _Avoid_: move, candidate
+
+**Autopilot**:
+The Controller that plays by itself. It judges Placements and drives the Engine through Intents, indistinguishable at the drive surface from keyboard and gestures — same interface, same rules, same DAS and lock delay. Deciding and driving are separate concerns: a Judge chooses, and the choice is executed target-relatively.
+_Avoid_: AI, bot, kevala (the name the cabinet shows the visitor — see **kevala**), Laya (the model behind one Judge, not the layer)
+
+**kevala**:
+The name the cabinet shows the visitor for the Autopilot — the choice on the ready screen, the consent and progress screens, the toggle during play. One thing, two words for two roles, as Note is to node. It plays through the same seam under the same rules; what it needs beyond a human — the model's weights — it asks for on the cabinet itself, once per Checkpoint.
+_Avoid_: Laya (the model behind one Judge), AI, bot, copilot
+
+**Judge**:
+The decision-maker over Placements: given an Observation and the legal Placements, it returns the one to play and the Margin it won by. Model, heuristic or dice all sit behind one seam; the Autopilot is judge-agnostic.
+_Avoid_: scorer, evaluator, brain, Laya
+
+**Plan**:
+The Autopilot's destination for the active piece: the piece it was judged for, the rotation and the column. Executed by re-deriving the remaining rotations and shifts from where the piece stands each Tick, a hard drop landing it — so a pause never invalidates one, and nothing else does either until the board it was judged on no longer exists.
+_Avoid_: script, intent list, playback
+
+**Margin**:
+How decisively a Placement won: the gap between the Judge's top two probabilities. Recorded with every decision, shown on the cabinet while kevala drives, acted on by nothing — calibration is observed, not obeyed.
+_Avoid_: confidence, score, certainty
+
+**Checkpoint**:
+One published version of the model behind kevala's Judge — the repo, file, revision and exact byte size, pinned as one constant that everything disclosing, recording or caching the weights reads. What the visitor consented to, the weights kept on the device, and the re-offer on the ready screen are all keyed to it — a new Checkpoint is a new offer, because they said yes to that model, not to kevala in general.
+_Avoid_: version (unqualified), weights, model file
 
 **Cabinet**:
 The game's presentation drawn as one framed design: the stats readouts in a header above the well and its frame, with the hold slot and next queue overlaid on the well. One fixed pixel-art design size, scaled up as a unit so its pixels stay square.

@@ -47,3 +47,6 @@ next-env.d.ts
 
 # local scratch (specs, notes — never committed)
 /.scratch/
+
+# spike model weights are a re-downloadable cache, never committed
+/spikes/*/models/

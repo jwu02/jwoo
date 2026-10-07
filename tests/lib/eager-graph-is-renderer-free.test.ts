@@ -26,14 +26,31 @@ const PAGE_ENTRIES = [
   join(ROOT, "app/layout.tsx"),
 ].map((path) => path.replace(`${ROOT}/`, ""))
 
-// Packages that pull a WebGL stack in, one renderer at a time. `three-stdlib`
-// and the R3F ecosystem are reached through three's roots, so matching the roots
-// is enough; a page is held to every renderer's list, not only its own.
-const RENDERER_PACKAGES = [
+/**
+ * Modules no route reaches, and which must still keep the boundary themselves:
+ * kevala's runtime, which the consent screen loads with a dynamic import
+ * (ADR-0009) and which builds the module Worker. The worker's `new URL(...)`
+ * never appears in an import statement, so this entry is the only way the walk
+ * can see a static `import "./kevala-worker"` beside it — the mistake that
+ * would put transformers.js back in the eager graph.
+ */
+const LAZY_ENTRIES = ["lib/tetris/kevala-runtime.ts"]
+
+const GUARDED_ENTRIES = [...PAGE_ENTRIES, ...LAZY_ENTRIES]
+
+// What a route's first chunk must never pull in: the renderers, one WebGL stack
+// at a time, and the ML runtime kevala scores with (ADR-0001, ADR-0009).
+// `three-stdlib` and the R3F ecosystem are reached through three's roots, so
+// matching the roots is enough; a page is held to every renderer's list, not
+// only its own. transformers.js reaches onnxruntime-web through its own root,
+// so both are named.
+const FORBIDDEN_PACKAGES = [
   "three",
   "@react-three/fiber",
   "@react-three/drei",
   "pixi.js",
+  "@huggingface/transformers",
+  "onnxruntime-web",
 ]
 
 /** Static import specifiers, and type-only imports are erased so they don't count. */
@@ -66,38 +83,42 @@ function resolveSpecifier(fromFile: string, specifier: string): string | null {
 }
 
 describe("eager module graph", () => {
-  it.each(PAGE_ENTRIES)("%s reaches no renderer statically", (entry) => {
-    const entryPath = join(ROOT, entry)
-    expect(existsSync(entryPath)).toBe(true)
+  it.each(GUARDED_ENTRIES)(
+    "%s reaches no renderer or ML runtime statically",
+    (entry) => {
+      const entryPath = join(ROOT, entry)
+      expect(existsSync(entryPath)).toBe(true)
 
-    const seen = new Set<string>()
-    const offenders: string[] = []
-    const queue = [entryPath]
+      const seen = new Set<string>()
+      const offenders: string[] = []
+      const queue = [entryPath]
 
-    while (queue.length > 0) {
-      const file = queue.pop()!
-      if (seen.has(file)) continue
-      seen.add(file)
+      while (queue.length > 0) {
+        const file = queue.pop()!
+        if (seen.has(file)) continue
+        seen.add(file)
 
-      for (const specifier of staticImports(readFileSync(file, "utf8"))) {
-        if (
-          RENDERER_PACKAGES.some(
-            (pkg) => specifier === pkg || specifier.startsWith(`${pkg}/`)
-          )
-        ) {
-          offenders.push(
-            `${file.replace(`${ROOT}/`, "")} imports "${specifier}"`
-          )
-          continue
+        for (const specifier of staticImports(readFileSync(file, "utf8"))) {
+          if (
+            FORBIDDEN_PACKAGES.some(
+              (pkg) => specifier === pkg || specifier.startsWith(`${pkg}/`)
+            )
+          ) {
+            offenders.push(
+              `${file.replace(`${ROOT}/`, "")} imports "${specifier}"`
+            )
+            continue
+          }
+          const resolved = resolveSpecifier(file, specifier)
+          if (resolved) queue.push(resolved)
         }
-        const resolved = resolveSpecifier(file, specifier)
-        if (resolved) queue.push(resolved)
       }
-    }
 
-    // A page that eagerly pulls a renderer defeats the client-only canvas: the
-    // server would evaluate the WebGL stack, and it would land in the first
-    // chunk.
-    expect(offenders).toEqual([])
-  })
+      // A page that eagerly pulls a renderer defeats the client-only canvas: the
+      // server would evaluate the WebGL stack, and it would land in the first
+      // chunk. A boundary module that statically reaches one defeats the same
+      // thing one layer down.
+      expect(offenders).toEqual([])
+    }
+  )
 })
