@@ -19,11 +19,15 @@ The one application the visitor is currently in. There is never more than one: s
 _Avoid_: open app, current window
 
 **Dock**:
-The site's navigation, and the only one it has — every application in a rail down the left (a bar along the bottom at narrow widths). Its order is the visitor's: dragging an application onto another's place moves it there, the others closing around it, and the Dock is what remembers where they left it, so the rail is the same on the next visit. The Desktop is Pinned and never moves; nothing is dropped before it. It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room. Full screen is the one state that takes it off screen entirely.
+The site's navigation, and the only one it has — every application in a rail down the left (a bar along the bottom at narrow widths). Its order is the visitor's: a drag picks an application up — the icon leaves the Dock's flow and follows the pointer, held by the grip the press took, while the Dock holds the size it had and the place the icon left stands empty, or is given up as the pointer passes off the Dock — and dropping it on another's place moves it there, the others closing around it. Off the Dock the drop decides nothing and the application keeps the place it holds. The Dock is what remembers where they left it, so the rail is the same on the next visit. The Desktop is Pinned and never moves; nothing is dropped before it. It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room. Full screen is the one state that takes it off screen entirely.
 _Avoid_: sidebar, menu, launcher
 
+**Drop**:
+Where a drag ends. On another application's place it rearranges: the dropped application moves there and the others close around the space it left. Off the Dock — past the Dock's own box, padding and gaps included — it decides nothing: the application keeps the place it holds, and whatever the drag rearranged on the way stands.
+_Avoid_: release, landing
+
 **Pinned**:
-Fixed in the Dock's first position and untouched by rearranging: not dragged onto another's place, and not displaced by one dropped on it. The Desktop is Pinned.
+Fixed in the Dock's first position and untouched by rearranging: not picked up, not dropped on, and not displaced by one dropped on it. The Desktop is Pinned.
 _Avoid_: locked, docked (that is whether an application is on the Dock at all), first item
 
 **Desktop**:
