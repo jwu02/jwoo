@@ -137,6 +137,7 @@ export const en: ResumeData = {
       group: "Development Tools",
       data: [
         "Claude Code",
+        "Pi Agent",
         "OpenCode",
         "Blender",
       ],
@@ -274,6 +275,7 @@ export const zh: ResumeData = {
       group: "开发工具",
       data: [
         "Claude Code",
+        "Pi Agent",
         "OpenCode",
         "Blender",
       ],
