@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { Activity, Bot, FileText, Globe } from "lucide-react"
+import { Activity, Bot, FileText, Globe, Terminal } from "lucide-react"
 
 /** What the Dock renders an app's glyph with: a Lucide icon, or a drawn image. */
 type AppIcon = React.ComponentType<{
@@ -30,6 +30,7 @@ export const APPS: readonly App[] = [
   { href: "/knowledge-graph", label: "Knowledge Graph", icon: Globe },
   { href: "/resume", label: "Resume", icon: FileText },
   { href: "/tetris", label: "Tetris", icon: Tetris },
+  { href: "/terminal", label: "Terminal", icon: Terminal },
 ]
 
 /** Drawn rather than sized by the Dock: the desktop's portrait fills its button

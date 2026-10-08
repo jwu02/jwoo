@@ -18,6 +18,15 @@ describe("applications", () => {
       "/knowledge-graph",
       "/resume",
       "/tetris",
+      "/terminal",
     ])
+  })
+
+  // The Terminal is an application the Dock both links and names: its label
+  // comes from the same one list as its route.
+  it("names the Terminal application", () => {
+    expect(APPS).toContainEqual(
+      expect.objectContaining({ href: "/terminal", label: "Terminal" }),
+    )
   })
 })
