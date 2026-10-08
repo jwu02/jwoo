@@ -49,11 +49,11 @@ function PrintBlock({ print }: { print: Print }) {
           // is what keeps the cells the shape the grid was drawn in. Announced
           // as a picture and not read out: the rows beside it say the same thing.
           // Type-sized rather than width-sized, because the cell is the picture:
-          // 80 columns of a phone's pane would otherwise overflow it.
+          // the grid's columns of a phone's pane would otherwise overflow it.
           <pre
             role="img"
             aria-label="Portrait of the owner"
-            className="shrink-0 text-[6px] leading-none sm:text-[10px]"
+            className="shrink-0 text-[5px] leading-none sm:text-[8px]"
           >
             {print.portrait}
           </pre>
