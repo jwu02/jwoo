@@ -2,7 +2,7 @@
 
 Status: accepted
 
-The site is presented as an operating system: a Top Bar naming where you are, a Dock that is the navigation, and a single application view. Selecting an application from the Dock *replaces* the active one. There is no window manager, no second window, no overlapping, no draggable anything — and no traffic-light, resize or close controls, because controls that do nothing imply a feature that does not exist.
+The site is presented as an operating system: a Dock that is the navigation, and a single application view, each window naming itself in its own titlebar. Selecting an application from the Dock *replaces* the active one. There is no window manager, no second window, no overlapping, no draggable anything — and no traffic-light, resize or close controls, because controls that do nothing imply a feature that does not exist.
 
 This is a deliberate departure from the macOS metaphor at its most literal. The common "macOS portfolio" is draggable, overlapping windows, and it is the obvious thing to build. We take the parts of the metaphor that help a visitor find things — persistent navigation, an obvious current location, symbols that are recognizable at a glance — and drop the part that gets in the way, which is managing a desktop of windows on a site with seven pages.
 
@@ -22,6 +22,6 @@ Contact with the metaphor that is *not* taken: Home is the desktop rather than a
 
 The shell is a layout, not a window manager: one component wraps every page, and the active application is read from the route rather than held as state. That is what keeps back/forward honest — the browser already knows which application is active, so the shell must not keep a second, divergent answer.
 
-The Dock and the Top Bar are two views of one list of applications (`components/os/apps.ts`). A route added to one without the other would be navigable but unnamed, so the list is the single place an application is declared.
+The Dock and the Titlebar are two views of one list of applications (`components/os/apps.tsx`), so a registered route is named the same way in both. A route left out of that list is still named, after its slug — which is what keeps an unlisted application like the Tetris cabinet from being anonymous. The list is where an application is declared; it is not the only way one can be named.
 
 Home being the desktop rather than an application is load-bearing in the layout, and the reason the scene fills its area unframed while every other application sits on a surface.

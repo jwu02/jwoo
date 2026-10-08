@@ -20,8 +20,8 @@ import { APPS } from "./apps"
  * It is a pane rather than a panel in both orientations: sized to its contents,
  * so the view shows around it the way it does around an application's surface.
  *
- * It is also the whole of the Shell's voice about location: the active icon is
- * the only thing on screen that says which application the visitor is in.
+ * It is also the Shell's voice about location: the active icon marks which
+ * application the visitor is in, and the window's titlebar names it.
  *
  * `overlay` is the one thing the Desktop changes about it. An application's
  * surface is laid out *beside* the Dock, so the Dock takes its own column. The

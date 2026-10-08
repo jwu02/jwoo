@@ -67,16 +67,11 @@ export default function AiUsagePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">AI Usage</h1>
-          {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
-        </div>
-      </div>
+      {lastUpdated && (
+        <p className="mb-8 text-sm text-muted-foreground">
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
 
       {error && <ErrorBanner message={error} onRetry={refresh} />}
 

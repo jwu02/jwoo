@@ -2,8 +2,25 @@
 
 import { usePathname } from "next/navigation"
 
-import { HOME } from "./apps"
+import { appTitle, HOME } from "./apps"
 import { Dock } from "./dock"
+
+/**
+ * The strip at the head of an application's window that names it. The Shell
+ * draws it rather than each application drawing its own, so every window is
+ * titled the same way — in the Dock's voice, from the Dock's own list of names.
+ * It is chrome, and says so, for the one page that prints.
+ */
+function Titlebar({ title }: { title: string }) {
+  return (
+    <header
+      data-os-chrome
+      className="flex shrink-0 items-center border-b border-foreground/10 px-4 py-2.5 font-os text-[13px] text-muted-foreground"
+    >
+      <h1>{title}</h1>
+    </header>
+  )
+}
 
 /**
  * The operating-system frame every page renders inside: a Dock that selects the
@@ -64,9 +81,18 @@ export function OSShell({ children }: { children: React.ReactNode }) {
           <section
             key={pathname}
             data-os-surface
-            className="os-app-enter h-full overflow-auto md:os-glass md:rounded-2xl md:border md:shadow-2xl"
+            className="os-app-enter flex h-full flex-col md:overflow-hidden md:os-glass md:rounded-2xl md:border md:shadow-2xl"
           >
-            {children}
+            <Titlebar title={appTitle(pathname)} />
+            {/* The window's one scrolling region, with the titlebar above left
+                out of it — so the chrome stays put while the page moves — and
+                an application that would rather fill the window than scroll
+                it, like the Terminal, free to do that instead. The window
+                itself scrolls nothing now, so it clips its contents at its own
+                rounded edge the way it did when it was the one scrolling. */}
+            <div className="min-h-0 flex-1 overflow-auto print:overflow-visible">
+              {children}
+            </div>
           </section>
         )}
       </main>

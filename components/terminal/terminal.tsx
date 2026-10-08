@@ -34,7 +34,7 @@ const step = (state: InputState, action: InputAction) =>
 
 /**
  * The Terminal application: the Shell's os-glass surface in the site's two
- * tones, a titlebar in the Dock's voice, the Print above the Input bar.
+ * tones, the Print above the Input bar.
  *
  * The bar is the machine's only driver. Every keystroke the bar has an opinion
  * about goes into `reduce`; every Print on the screen came out of it; and the
@@ -122,12 +122,8 @@ export function Terminal() {
       className="flex h-full min-h-0 flex-col pointer-coarse:h-[min(var(--vvh,100svh),100%)]"
       onMouseUp={onMouseUp}
     >
-      <header className="flex shrink-0 items-center border-b border-foreground/10 px-4 py-2.5 font-os text-[13px] text-muted-foreground">
-        <h1>Terminal</h1>
-      </header>
-
-      {/* The output is the only part that moves: the titlebar stays put and the
-          Input bar stays pinned to the bottom edge. */}
+      {/* The output is the only part that moves: the window's titlebar above
+          stays put and the Input bar stays pinned to the bottom edge. */}
       <div
         ref={output}
         role="log"

@@ -315,10 +315,13 @@ describe("History", () => {
 })
 
 describe("focus", () => {
+  // The window's titlebar belongs to the Shell — named in
+  // tests/components/os/os-shell — so the whole of the Terminal is now the
+  // pane below it.
   it("moves to the field from a click anywhere in the Terminal", () => {
     render(<TerminalPage />)
 
-    fireEvent.mouseUp(screen.getByText("Terminal"))
+    fireEvent.mouseUp(screen.getByRole("log"))
 
     expect(bar()).toHaveFocus()
   })
@@ -330,7 +333,7 @@ describe("focus", () => {
     const selection = window.getSelection()
     selection?.addRange(range)
 
-    fireEvent.mouseUp(screen.getByText("Terminal"))
+    fireEvent.mouseUp(screen.getByRole("log"))
 
     expect(selection?.isCollapsed).toBe(false)
     expect(bar()).not.toHaveFocus()

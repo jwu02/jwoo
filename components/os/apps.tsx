@@ -9,7 +9,7 @@ type AppIcon = React.ComponentType<{
 
 /**
  * One application of the site: a route the Dock selects and the name it goes by.
- * The Dock is the only surface that reads this list, and the only place an
+ * The Dock and the Titlebar both read this list, and it is the only place an
  * application is declared.
  */
 export interface App {
@@ -33,6 +33,27 @@ export const APPS: readonly App[] = [
   // { href: "/tetris", label: "Tetris", icon: Tetris },
   { href: "/terminal", label: "Terminal", icon: Terminal },
 ]
+
+/**
+ * The name a window's titlebar shows for a route. A registered application is
+ * named by the same list the Dock reads, so the titlebar is a view of that one
+ * list rather than a second one to drift; a route with no entry — Tetris, kept
+ * off the Dock — is named after its slug, so no window goes unnamed.
+ */
+export function appTitle(pathname: string): string {
+  const app = APPS.find((app) => app.href === pathname)
+  if (app) return app.label
+  return slugTitle(pathname)
+}
+
+function slugTitle(pathname: string): string {
+  const slug = pathname.split("/").filter(Boolean).pop()
+  if (!slug) return ""
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
 
 /** Drawn rather than sized by the Dock: the desktop's portrait fills its button
  * edge to edge, so the Link clips it to the button's own rounding. */
