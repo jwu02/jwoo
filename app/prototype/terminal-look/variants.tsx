@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils"
  */
 
 const PROFILE = {
-  handle: "tony",
-  host: "jwoo",
+  handle: "jwoo",
+  host: "localhost",
   name: "Tony Wu",
   age: "24",
   company: "Kevala",
