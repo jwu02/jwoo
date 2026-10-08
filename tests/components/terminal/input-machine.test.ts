@@ -28,7 +28,7 @@ const names = (state: InputState) => matches(state, CONFIG).map((c) => c.name)
 
 describe("the input machine's shape", () => {
   it("starts empty, closed, with no history and a seed it was handed", () => {
-    const seed = [{ echo: "/whoami", rows: [{ label: "Name", value: "Tony" }] }]
+    const seed = [{ echo: "/neofetch", rows: [{ label: "Name", value: "Tony" }] }]
     const state = initialState(seed)
 
     expect(state.query).toBe("")
@@ -73,14 +73,15 @@ describe("the Popup", () => {
     const state = typ(initialState(), "/")
 
     expect(state.popupOpen).toBe(true)
-    expect(names(state)).toEqual(["/help", "/whoami", "/socials", "/clear"])
-    expect(lit(state, CONFIG)?.name).toBe("/help")
+    expect(names(state)).toEqual(["/clear", "/contacts", "/neofetch", "/socials"])
+    expect(lit(state, CONFIG)?.name).toBe("/clear")
   })
 
   it("narrows by prefix as the query grows", () => {
     expect(names(typ(initialState(), "/s"))).toEqual(["/socials"])
-    expect(names(typ(initialState(), "/w"))).toEqual(["/whoami"])
-    expect(names(typ(initialState(), "/c"))).toEqual(["/clear"])
+    expect(names(typ(initialState(), "/n"))).toEqual(["/neofetch"])
+    expect(names(typ(initialState(), "/c"))).toEqual(["/clear", "/contacts"])
+    expect(names(typ(initialState(), "/cl"))).toEqual(["/clear"])
   })
 
   it("matches nothing for the honest /a — prefix only, no fuzzy", () => {
@@ -91,10 +92,10 @@ describe("the Popup", () => {
 
   it("stays up on a bare slash and closes on the first space", () => {
     expect(listOpens("/")).toBe(true)
-    expect(listOpens("/whoami")).toBe(true)
-    expect(listOpens("/whoami me")).toBe(false)
+    expect(listOpens("/neofetch")).toBe(true)
+    expect(listOpens("/neofetch me")).toBe(false)
     expect(listOpens("hello")).toBe(false)
-    expect(typ(initialState(), "/help me").popupOpen).toBe(false)
+    expect(typ(initialState(), "/clear me").popupOpen).toBe(false)
   })
 
   it("reads whatever registry it is fed, not one of its own", () => {
@@ -126,14 +127,14 @@ describe("the Popup", () => {
     expect(state.active).toBe(0)
 
     state = key(state, "ArrowUp")
-    expect(lit(state, CONFIG)?.name).toBe("/clear")
+    expect(lit(state, CONFIG)?.name).toBe("/socials")
     state = key(state, "ArrowDown")
-    expect(lit(state, CONFIG)?.name).toBe("/help")
+    expect(lit(state, CONFIG)?.name).toBe("/clear")
 
     state = key(state, "ArrowDown")
-    expect(lit(state, CONFIG)?.name).toBe("/whoami")
+    expect(lit(state, CONFIG)?.name).toBe("/contacts")
     state = key(state, "ArrowUp")
-    expect(lit(state, CONFIG)?.name).toBe("/help")
+    expect(lit(state, CONFIG)?.name).toBe("/clear")
   })
 
   it("keeps an empty match up rather than vanishing, and consumes the arrows", () => {
@@ -147,9 +148,9 @@ describe("the Popup", () => {
 
 describe("Tab", () => {
   it("accepts the highlight into the field and never runs it", () => {
-    const state = key(typ(initialState(), "/who"), "Tab")
+    const state = key(typ(initialState(), "/neo"), "Tab")
 
-    expect(state.query).toBe("/whoami")
+    expect(state.query).toBe("/neofetch")
     expect(state.popupOpen).toBe(false)
     expect(state.history).toEqual([])
     expect(state.output).toEqual([])
@@ -160,13 +161,13 @@ describe("Tab", () => {
     expect(consumes(noMatch, CONFIG, "Tab")).toBe(false)
     expect(key(noMatch, "Tab")).toBe(noMatch)
 
-    const closed = typ(initialState(), "/whoami ")
+    const closed = typ(initialState(), "/neofetch ")
     expect(consumes(closed, CONFIG, "Tab")).toBe(false)
     expect(key(closed, "Tab")).toBe(closed)
   })
 
   it("takes the key only while it has something to accept", () => {
-    expect(consumes(typ(initialState(), "/w"), CONFIG, "Tab")).toBe(true)
+    expect(consumes(typ(initialState(), "/n"), CONFIG, "Tab")).toBe(true)
   })
 })
 
@@ -194,14 +195,14 @@ describe("a Popup row's click", () => {
 
 describe("Esc", () => {
   it("closes the Popup first, keeping the field", () => {
-    const closed = key(typ(initialState(), "/who"), "Escape")
+    const closed = key(typ(initialState(), "/neo"), "Escape")
 
     expect(closed.popupOpen).toBe(false)
-    expect(closed.query).toBe("/who")
+    expect(closed.query).toBe("/neo")
   })
 
   it("clears the field on a second press", () => {
-    const closed = key(typ(initialState(), "/who"), "Escape")
+    const closed = key(typ(initialState(), "/neo"), "Escape")
     const cleared = key(closed, "Escape")
 
     expect(cleared.query).toBe("")
@@ -210,14 +211,14 @@ describe("Esc", () => {
   })
 
   it("never takes the draft or the History", () => {
-    let state = run(initialState(), "/whoami")
+    let state = run(initialState(), "/neofetch")
     state = typ(state, "half-typed")
     state = key(state, "ArrowUp")
     expect(state.draft).toBe("half-typed")
 
     state = key(state, "Escape")
     expect(state.draft).toBe("half-typed")
-    expect(state.history).toEqual(["/whoami"])
+    expect(state.history).toEqual(["/neofetch"])
   })
 
   it("is not consumed on an empty field, and does nothing", () => {
@@ -227,23 +228,19 @@ describe("Esc", () => {
   })
 
   it("only closes while the Popup is up, however full the field", () => {
-    const closed = key(typ(initialState(), "/whoami"), "Escape")
+    const closed = key(typ(initialState(), "/neofetch"), "Escape")
     expect(consumes(closed, CONFIG, "Escape")).toBe(true)
     expect(key(closed, "Escape").query).toBe("")
   })
 })
 
 describe("Enter", () => {
-  it("accepts a highlight into the field, and a second Enter runs it", () => {
-    const accepted = key(typ(initialState(), "/who"), "Enter")
-    expect(accepted.query).toBe("/whoami")
-    expect(accepted.popupOpen).toBe(false)
-    expect(accepted.history).toEqual([])
-
-    const ran = key(accepted, "Enter")
+  it("runs the lit Command outright, no second Enter", () => {
+    const ran = key(typ(initialState(), "/neo"), "Enter")
     expect(ran.query).toBe("")
-    expect(ran.history).toEqual(["/whoami"])
-    expect(ran.output.map((p) => p.echo)).toEqual(["/whoami"])
+    expect(ran.popupOpen).toBe(false)
+    expect(ran.history).toEqual(["/neofetch"])
+    expect(ran.output.map((p) => p.echo)).toEqual(["/neofetch"])
   })
 
   it("runs an unprefixed query directly", () => {
@@ -261,7 +258,7 @@ describe("Enter", () => {
 
 describe("History", () => {
   function withHistory(): InputState {
-    let state = run(initialState(), "/whoami")
+    let state = run(initialState(), "/neofetch")
     state = run(state, "/socials")
     return typ(state, "half-typed")
   }
@@ -276,7 +273,7 @@ describe("History", () => {
 
   it("steps to the oldest entry, and stops there", () => {
     const oldest = key(key(withHistory(), "ArrowUp"), "ArrowUp")
-    expect(oldest.query).toBe("/whoami")
+    expect(oldest.query).toBe("/neofetch")
     expect(oldest.cursor).toBe(0)
 
     expect(key(oldest, "ArrowUp")).toEqual(oldest)
@@ -308,29 +305,29 @@ describe("History", () => {
   })
 
   it("is consumed once there is something to walk", () => {
-    const walked = run(initialState(), "/whoami")
+    const walked = run(initialState(), "/neofetch")
     expect(consumes(walked, CONFIG, "ArrowUp")).toBe(true)
     expect(consumes(walked, CONFIG, "ArrowDown")).toBe(false)
     expect(consumes(key(walked, "ArrowUp"), CONFIG, "ArrowDown")).toBe(true)
   })
 
   it("collapses consecutive duplicates, like a shell's ignoredups", () => {
-    let state = run(initialState(), "/whoami")
-    state = run(state, "/whoami")
-    expect(state.history).toEqual(["/whoami"])
+    let state = run(initialState(), "/neofetch")
+    state = run(state, "/neofetch")
+    expect(state.history).toEqual(["/neofetch"])
 
     state = run(state, "/socials")
-    state = run(state, "/whoami")
-    expect(state.history).toEqual(["/whoami", "/socials", "/whoami"])
+    state = run(state, "/neofetch")
+    expect(state.history).toEqual(["/neofetch", "/socials", "/neofetch"])
   })
 
   it("hydrates from a store at boot", () => {
     const state = reduce(initialState(), CONFIG, {
       type: "hydrate",
-      history: ["/help", "/socials"],
+      history: ["/contacts", "/socials"],
     })
 
-    expect(state.history).toEqual(["/help", "/socials"])
+    expect(state.history).toEqual(["/contacts", "/socials"])
     expect(state.cursor).toBeNull()
     expect(state.draft).toBe("")
   })
@@ -338,7 +335,7 @@ describe("History", () => {
 
 describe("running a query", () => {
   it("appends the Command's Print and clears the field and draft", () => {
-    let state = run(initialState(), "/whoami")
+    let state = run(initialState(), "/neofetch")
     state = typ(state, "half-typed")
     state = key(state, "ArrowUp")
 
@@ -346,29 +343,29 @@ describe("running a query", () => {
     expect(ran.query).toBe("")
     expect(ran.cursor).toBeNull()
     expect(ran.draft).toBe("")
-    expect(ran.output.map((p) => p.echo)).toEqual(["/whoami", "/socials"])
+    expect(ran.output.map((p) => p.echo)).toEqual(["/neofetch", "/socials"])
   })
 
   it("ignores whatever follows the Command's name", () => {
-    const ran = run(initialState(), "/whoami now please")
+    const ran = run(initialState(), "/neofetch now please")
 
-    expect(ran.output.map((p) => p.echo)).toEqual(["/whoami"])
-    expect(ran.history).toEqual(["/whoami now please"])
+    expect(ran.output.map((p) => p.echo)).toEqual(["/neofetch"])
+    expect(ran.history).toEqual(["/neofetch now please"])
   })
 
   it("folds case the same way matching does, so a matched command always runs", () => {
-    const ran = run(initialState(), "/WHOAMI")
+    const ran = run(initialState(), "/NEOFETCH")
 
-    expect(ran.output.map((p) => p.echo)).toEqual(["/whoami"])
+    expect(ran.output.map((p) => p.echo)).toEqual(["/neofetch"])
   })
 
   it("prints the echo and the not-found line for an unknown command", () => {
-    let state = run(initialState(), "/whoami")
+    let state = run(initialState(), "/neofetch")
     state = run(state, "/nope")
 
     // The existing output is untouched; the error simply appends.
     expect(state.output).toHaveLength(2)
-    expect(state.output[0].echo).toBe("/whoami")
+    expect(state.output[0].echo).toBe("/neofetch")
     expect(state.output[1]).toEqual({
       echo: "/nope",
       rows: [],
@@ -398,17 +395,17 @@ describe("running a query", () => {
 
 describe("/clear", () => {
   it("wipes the output to empty and leaves no marker", () => {
-    let state = run(initialState(), "/whoami")
+    let state = run(initialState(), "/neofetch")
     state = run(state, "/socials")
     const cleared = run(state, "/clear")
 
     expect(cleared.output).toEqual([])
     // The invocation is still remembered, even though its Print is not.
-    expect(cleared.history).toEqual(["/whoami", "/socials", "/clear"])
+    expect(cleared.history).toEqual(["/neofetch", "/socials", "/clear"])
   })
 
   it("wipes even when arguments follow it", () => {
-    const state = run(run(initialState(), "/whoami"), "/clear everything")
+    const state = run(run(initialState(), "/neofetch"), "/clear everything")
     expect(state.output).toEqual([])
   })
 })

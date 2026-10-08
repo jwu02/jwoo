@@ -133,7 +133,7 @@ export function Terminal() {
         role="log"
         aria-live="polite"
         aria-label="Output"
-        className="min-h-0 flex-1 overflow-auto px-5 py-5 font-mono text-[13.5px] leading-relaxed md:px-8 md:py-7"
+        className="min-h-0 flex-1 overflow-auto px-5 py-5 font-mono text-[13.5px] leading-snug md:px-8 md:py-7"
       >
         <PrintList prints={state.output} />
       </div>
@@ -144,11 +144,11 @@ export function Terminal() {
       <div className="relative shrink-0 px-4 pb-4 md:px-6 md:pb-6">
         {/* The bar's legend: the keys it has an opinion about. Chrome rather
             than Print — it is never appended to the output and never cleared. */}
-        <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 font-mono text-[11px] text-muted-foreground">
-          <span>/ commands</span>
-          <span>Tab accept</span>
-          <span>↑ ↓ history</span>
-          <span>Esc close</span>
+        <p className="mb-2 flex flex-wrap items-center gap-1.5 px-1 font-mono text-[11px] text-muted-foreground">
+          <span className="rounded-md bg-foreground/5 px-2 py-0.5">/ commands</span>
+          <span className="rounded-md bg-foreground/5 px-2 py-0.5">Tab accept</span>
+          <span className="rounded-md bg-foreground/5 px-2 py-0.5">↑ ↓ history</span>
+          <span className="rounded-md bg-foreground/5 px-2 py-0.5">Esc close</span>
         </p>
 
         {popupShowing && (

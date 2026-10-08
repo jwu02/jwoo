@@ -17,7 +17,7 @@ describe("applications", () => {
       "/ai-usage",
       "/knowledge-graph",
       "/resume",
-      "/tetris",
+      // "/tetris",
       "/terminal",
     ])
   })

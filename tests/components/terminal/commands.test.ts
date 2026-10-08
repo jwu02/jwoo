@@ -20,10 +20,10 @@ const CONTACT_ENV_VARS = [
 describe("the Command registry", () => {
   it("declares the v1 four, once each, in their order", () => {
     expect(COMMANDS.map((entry) => entry.name)).toEqual([
-      "/help",
-      "/whoami",
-      "/socials",
       "/clear",
+      "/contacts",
+      "/neofetch",
+      "/socials",
     ])
     expect(new Set(COMMANDS.map((entry) => entry.name)).size).toBe(
       COMMANDS.length
@@ -37,43 +37,29 @@ describe("the Command registry", () => {
   })
 })
 
-describe("/help", () => {
-  // Read off the registry itself, so there is no second list to rot: adding a
-  // Command adds its row without touching /help.
-  it("prints one row per registry entry, read off the registry", () => {
-    expect(command("/help").print().rows).toEqual(
-      COMMANDS.map((entry) => ({
-        label: entry.name,
-        value: entry.description,
-      }))
-    )
-  })
-})
-
-describe("/whoami", () => {
+describe("/neofetch", () => {
   // The owner's picture belongs to the identity Print, and to nothing else: the
   // Portrait is content, so it is the Command that carries it — never the
   // renderer's to guess at.
   it("carries the Portrait, and no other Command does", () => {
-    expect(command("/whoami").print().portrait).toBe(PORTRAIT)
+    expect(command("/neofetch").print().portrait).toBe(PORTRAIT)
     for (const entry of COMMANDS) {
-      if (entry.name === "/whoami") continue
+      if (entry.name === "/neofetch") continue
       expect(entry.print().portrait).toBeUndefined()
     }
   })
 
-  it("prints the five Profile rows", () => {
-    expect(command("/whoami").print().rows).toEqual([
+  it("prints the four Profile rows", () => {
+    expect(command("/neofetch").print().rows).toEqual([
       { label: "Name", value: PROFILE.name },
       { label: "Age", value: String(ageOn(PROFILE.birthdate, new Date())) },
       { label: "Role", value: PROFILE.role },
-      { label: "Company", value: PROFILE.company },
       { label: "Location", value: PROFILE.location },
     ])
   })
 })
 
-describe("/socials", () => {
+describe("the contact listings", () => {
   const original: Record<string, string | undefined> = {}
 
   beforeEach(() => {
@@ -90,19 +76,37 @@ describe("/socials", () => {
     }
   })
 
-  it("prints one row per configured contact, verbatim, in the seam's order", () => {
-    process.env.NEXT_PUBLIC_GITHUB = "jwu02"
-    process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
+  describe("/socials", () => {
+    it("prints only the social keys' rows, verbatim, in the seam's order", () => {
+      process.env.NEXT_PUBLIC_GITHUB = "jwu02"
+      process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
 
-    expect(command("/socials").print().rows).toEqual([
-      { label: "Email", value: "tony@example.com", tone: "accent" },
-      { label: "GitHub", value: "jwu02", tone: "accent" },
-    ])
+      expect(command("/socials").print().rows).toEqual([
+        { label: "GitHub", value: "jwu02", tone: "accent" },
+      ])
+    })
+
+    // An unset variable means "not published", so the row simply does not exist.
+    it("prints nothing when no social is configured", () => {
+      expect(command("/socials").print().rows).toEqual([])
+    })
   })
 
-  // An unset variable means "not published", so the row simply does not exist.
-  it("prints nothing when no contact is configured", () => {
-    expect(command("/socials").print().rows).toEqual([])
+  describe("/contacts", () => {
+    it("prints only the contact keys' rows, verbatim, in the seam's order", () => {
+      process.env.NEXT_PUBLIC_GITHUB = "jwu02"
+      process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
+      process.env.NEXT_PUBLIC_WECHAT = "tony-wu"
+
+      expect(command("/contacts").print().rows).toEqual([
+        { label: "Email", value: "tony@example.com", tone: "accent" },
+        { label: "WeChat", value: "tony-wu (preferred)", tone: "accent" },
+      ])
+    })
+
+    it("prints nothing when no contact is configured", () => {
+      expect(command("/contacts").print().rows).toEqual([])
+    })
   })
 })
 
@@ -115,14 +119,14 @@ describe("/clear", () => {
 describe("the opening print", () => {
   // A fresh visit greets with the Commands themselves run, not with a second
   // copy of their output: identity first, contacts under it.
-  it("is the registry's /whoami and /socials, in that order", () => {
+  it("is the registry's /neofetch and /socials, in that order", () => {
     const opening = openingPrint()
 
     expect(opening).toEqual([
-      command("/whoami").print(),
+      command("/neofetch").print(),
       command("/socials").print(),
     ])
-    expect(opening.map((print) => print.echo)).toEqual(["/whoami", "/socials"])
+    expect(opening.map((print) => print.echo)).toEqual(["/neofetch", "/socials"])
   })
 })
 

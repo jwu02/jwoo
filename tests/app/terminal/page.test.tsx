@@ -35,11 +35,10 @@ function litOption(): HTMLElement {
   return screen.getByRole("option", { selected: true })
 }
 
-/** Run a Command the way the bar does: Enter accepts a highlight, and the
- * Enter after it runs what is in the field. */
+/** Run a Command the way the bar does: type it, and Enter runs the lit match
+ * outright. */
 function run(value: string) {
   type(value)
-  press("Enter")
   press("Enter")
 }
 
@@ -77,12 +76,12 @@ afterEach(() => {
 })
 
 describe("the opening print", () => {
-  it("is the registry's /whoami, then the registry's /socials", () => {
+  it("is the registry's /neofetch, then the registry's /socials", () => {
     process.env.NEXT_PUBLIC_GITHUB = "github.com/jwu02"
 
     render(<TerminalPage />)
 
-    const whoami = screen.getByText("/whoami")
+    const whoami = screen.getByText("/neofetch")
     const socials = screen.getByText("/socials")
     // A transcript, not a set: identity first, contacts under it.
     expect(whoami.compareDocumentPosition(socials)).toBe(
@@ -91,16 +90,15 @@ describe("the opening print", () => {
 
     // The Profile's own rows, not the skeleton's fixture copy of them.
     expect(screen.getByText("Tony Wu")).toBeInTheDocument()
-    expect(screen.getByText("Software Engineer")).toBeInTheDocument()
-    expect(screen.getByText("Kevala")).toBeInTheDocument()
-    expect(screen.getByText("Sydney, Australia")).toBeInTheDocument()
+    expect(screen.getByText("Professional Vibecoder")).toBeInTheDocument()
+    expect(screen.getByText("Guangdong, China")).toBeInTheDocument()
     // The contacts the deployment configures, read through the registry.
     expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
   })
 
   // The picture is drawn beside the rows, not stacked above them: a portrait
   // and its caption are one Print, laid out side by side.
-  it("draws /whoami's Portrait as the grid the registry carries, beside its rows", () => {
+  it("draws /neofetch's Portrait as the grid the registry carries, beside its rows", () => {
     render(<TerminalPage />)
 
     const portrait = screen.getByRole("img")
@@ -156,7 +154,7 @@ describe("the Popup", () => {
 
     type("/")
     press("ArrowDown")
-    expect(screen.getByRole("option", { name: /\/whoami/ })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /\/contacts/ })).toHaveAttribute(
       "aria-selected",
       "true"
     )
@@ -166,13 +164,13 @@ describe("the Popup", () => {
 
   it("accepts the highlight with Tab, and never runs it", () => {
     render(<TerminalPage />)
-    type("/who")
+    type("/neo")
     press("Tab")
 
-    expect(bar()).toHaveValue("/whoami")
+    expect(bar()).toHaveValue("/neofetch")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
     // Accepted, not run: the screen still holds only the opening print.
-    expect(echoes()).toEqual(["/whoami", "/socials"])
+    expect(echoes()).toEqual(["/neofetch", "/socials"])
   })
 
   it("accepts a row that is clicked, and leaves it unrun", () => {
@@ -183,16 +181,16 @@ describe("the Popup", () => {
 
     expect(bar()).toHaveValue("/socials")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
-    expect(echoes()).toEqual(["/whoami", "/socials"])
+    expect(echoes()).toEqual(["/neofetch", "/socials"])
   })
 
   it("closes on Esc, keeping the field, and clears it on a second Esc", () => {
     render(<TerminalPage />)
-    type("/who")
+    type("/neo")
     press("Escape")
 
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
-    expect(bar()).toHaveValue("/who")
+    expect(bar()).toHaveValue("/neo")
 
     press("Escape")
     expect(bar()).toHaveValue("")
@@ -202,22 +200,12 @@ describe("the Popup", () => {
 describe("running a Command", () => {
   it("appends its Echo and its rows below what was already printed", () => {
     render(<TerminalPage />)
-    run("/whoami")
+    run("/neofetch")
 
-    expect(echoes()).toEqual(["/whoami", "/socials", "/whoami"])
+    expect(echoes()).toEqual(["/neofetch", "/socials", "/neofetch"])
     // The same Profile rows, printed a second time by the run.
     expect(screen.getAllByText("Tony Wu")).toHaveLength(2)
     expect(bar()).toHaveValue("")
-  })
-
-  it("prints /help's rows read off the registry", () => {
-    render(<TerminalPage />)
-    run("/help")
-
-    expect(echoes()).toEqual(["/whoami", "/socials", "/help"])
-    for (const command of COMMANDS) {
-      expect(screen.getAllByText(command.name).length).toBeGreaterThan(0)
-    }
   })
 
   it("prints an unknown command's Echo and its not-found row, leaving the rest alone", () => {
@@ -226,7 +214,7 @@ describe("running a Command", () => {
 
     expect(screen.getByText("/nope")).toBeInTheDocument()
     expect(screen.getByText("command not found: /nope")).toBeInTheDocument()
-    expect(echoes()).toEqual(["/whoami", "/socials", "/nope"])
+    expect(echoes()).toEqual(["/neofetch", "/socials", "/nope"])
   })
 
   it("wipes the screen to empty on /clear, with no marker", () => {
@@ -235,12 +223,12 @@ describe("running a Command", () => {
 
     expect(echoes()).toEqual([])
     expect(screen.queryByText("Tony Wu")).not.toBeInTheDocument()
-    expect(screen.queryByText("/whoami")).not.toBeInTheDocument()
+    expect(screen.queryByText("/neofetch")).not.toBeInTheDocument()
   })
 
   it("draws a Portrait per run, and none is left behind by /clear", () => {
     render(<TerminalPage />)
-    run("/whoami")
+    run("/neofetch")
     expect(portraits()).toHaveLength(2)
 
     run("/clear")
@@ -256,7 +244,7 @@ describe("running a Command", () => {
       configurable: true,
     })
 
-    run("/help")
+    run("/contacts")
 
     expect(log.scrollTop).toBe(400)
   })
@@ -276,11 +264,11 @@ describe("running a Command", () => {
 describe("History", () => {
   it("walks back with ↑, sets the draft aside, and hands it back with ↓", () => {
     render(<TerminalPage />)
-    run("/help")
+    run("/contacts")
     type("half-typed")
 
     press("ArrowUp")
-    expect(bar()).toHaveValue("/help")
+    expect(bar()).toHaveValue("/contacts")
 
     press("ArrowDown")
     expect(bar()).toHaveValue("half-typed")
@@ -288,14 +276,14 @@ describe("History", () => {
 
   it("collapses consecutive duplicates", () => {
     render(<TerminalPage />)
-    run("/help")
-    run("/help")
+    run("/contacts")
+    run("/contacts")
 
     press("ArrowUp")
-    expect(bar()).toHaveValue("/help")
+    expect(bar()).toHaveValue("/contacts")
     // One entry, so ↑ again stays where it is rather than stepping twice.
     press("ArrowUp")
-    expect(bar()).toHaveValue("/help")
+    expect(bar()).toHaveValue("/contacts")
   })
 
   it("survives a reload", () => {

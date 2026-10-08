@@ -37,7 +37,7 @@ One of the Terminal's built-in operations, named with a leading slash and matche
 _Avoid_: intent (that is Tetris's), action, executable, handler
 
 **Command registry**:
-The single list of the Terminal's Commands — the one place a Command is declared, and the one list `/help` prints and the popup matches against. Adding a Command is one entry here; nothing else in the Terminal needs to know it exists.
+The single list of the Terminal's Commands — the one place a Command is declared, and the one list the popup matches against. Adding a Command is one entry here; nothing else in the Terminal needs to know it exists.
 _Avoid_: command list, dispatcher, command map
 
 **Print**:
@@ -45,11 +45,11 @@ The output a Command leaves on the Terminal's screen: an echo of the invocation 
 _Avoid_: output (unqualified), response, render
 
 **Portrait**:
-The owner's picture as the Terminal draws it: the grid of dithered glyphs `/whoami` prints beside its rows. Held as text the Print carries, generated from an image by `scripts/portrait.mjs` and committed — a Terminal prints characters, so there is no canvas and nothing to decode at runtime. A space in it is paper: the grid is drawn on the Terminal's own background rather than on a picture's.
+The owner's picture as the Terminal draws it: the grid of dithered glyphs `/neofetch` prints beside its rows. Held as text the Print carries, generated from an image by `scripts/portrait.mjs` and committed — a Terminal prints characters, so there is no canvas and nothing to decode at runtime. A space in it is paper: the grid is drawn on the Terminal's own background rather than on a picture's.
 _Avoid_: avatar, ascii art (that is the technique, not the thing), pfp, thumbnail
 
 **Profile**:
-The owner's static self-description the Terminal prints about: name, age, role, company and location, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.
+The owner's static self-description the Terminal prints about: name, age, role and location, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.
 _Avoid_: about, bio, user
 
 **Input bar**:

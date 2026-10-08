@@ -1,5 +1,5 @@
 /**
- * The owner's static self-description: what `/whoami` prints about, held as the
+ * The owner's static self-description: what `/neofetch` prints about, held as the
  * Terminal's own config rather than derived from the resume — the resume's name
  * localizes and knows none of the rest. Copy is English-only, like the Shell's.
  */
@@ -7,10 +7,9 @@ export const PROFILE = {
   name: "Tony Wu",
   /** ISO. The one place the owner's age lives: the Age row is derived from it. */
   birthdate: "2002-03-14",
-  role: "Software Engineer",
-  company: "Kevala",
+  role: "Professional Vibecoder",
   /** The owner's own location, not the visitor's. */
-  location: "Sydney, Australia",
+  location: "Guangdong, China",
 }
 
 /**

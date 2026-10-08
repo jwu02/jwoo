@@ -279,9 +279,11 @@ export function reduce(
       }
       if (key === "Enter") {
         const command = lit(state, config)
-        // With a highlight, Enter accepts into the field — a second Enter, with
-        // the Popup now closed, is what runs it.
-        if (state.popupOpen && command) return accept(state, command)
+        // With a highlight, Enter runs it outright: the highlight is the pick,
+        // and a second Enter to fire what is already in the field is a step
+        // the bar can spare. Tab stays the way to fill the field without
+        // running — read what was accepted before committing to it.
+        if (state.popupOpen && command) return runQuery(state, config, command.name)
         return runQuery(state, config, state.query)
       }
       return state
