@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation"
 
+import { useVisualViewport } from "@/hooks/use-visual-viewport"
+
 import { HOME } from "./apps"
 import { Dock } from "./dock"
 
@@ -23,13 +25,21 @@ export function OSShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const desktop = pathname === HOME
 
+  // On narrow screens the Shell is pinned to the visual viewport (`--vvh`,
+  // written by this hook and read by the class below), so the software keyboard
+  // takes room from the Shell instead of covering an application's bottom edge
+  // — the Terminal's Input bar. Pinning the whole Shell rather than only the
+  // Terminal's pane is what keeps the Dock reachable above the keyboard and
+  // stops iOS scrolling the page to reveal the focused field.
+  useVisualViewport()
+
   return (
     // Column-reversed on narrow screens so the Dock lands at the bottom without
     // a second copy of the markup, and a plain row from `md` up. `isolate` is
     // what lets the wallpaper sit at a negative depth: without a stacking
     // context here it would resolve against the root's, which is behind this
     // element's own background, and never be seen at all.
-    <div className="relative isolate flex h-svh flex-col-reverse overflow-hidden bg-background text-foreground md:flex-row print:h-auto print:overflow-visible">
+    <div className="relative isolate flex h-svh flex-col-reverse overflow-hidden bg-background text-foreground md:flex-row print:h-auto print:overflow-visible max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:h-[var(--vvh,100svh)]">
       {/* The wallpaper. Home paints its own scene over this, so it is only ever
           seen around an application's surface. It is held below everything —
           a decorative layer that painted above the Shell's own contents would

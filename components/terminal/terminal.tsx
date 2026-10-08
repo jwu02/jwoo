@@ -60,10 +60,19 @@ export function Terminal() {
     if (state.history.length > 0) saveHistory(state.history)
   }, [state.history])
 
-  // Output appends and the screen follows it down.
+  // Output appends and the screen follows it down — and keeps following when
+  // the software keyboard shrinks the pane under it, which takes the newest
+  // lines below the fold without any output changing.
   useEffect(() => {
     const screen = output.current
-    if (screen) screen.scrollTop = screen.scrollHeight
+    if (!screen) return
+    const pin = () => {
+      screen.scrollTop = screen.scrollHeight
+    }
+    pin()
+    const viewport = window.visualViewport
+    viewport?.addEventListener("resize", pin)
+    return () => viewport?.removeEventListener("resize", pin)
   }, [state.output])
 
   const options = matches(state, CONFIG)
@@ -179,7 +188,10 @@ export function Terminal() {
               dispatch({ type: "type", value: event.target.value })
             }
             onKeyDown={onKeyDown}
-            className="w-full bg-transparent outline-none placeholder:text-muted-foreground/70"
+            // iOS zooms the page when a field under 16px takes focus, so on a
+            // coarse pointer the field renders at 16px even though the bar's
+            // type is smaller on a mouse.
+            className="w-full bg-transparent outline-none placeholder:text-muted-foreground/70 pointer-coarse:text-base"
           />
         </div>
       </div>
