@@ -1,4 +1,5 @@
 import { COMMANDS, openingPrint } from "@/components/terminal/commands"
+import { PORTRAIT } from "@/components/terminal/portrait"
 import { PROFILE, ageOn } from "@/components/terminal/profile"
 
 /** The Command a name names. Throws rather than returning undefined, so a
@@ -50,6 +51,17 @@ describe("/help", () => {
 })
 
 describe("/whoami", () => {
+  // The owner's picture belongs to the identity Print, and to nothing else: the
+  // Portrait is content, so it is the Command that carries it — never the
+  // renderer's to guess at.
+  it("carries the Portrait, and no other Command does", () => {
+    expect(command("/whoami").print().portrait).toBe(PORTRAIT)
+    for (const entry of COMMANDS) {
+      if (entry.name === "/whoami") continue
+      expect(entry.print().portrait).toBeUndefined()
+    }
+  })
+
   it("prints the five Profile rows", () => {
     expect(command("/whoami").print().rows).toEqual([
       { label: "Name", value: PROFILE.name },

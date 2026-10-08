@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 
 import TerminalPage from "@/app/terminal/page"
 import { COMMANDS } from "@/components/terminal/commands"
+import { PORTRAIT } from "@/components/terminal/portrait"
 
 // The integration seam: the real registry, the Print renderer and the Input bar
 // together in jsdom, driven the way a visitor drives them — keys and clicks.
@@ -51,6 +52,12 @@ function echoes(): string[] {
     .map((node) => node.textContent ?? "")
 }
 
+/** The Portraits on the screen: each Print's picture of the owner, drawn in the
+ * output beside the rows that belong to it. */
+function portraits(): HTMLElement[] {
+  return screen.queryAllByRole("img")
+}
+
 beforeEach(() => {
   window.localStorage.clear()
   for (const name of CONTACT_ENV_VARS) {
@@ -89,6 +96,25 @@ describe("the opening print", () => {
     expect(screen.getByText("Sydney, Australia")).toBeInTheDocument()
     // The contacts the deployment configures, read through the registry.
     expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
+  })
+
+  // The picture is drawn beside the rows, not stacked above them: a portrait
+  // and its caption are one Print, laid out side by side.
+  it("draws /whoami's Portrait as the grid the registry carries, beside its rows", () => {
+    render(<TerminalPage />)
+
+    const portrait = screen.getByRole("img")
+    // A picture, and announced as one — the rows say everything it holds.
+    expect(portrait).toHaveAccessibleName(/portrait/i)
+    // Verbatim, not merely similar: the grid is drawn where the spaces are.
+    expect(portrait.textContent).toBe(PORTRAIT)
+    // One block: the rows share the Portrait's own box, and follow it in the
+    // document, which is the order a flex row lays them out in.
+    const rows = screen.getByText("Tony Wu")
+    expect(portrait.parentElement).toContainElement(rows)
+    expect(
+      portrait.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0)
   })
 })
 
@@ -210,6 +236,15 @@ describe("running a Command", () => {
     expect(echoes()).toEqual([])
     expect(screen.queryByText("Tony Wu")).not.toBeInTheDocument()
     expect(screen.queryByText("/whoami")).not.toBeInTheDocument()
+  })
+
+  it("draws a Portrait per run, and none is left behind by /clear", () => {
+    render(<TerminalPage />)
+    run("/whoami")
+    expect(portraits()).toHaveLength(2)
+
+    run("/clear")
+    expect(portraits()).toHaveLength(0)
   })
 
   it("keeps the output scrolled to the newest Print", () => {

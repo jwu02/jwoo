@@ -41,8 +41,12 @@ The single list of the Terminal's Commands — the one place a Command is declar
 _Avoid_: command list, dispatcher, command map
 
 **Print**:
-The output a Command leaves on the Terminal's screen: an echo of the invocation followed by content rows. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
+The output a Command leaves on the Terminal's screen: an echo of the invocation followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
 _Avoid_: output (unqualified), response, render
+
+**Portrait**:
+The owner's picture as the Terminal draws it: the grid of dithered glyphs `/whoami` prints beside its rows. Held as text the Print carries, generated from an image by `scripts/portrait.mjs` and committed — a Terminal prints characters, so there is no canvas and nothing to decode at runtime. A space in it is paper: the grid is drawn on the Terminal's own background rather than on a picture's.
+_Avoid_: avatar, ascii art (that is the technique, not the thing), pfp, thumbnail
 
 **Profile**:
 The owner's static self-description the Terminal prints about: name, age, role, company and location, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.

@@ -2,6 +2,7 @@ import { getContacts } from "@/lib/resume/contacts"
 import type { ContactKey } from "@/lib/resume/types"
 
 import type { Print } from "./print"
+import { PORTRAIT } from "./portrait"
 import { ageOn, PROFILE } from "./profile"
 
 /**
@@ -52,6 +53,9 @@ export const COMMANDS: readonly Command[] = [
     description: "Who you are, and who I am",
     print: () => ({
       echo: "/whoami",
+      // The Portrait opens the identity Print, and takes no row of its own:
+      // the picture is what the rows then put a name to.
+      portrait: PORTRAIT,
       rows: [
         { label: "Name", value: PROFILE.name },
         { label: "Age", value: String(ageOn(PROFILE.birthdate, new Date())) },

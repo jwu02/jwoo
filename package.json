@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "portrait": "node scripts/portrait.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
