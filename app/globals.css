@@ -137,6 +137,19 @@
 }
 
 @layer base {
+  /* The document itself never scrolls. iOS reveals a focused field by moving
+     the layout viewport, which drags everything with it — with the software
+     keyboard up that is the whole Shell, Input bar and all. Scrolling belongs
+     to the regions that ask for it (an application's own surface), so there is
+     nothing left for iOS to move. Print is exempt: a printed page is a
+     document again, and a résumé is several pages of one. */
+  @media screen {
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+  }
   * {
     @apply border-border outline-ring/50;
     }

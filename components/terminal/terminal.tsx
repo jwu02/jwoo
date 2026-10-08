@@ -188,6 +188,17 @@ export function Terminal() {
               dispatch({ type: "type", value: event.target.value })
             }
             onKeyDown={onKeyDown}
+            // Safari decides whether it must scroll to reveal a field on
+            // `mousedown`, before focus — and with the keyboard up that scroll
+            // moves the whole Shell. On a coarse pointer we take the focus
+            // ourselves instead: the document is locked (see app/globals.css)
+            // so there is nothing left to scroll, and `preventScroll` says so
+            // explicitly. A mouse keeps its ordinary caret placement.
+            onMouseDown={(event) => {
+              if (!window.matchMedia?.("(pointer: coarse)").matches) return
+              event.preventDefault()
+              event.currentTarget.focus({ preventScroll: true })
+            }}
             // iOS zooms the page when a field under 16px takes focus, so on a
             // coarse pointer the field renders at 16px even though the bar's
             // type is smaller on a mouse.
