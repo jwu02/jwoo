@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 
 import { APPS } from "@/components/os/apps"
-import { Dock } from "@/components/os/dock"
+import { Dock, HOLD_MS } from "@/components/os/dock"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 jest.mock("next/navigation", () => ({
@@ -76,6 +76,12 @@ function hand(): HTMLElement | null {
  * one: an icon off the Dock has given its place up. */
 function heldPlace(): HTMLElement | null {
   return document.querySelector<HTMLElement>("[data-dock-place]")
+}
+
+/** Where an icon is sliding from, if a swap has just moved it: the displacement
+ * it is carrying, which its own transition is closing. */
+function shift(label: string): string {
+  return screen.getByRole("link", { name: label }).style.translate
 }
 
 /**
@@ -288,6 +294,172 @@ describe("Dock", () => {
         "draggable",
         "false",
       )
+    })
+
+    // A swap moves the icons around the one being carried, and a row that
+    // reorders jumps them there. jsdom lays nothing out, so this test gives the
+    // icons the offsets their places in the rendered order would give them —
+    // installed on the prototype, because the Dock measures them from its very
+    // first render.
+    describe("the icons a swap moves", () => {
+      const left = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        "offsetLeft",
+      )!
+      const top = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        "offsetTop",
+      )!
+
+      beforeEach(() => {
+        Object.defineProperty(HTMLElement.prototype, "offsetLeft", {
+          configurable: true,
+          get(this: HTMLElement) {
+            // The place the Dock is holding open is a slot too: an icon whose
+            // neighbour is in hand has still moved.
+            const slots = Array.from(
+              document.querySelectorAll<HTMLElement>(
+                "[data-dock-app], [data-dock-place]",
+              ),
+            )
+            const index = slots.indexOf(this)
+            return index < 0 ? 0 : index * (SLOT + GAP)
+          },
+        })
+        Object.defineProperty(HTMLElement.prototype, "offsetTop", {
+          configurable: true,
+          get: () => 0,
+        })
+      })
+
+      afterEach(() => {
+        Object.defineProperty(HTMLElement.prototype, "offsetLeft", left)
+        Object.defineProperty(HTMLElement.prototype, "offsetTop", top)
+      })
+
+      it("slide from where they stood instead of jumping", () => {
+        renderDock()
+        const place = stubSlots()
+
+        place.drag("Resume", "Activity Telemetry")
+
+        // Resume took the third place, so the three it passed each moved one
+        // slot towards the end: displaced back to the slot they came from.
+        expect(shift("Activity Telemetry")).toBe(`-${SLOT + GAP}px 0px`)
+        expect(shift("AI Usage")).toBe(`-${SLOT + GAP}px 0px`)
+        expect(shift("Knowledge Graph")).toBe(`-${SLOT + GAP}px 0px`)
+        // It passed neither of these, and it is the one in hand: nowhere to
+        // slide from.
+        expect(shift("Home")).toBe("")
+        expect(shift("Terminal")).toBe("")
+        expect(shift("Resume")).toBe("")
+      })
+
+      // Giving up the place being held open moves the icons that were after it,
+      // and no swap is involved: the layout changes without the order changing.
+      it("slide when the place being held open is given up", () => {
+        renderDock()
+        const place = stubSlots()
+
+        // Held over its own slot, so nothing has moved yet: the drag is under
+        // way and the place the icon left is still standing open.
+        const ai = place.at("AI Usage")
+        const nudged = { clientX: ai.clientX + 10, clientY: ai.clientY }
+
+        place.press("AI Usage")
+        place.move(nudged)
+        expect(heldPlace()).toHaveAttribute("data-dock-place", "/ai-usage")
+        expect(shift("Knowledge Graph")).toBe("")
+
+        place.move(place.off)
+
+        expect(shift("Knowledge Graph")).toBe(`${SLOT + GAP}px 0px`)
+      })
+    })
+  })
+
+  // One pointer, two jobs: selecting an application, and picking one up. What
+  // the Dock does with the pointer is what decides which it is.
+  describe("the press", () => {
+    // jsdom implements no pointer capture at all, so the Dock's calls to it land
+    // nowhere: this stands one in, and records what captured — the element that
+    // captures is the element the click comes to.
+    const capture = jest.fn()
+
+    beforeAll(() => {
+      ;(
+        HTMLElement.prototype as { setPointerCapture?: unknown }
+      ).setPointerCapture = capture
+    })
+
+    afterAll(() => {
+      delete (HTMLElement.prototype as { setPointerCapture?: unknown })
+        .setPointerCapture
+    })
+
+    beforeEach(() => {
+      capture.mockClear()
+      window.localStorage.clear()
+    })
+
+    // A captured pointer makes the element that captured it the target of the
+    // click the press ends in — so a Dock that captured at press time took every
+    // selection's click off its own link, and the icons stopped navigating.
+    it("leaves a press that stays a selection to the icon, not the Dock", () => {
+      renderDock()
+      const place = stubSlots()
+
+      const terminal = place.press("Terminal")
+      place.release(terminal)
+
+      expect(capture.mock.instances).toHaveLength(1)
+      expect(capture.mock.instances[0]).toBe(terminal.icon)
+    })
+
+    // The icon leaves the flow the moment the drag begins, and a captured
+    // element that is gone takes the moves with it: the Dock takes over.
+    it("takes the drag itself, the icon it picked up being gone", () => {
+      renderDock()
+      const place = stubSlots()
+      const nav = screen.getByRole("navigation", { name: "Applications" })
+
+      const terminal = place.press("Terminal")
+      place.move(place.off)
+
+      expect(capture.mock.instances).toHaveLength(2)
+      expect(capture.mock.instances[0]).toBe(terminal.icon)
+      expect(capture.mock.instances[1]).toBe(nav)
+    })
+
+    describe("the cursor", () => {
+      beforeEach(() => jest.useFakeTimers())
+      afterEach(() => jest.useRealTimers())
+
+      // A rail that says "drag" everywhere says nothing about what can be
+      // selected. A press held a moment is what turns the cursor to the drag
+      // one, and the Dock's own space while an icon is in hand says it too.
+      it("says select until the press is held, and drag once it is", () => {
+        renderDock()
+        const place = stubSlots()
+        const nav = screen.getByRole("navigation", { name: "Applications" })
+        const terminal = screen.getByRole("link", { name: "Terminal" })
+
+        expect(terminal).toHaveClass("cursor-pointer")
+        expect(terminal).not.toHaveClass("cursor-grabbing")
+
+        const held = place.press("Terminal")
+        expect(terminal).toHaveClass("cursor-pointer")
+
+        act(() => jest.advanceTimersByTime(HOLD_MS))
+        expect(terminal).toHaveClass("cursor-grabbing")
+
+        place.release(held)
+        expect(terminal).toHaveClass("cursor-pointer")
+
+        place.press("Terminal")
+        place.move(place.off)
+        expect(nav).toHaveClass("cursor-grabbing")
+      })
     })
   })
 

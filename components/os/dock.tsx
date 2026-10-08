@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useRef, useState, useSyncExternalStore } from "react"
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 
 import {
   Tooltip,
@@ -22,6 +22,11 @@ import {
 
 /** How far a press may travel before it is a drag rather than a selection. */
 const DRAG_SLOP = 4
+
+/** How long a press is held before it reads as a drag rather than a selection:
+ * long enough that a selection never flickers the drag cursor, short enough
+ * that it feels like an answer to the press. */
+export const HOLD_MS = 200
 
 /** One icon's place on screen, as the drop hit test sees it. */
 interface Slot {
@@ -56,6 +61,15 @@ function overBox(box: Box, { x, y }: Point): boolean {
 /** The application a pointer is over, if it is over one. */
 function appUnder(point: Point, slots: readonly Slot[]): string | undefined {
   return slots.find((slot) => overBox(slot, point))?.href
+}
+
+/** What an element is displaced by as it is drawn right now, in pixels: a slide
+ * that has not landed yet is still a displacement, and still on its way out. */
+function displacement(element: HTMLElement): Point {
+  const moved =
+    (getComputedStyle(element).translate ?? "").match(/-?[\d.]+(?=px)/g) ?? []
+  const [x = "0", y = "0"] = moved
+  return { x: Number.parseFloat(x), y: Number.parseFloat(y) }
 }
 
 /** `order` with `href` moved into `toHref`'s place. Returns `order` itself when
@@ -120,7 +134,11 @@ interface Hand {
  * place moves the icon there; a drop off the Dock decides nothing, so the
  * application keeps the place it holds and whatever the drag rearranged on the
  * way stands. Below DRAG_SLOP a press is a selection, and the link navigates as
- * it always did. The arrangement is theirs, so it is remembered between visits
+ * it always did: the cursor is what says which of the two a press is being read
+ * as — a pointer while the icons are only there to select, a grabbing hand once
+ * a press is held past HOLD_MS or an icon is in hand — and an icon a movement
+ * displaces slides into its place rather than jumping to it. The arrangement is
+ * theirs, so it is remembered between visits
  * — see `dock-order`. The Desktop is Pinned: it is not picked up, nothing is
  * dropped before it, and however far a drag wanders it is still the first icon
  * afterwards.
@@ -148,7 +166,13 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
   const handNode = useRef<HTMLDivElement>(null)
   /** Where the pointer is now, which is what the hand follows. */
   const pointer = useRef<Point>({ x: 0, y: 0 })
+  /** Where each icon stood the last time the Dock laid out, so a swap can slide
+   * an icon from the place it had to the place it now holds. */
+  const places = useRef(new Map<string, Point>())
   const [hand, setHand] = useState<Hand | null>(null)
+  /** The press that has been held long enough to be read as a drag. */
+  const [held, setHeld] = useState<string | null>(null)
+  const hold = useRef(0)
   /** A drag's release is followed by a click, which is not a selection. */
   const swallowed = useRef(false)
 
@@ -161,6 +185,54 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       return { href: icon.dataset.dockApp!, left, top, right, bottom }
     })
   }
+
+  // A swap moves the icons around the one being carried, and a flex row that
+  // reorders jumps them there. Displace every icon that moved back to the place
+  // it had, and the transition the icons already carry brings it to the place it
+  // now holds. `translate` rather than `transform`: an icon scales on hover and
+  // on a press, and the two would overwrite each other.
+  //
+  // Layout offsets rather than rectangles: a rectangle carries the displacement
+  // the last swap left behind, and the next swap would compound with it. The
+  // displacement still in flight is added back for the same reason — an icon
+  // that has not landed yet should start from where it has actually slid to.
+  //
+  // `hand` is a dependency as much as `order` is: taking the icon out of the
+  // flow and giving its place up again moves the icons after it without any
+  // order changing at all.
+  useLayoutEffect(() => {
+    const icons = Array.from(
+      nav.current?.querySelectorAll<HTMLElement>("[data-dock-app]") ?? [],
+    )
+    const seen = new Map<string, Point>()
+    const slides: { icon: HTMLElement; x: number; y: number }[] = []
+    // Every place first, every displacement after: a write in between the two
+    // would leave the reads waiting on the layout the write dirtied.
+    for (const icon of icons) {
+      const href = icon.dataset.dockApp!
+      const now = { x: icon.offsetLeft, y: icon.offsetTop }
+      const was = places.current.get(href)
+      seen.set(href, now)
+      // An icon the Dock is not rendering — the one in hand — is not in `seen`
+      // either, so it has nowhere to slide from when it comes back.
+      if (!was) continue
+      const carrying = displacement(icon)
+      const x = was.x - now.x + carrying.x
+      const y = was.y - now.y + carrying.y
+      if (x !== 0 || y !== 0) slides.push({ icon, x, y })
+    }
+    places.current = seen
+    for (const { icon, x, y } of slides) icon.style.translate = `${x}px ${y}px`
+
+    // Every icon still displaced, not only the ones displaced just now: this
+    // frame is the only thing that clears them, and it can be superseded.
+    const sliding = icons.filter((icon) => icon.style.translate !== "")
+    if (sliding.length === 0) return
+    const frame = requestAnimationFrame(() => {
+      for (const icon of sliding) icon.style.translate = ""
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [order, hand])
 
   /** Carry the hand with the pointer. The travel since the press is the whole
    * of its transform: where it stands in the Dock is its `left`/`top`, and the
@@ -182,7 +254,15 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
     return current && current.pointerId === event.pointerId ? current : null
   }
 
+  /** A press stops being held as a drag the moment it moves or ends. */
+  function stopHold() {
+    window.clearTimeout(hold.current)
+    hold.current = 0
+    setHeld(null)
+  }
+
   function endGesture() {
+    stopHold()
     gesture.current = null
     setHand(null)
   }
@@ -210,10 +290,14 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       active: false,
       box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
     }
-    // Capture on the Dock rather than on the icon: the icon leaves the flow the
-    // moment the drag begins, and a captured element that is gone takes the
-    // moves with it.
-    event.currentTarget.setPointerCapture?.(event.pointerId)
+    // The press belongs to the icon, not to the Dock: a captured pointer makes
+    // the element that captured it the target of the click the press ends in,
+    // and a click that lands on the Dock never reaches the application's link.
+    // Only the drag itself is the Dock's to capture — see `travel`.
+    icon.setPointerCapture?.(event.pointerId)
+    // A press is a selection until it is held for a moment: only then does any
+    // cursor say drag.
+    hold.current = window.setTimeout(() => setHeld(href), HOLD_MS)
   }
 
   function travel(event: React.PointerEvent<HTMLElement>) {
@@ -229,6 +313,10 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       )
         return
       current.active = true
+      stopHold()
+      // The icon is about to leave the flow, and a captured element that is
+      // gone takes the moves with it: the Dock takes the drag from here.
+      event.currentTarget.setPointerCapture?.(event.pointerId)
       setHand({
         href: current.href,
         x: current.icon.x,
@@ -304,6 +392,9 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
         // lifts the Dock over the application's surface, which is painted after
         // it — invisible at rest, since the rail never overlaps the window.
         "os-glass relative z-10 flex shrink-0 items-center justify-center gap-1 self-center rounded-2xl border p-1.5 shadow-2xl md:flex-col md:gap-1.5 md:p-2",
+        // An application in hand is under the pointer, and the Dock's own space
+        // is what the pointer is over there: it says drag as well.
+        hand && "cursor-grabbing",
         // Overlaid, the offsets are the position the in-flow variant would
         // have had (centred, the same 8px from the viewport bottom on narrow)
         // — so the Dock does not move when the visitor navigates, it only
@@ -359,8 +450,14 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
                     // `touch-none` is what lets a finger drag rather than
                     // scroll, and `select-none` keeps the gesture from
                     // selecting anything on the way.
+                    !pinned && "touch-none select-none",
+                    // The cursor is what says which of the two a press is
+                    // being read as: an application is something to select
+                    // until a press is held, and something being carried after.
                     !pinned &&
-                      "cursor-grab touch-none select-none active:cursor-grabbing",
+                      (held === app.href || hand
+                        ? "cursor-grabbing"
+                        : "cursor-pointer"),
                   )}
                 >
                   <app.icon className="size-8 md:size-7" aria-hidden />
