@@ -1,0 +1,124 @@
+import { COMMANDS } from "@/components/terminal/commands"
+import { PROFILE, ageOn } from "@/components/terminal/profile"
+
+/** The Command a name names. Throws rather than returning undefined, so a
+ * missing Command reads as the failure it is. */
+function command(name: string) {
+  const found = COMMANDS.find((entry) => entry.name === name)
+  if (!found) throw new Error(`no Command named ${name}`)
+  return found
+}
+
+const CONTACT_ENV_VARS = [
+  "NEXT_PUBLIC_EMAIL",
+  "NEXT_PUBLIC_PHONE",
+  "NEXT_PUBLIC_GITHUB",
+  "NEXT_PUBLIC_WECHAT",
+] as const
+
+describe("the Command registry", () => {
+  it("declares the v1 four, once each, in their order", () => {
+    expect(COMMANDS.map((entry) => entry.name)).toEqual([
+      "/help",
+      "/whoami",
+      "/socials",
+      "/clear",
+    ])
+    expect(new Set(COMMANDS.map((entry) => entry.name)).size).toBe(
+      COMMANDS.length
+    )
+    for (const entry of COMMANDS) expect(entry.description).not.toBe("")
+  })
+
+  // Every Print names what produced it: the Echo is the Command's own name.
+  it("echoes each Command's own name", () => {
+    for (const entry of COMMANDS) expect(entry.print().echo).toBe(entry.name)
+  })
+})
+
+describe("/help", () => {
+  // Read off the registry itself, so there is no second list to rot: adding a
+  // Command adds its row without touching /help.
+  it("prints one row per registry entry, read off the registry", () => {
+    expect(command("/help").print().rows).toEqual(
+      COMMANDS.map((entry) => ({
+        label: entry.name,
+        value: entry.description,
+      }))
+    )
+  })
+})
+
+describe("/whoami", () => {
+  it("prints the five Profile rows", () => {
+    expect(command("/whoami").print().rows).toEqual([
+      { label: "Name", value: PROFILE.name },
+      { label: "Age", value: String(ageOn(PROFILE.birthdate, new Date())) },
+      { label: "Role", value: PROFILE.role },
+      { label: "Company", value: PROFILE.company },
+      { label: "Location", value: PROFILE.location },
+    ])
+  })
+})
+
+describe("/socials", () => {
+  const original: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    for (const name of CONTACT_ENV_VARS) {
+      original[name] = process.env[name]
+      delete process.env[name]
+    }
+  })
+
+  afterEach(() => {
+    for (const name of CONTACT_ENV_VARS) {
+      if (original[name] === undefined) delete process.env[name]
+      else process.env[name] = original[name]
+    }
+  })
+
+  it("prints one row per configured contact, verbatim, in the seam's order", () => {
+    process.env.NEXT_PUBLIC_GITHUB = "jwu02"
+    process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
+
+    expect(command("/socials").print().rows).toEqual([
+      { label: "Email", value: "tony@example.com", tone: "accent" },
+      { label: "GitHub", value: "jwu02", tone: "accent" },
+    ])
+  })
+
+  // An unset variable means "not published", so the row simply does not exist.
+  it("prints nothing when no contact is configured", () => {
+    expect(command("/socials").print().rows).toEqual([])
+  })
+})
+
+describe("/clear", () => {
+  it("prints no rows: wiping is the machine's doing, not a row's", () => {
+    expect(command("/clear").print().rows).toEqual([])
+  })
+})
+
+describe("age from a birthdate", () => {
+  // Local calendar parts on both sides: `new Date("2002-03-14")` is UTC
+  // midnight, so a UTC-parsed birthdate would age the owner a day early
+  // anywhere west of Greenwich.
+  it("counts the birthday as reached on the day itself", () => {
+    expect(ageOn("2002-03-14", new Date(2026, 2, 14))).toBe(24)
+  })
+
+  it("has not aged the owner the day before", () => {
+    expect(ageOn("2002-03-14", new Date(2026, 2, 13))).toBe(23)
+  })
+
+  it("has aged the owner the day after", () => {
+    expect(ageOn("2002-03-14", new Date(2026, 2, 15))).toBe(24)
+  })
+
+  // A December birthdate under a January "today": a naive month subtraction
+  // would call this 24.
+  it("crosses the year boundary correctly", () => {
+    expect(ageOn("2002-12-31", new Date(2026, 0, 1))).toBe(23)
+  })
+})

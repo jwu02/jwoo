@@ -1,0 +1,27 @@
+/**
+ * The owner's static self-description: what `/whoami` prints about, held as the
+ * Terminal's own config rather than derived from the resume — the resume's name
+ * localizes and knows none of the rest. Copy is English-only, like the Shell's.
+ */
+export const PROFILE = {
+  name: "Tony Wu",
+  /** ISO. The one place the owner's age lives: the Age row is derived from it. */
+  birthdate: "2002-03-14",
+  role: "Software Engineer",
+  company: "Kevala",
+  /** The owner's own location, not the visitor's. */
+  location: "Sydney, Australia",
+}
+
+/**
+ * The owner's age on `today`, compared on the birthdate's own parts: parsing it
+ * with `new Date("2002-03-14")` would read as UTC midnight, so asking that date
+ * for its local calendar would turn the birthday a day early west of Greenwich.
+ */
+export function ageOn(birthdate: string, today: Date): number {
+  const [year, month, day] = birthdate.split("-").map(Number)
+  const hasHadBirthday =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day)
+  return today.getFullYear() - year - (hasHadBirthday ? 0 : 1)
+}

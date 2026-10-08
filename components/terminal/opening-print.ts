@@ -6,9 +6,9 @@ import type { Print } from "./print"
  *
  * Deliberate throwaway — #65 ships this fixture so the skeleton has something
  * to render. The values are the look prototype's placeholders (jwoo#60), not
- * this deployment's configured contacts: the registry ticket re-points the seed
- * at the real Commands, sources /socials from the contacts seam (adding
- * LinkedIn), and deletes this file. Nothing else should import it.
+ * what the registry prints: the wiring ticket re-points the seed at the real
+ * /whoami and /socials Prints and deletes this file. Nothing else should
+ * import it.
  */
 export const OPENING_PRINT: readonly Print[] = [
   {
