@@ -19,7 +19,7 @@ The one application the visitor is currently in. There is never more than one: s
 _Avoid_: open app, current window
 
 **Dock**:
-The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room.
+The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room. Full screen is the one state that takes it off screen entirely.
 _Avoid_: sidebar, menu, launcher
 
 **Desktop**:

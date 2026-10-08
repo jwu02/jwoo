@@ -1,9 +1,51 @@
 "use client"
 
+import Link from "next/link"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
 
 import { appTitle, HOME } from "./apps"
 import { Dock } from "./dock"
+
+/**
+ * The macOS window controls at the left of the titlebar, drawn as plain
+ * traffic lights — no hover glyphs, the colours are the whole costume.
+ *
+ * Close and minimize both navigate to the Desktop: the one place a window
+ * here can go when it leaves, since there is no window manager to minimize
+ * into and the Desktop is the wallpaper the window sat on. Full screen is
+ * the one control that manages the window itself, so it is a button, not a
+ * navigation.
+ */
+function TrafficLights({
+  fullScreen,
+  onToggleFullScreen,
+}: {
+  fullScreen: boolean
+  onToggleFullScreen: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Link
+        href={HOME}
+        aria-label="Close window"
+        className="size-3.5 rounded-full bg-[#ff5f57] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+      />
+      <Link
+        href={HOME}
+        aria-label="Minimize window"
+        className="size-3.5 rounded-full bg-[#febc2e] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+      />
+      <button
+        type="button"
+        aria-label="Full screen"
+        aria-pressed={fullScreen}
+        onClick={onToggleFullScreen}
+        className="size-3.5 rounded-full bg-[#28c840] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+      />
+    </div>
+  )
+}
 
 /**
  * The strip at the head of an application's window that names it. The Shell
@@ -11,13 +53,22 @@ import { Dock } from "./dock"
  * titled the same way — in the Dock's voice, from the Dock's own list of names.
  * It is chrome, and says so, for the one page that prints.
  */
-function Titlebar({ title }: { title: string }) {
+function Titlebar({
+  title,
+  fullScreen,
+  onToggleFullScreen,
+}: {
+  title: string
+  fullScreen: boolean
+  onToggleFullScreen: () => void
+}) {
   return (
     <header
       data-os-chrome
       className="flex shrink-0 items-center border-b border-foreground/10 px-4 py-2.5 font-os text-[13px] text-muted-foreground"
     >
-      <h1>{title}</h1>
+      <TrafficLights fullScreen={fullScreen} onToggleFullScreen={onToggleFullScreen} />
+      <h1 className="ml-3">{title}</h1>
     </header>
   )
 }
@@ -40,6 +91,14 @@ export function OSShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const desktop = pathname === HOME
 
+  // Full screen is window state, so it dies with the window: it is recorded
+  // as the route it was engaged on and is only active while that route is
+  // still the one on screen. Any navigation — and any reload, state being
+  // memory alone — restores the Dock. The Desktop can never hold the state:
+  // its window has no traffic lights to engage it with.
+  const [fullScreenRoute, setFullScreenRoute] = useState<string | null>(null)
+  const fullScreen = fullScreenRoute === pathname
+
   return (
     // Column-reversed on narrow screens so the Dock lands at the bottom without
     // a second copy of the markup, and a plain row from `md` up. `isolate` is
@@ -58,7 +117,7 @@ export function OSShell({ children }: { children: React.ReactNode }) {
       {/* Floating over the desktop rather than taking a column from it: the
           scene runs the full width of the viewport, and the Dock's glass sits
           over the scene instead of over the flat wallpaper beside it. */}
-      <Dock overlay={desktop} />
+      {!fullScreen && <Dock overlay={desktop} />}
       <main
         // The Shell floats over the frame, so an application's surface is
         // padded clear of it; the desktop is not, and its wallpaper runs on
@@ -83,7 +142,13 @@ export function OSShell({ children }: { children: React.ReactNode }) {
             data-os-surface
             className="os-app-enter flex h-full flex-col md:overflow-hidden md:os-glass md:rounded-2xl md:border md:shadow-2xl"
           >
-            <Titlebar title={appTitle(pathname)} />
+            <Titlebar
+              title={appTitle(pathname)}
+              fullScreen={fullScreen}
+              onToggleFullScreen={() =>
+                setFullScreenRoute(fullScreen ? null : pathname)
+              }
+            />
             {/* The window's one scrolling region, with the titlebar above left
                 out of it — so the chrome stays put while the page moves — and
                 an application that would rather fill the window than scroll

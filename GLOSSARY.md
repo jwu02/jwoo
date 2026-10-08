@@ -24,5 +24,13 @@ _Avoid_: taskbar, sidebar, menu bar
 The OS frame every view renders inside: the Dock plus the active view.
 
 **Titlebar**:
-The bar at the top of an app window that names the application it belongs to.
+The bar at the top of an app window that names the application it belongs to, and carries the Traffic lights at its left.
 _Avoid_: Top Bar, header, page header
+
+**Traffic lights**:
+The three window controls at the left of the Titlebar, in macOS's image. Close and Minimize are both a departure to the Desktop — the one place a window here can go when it leaves, there being no window manager to minimize into. Full screen is the one control that manages the window itself.
+_Avoid_: window buttons, dots (that is their look, not what they are)
+
+**Full screen**:
+The state the green Traffic light toggles: the Dock is hidden and the application's window takes the space the Dock held, everything else about the window unchanged. It belongs to the window: it dies with it, and any navigation or reload restores the Dock. The Desktop is never in it — the Desktop has no window, so nothing there could engage or leave the state.
+_Avoid_: Zoom (that is the knowledge graph's camera), maximize, presentation mode
