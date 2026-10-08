@@ -2,6 +2,8 @@
 
 import { useEffect, useReducer, useRef } from "react"
 
+import { useVisualViewport } from "@/hooks/use-visual-viewport"
+
 import { COMMANDS, openingPrint } from "./commands"
 import { loadHistory, saveHistory } from "./history-store"
 import {
@@ -47,6 +49,11 @@ export function Terminal() {
   )
   const field = useRef<HTMLInputElement>(null)
   const output = useRef<HTMLDivElement>(null)
+
+  // The pane, and only the pane, follows the software keyboard — the Shell and
+  // its Dock stay where they are, and the keyboard landing on top of the Dock
+  // is the Dock doing nothing wrong. See `useVisualViewport`.
+  useVisualViewport()
 
   // History survives the visit; the transcript does not.
   useEffect(() => {
@@ -94,18 +101,27 @@ export function Terminal() {
   /** A click anywhere in the Terminal puts the field under the visitor's hands,
    * the way a terminal does. On mouse-up rather than mouse-down: the press is
    * left to the browser, so dragging a selection in the output still works, and
-   * a release that ends one is a selection rather than a click. */
+   * a release that ends one is a selection rather than a click. The focus is
+   * taken without scrolling, so the pane does not jump to reveal the field
+   * while iOS has the keyboard over it. */
   function onMouseUp(event: React.MouseEvent<HTMLDivElement>) {
     if (event.button !== 0) return
     const target = event.target as HTMLElement
     if (target.closest("input, button, a")) return
     const selection = window.getSelection()
     if (selection && !selection.isCollapsed) return
-    field.current?.focus()
+    field.current?.focus({ preventScroll: true })
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col" onMouseUp={onMouseUp}>
+    // The pane follows the software keyboard, and only the pane: on a coarse
+    // pointer it takes the visual viewport's height, so the Input bar ends up
+    // above the keyboard rather than under it. `100%` is the ceiling — with
+    // the keyboard away the pane fills its surface as it always did.
+    <div
+      className="flex h-full min-h-0 flex-col pointer-coarse:h-[min(var(--vvh,100svh),100%)]"
+      onMouseUp={onMouseUp}
+    >
       <header className="flex shrink-0 items-center border-b border-foreground/10 px-4 py-2.5 font-os text-[13px] text-muted-foreground">
         <h1>Terminal</h1>
       </header>
