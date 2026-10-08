@@ -15,7 +15,7 @@ import sharp from "sharp"
  * — and it is printed at `leading-none`, where that ratio holds. */
 const SOURCE = "public/miyamura.png"
 const OUTPUT = "components/terminal/portrait.ts"
-const COLUMNS = 80
+const COLUMNS = 56
 const ROWS = Math.round(COLUMNS * 0.6)
 
 /** Light to dark. A space is paper: the Terminal's background shows through. */
