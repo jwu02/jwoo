@@ -17,6 +17,10 @@ export interface PrintRow {
 export interface Print {
   echo: string
   rows: readonly PrintRow[]
+  /** The not-found line an unknown invocation leaves instead of rows: the
+   * machine's own error, never a Command's. The wiring ticket's renderer draws
+   * it in the Print's accent. */
+  error?: string
 }
 
 /** One Print: its Echo, then its rows. The rows are a definition list, so a
