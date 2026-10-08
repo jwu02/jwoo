@@ -26,6 +26,44 @@ _Avoid_: sidebar, menu, launcher
 Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, because it is not a place within the site. It is the whole viewport rather than an area beside the Shell's chrome: the Dock is over it, not next to it.
 _Avoid_: home screen, landing page, wallpaper (that is the picture behind it)
 
+### Terminal
+
+**Terminal**:
+An Application at `/terminal` styled as a command line: append-only output above one persistent input bar with slash-command autocomplete. Its terminal-ness is authored pastiche, not emulation — no VT parsing, no byte streams; what runs is the Command registry and nothing else.
+_Avoid_: console, shell (that is the OS chrome), emulator
+
+**Command**:
+One of the Terminal's built-in operations, named with a leading slash and matched by the input bar's popup. Declared once in the Command registry with its name, its description and how it prints. In v1 every Command is print-only: it produces its Print and does nothing else — no navigation, no side effects, no acting on the site.
+_Avoid_: intent (that is Tetris's), action, executable, handler
+
+**Command registry**:
+The single list of the Terminal's Commands — the one place a Command is declared, and the one list `/help` prints and the popup matches against. Adding a Command is one entry here; nothing else in the Terminal needs to know it exists.
+_Avoid_: command list, dispatcher, command map
+
+**Print**:
+The output a Command leaves on the Terminal's screen: an echo of the invocation followed by content rows. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
+_Avoid_: output (unqualified), response, render
+
+**Profile**:
+The owner's static self-description the Terminal prints about: name, age, role, company and location, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.
+_Avoid_: about, bio, user
+
+**Input bar**:
+The Terminal's one persistent field: the bottom edge of its surface where the query is typed, the Popup attaches, and History is walked. It is the only part of the Terminal that takes input; everything above it is Print.
+_Avoid_: prompt (that is the Echo), search field, textarea
+
+**Popup**:
+The command list the Input bar opens above itself while the query is being typed: one command and its description per row, matched by prefix and narrowed as the query grows. It closes on a space — arguments end the list — on acceptance, and on Esc.
+_Avoid_: autocomplete menu, dropdown, suggestion list
+
+**Echo**:
+The printed invocation that opens a Command's Print: what the visitor ran, shown above the rows, so the screen reads as a transcript. Every Print names what produced it.
+_Avoid_: prompt line, input log, history entry (that is what History keeps)
+
+**History**:
+The Commands this visitor has run, recalled by walking up from the Input bar and remembered across visits. A step back saves the half-typed draft; returning past the newest entry restores it. The transcript itself is not kept — only the invocations are.
+_Avoid_: command log, session, history list
+
 ### 3D scenes
 
 **Scene**:
