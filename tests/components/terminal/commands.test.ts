@@ -1,4 +1,4 @@
-import { COMMANDS } from "@/components/terminal/commands"
+import { COMMANDS, openingPrint } from "@/components/terminal/commands"
 import { PROFILE, ageOn } from "@/components/terminal/profile"
 
 /** The Command a name names. Throws rather than returning undefined, so a
@@ -97,6 +97,20 @@ describe("/socials", () => {
 describe("/clear", () => {
   it("prints no rows: wiping is the machine's doing, not a row's", () => {
     expect(command("/clear").print().rows).toEqual([])
+  })
+})
+
+describe("the opening print", () => {
+  // A fresh visit greets with the Commands themselves run, not with a second
+  // copy of their output: identity first, contacts under it.
+  it("is the registry's /whoami and /socials, in that order", () => {
+    const opening = openingPrint()
+
+    expect(opening).toEqual([
+      command("/whoami").print(),
+      command("/socials").print(),
+    ])
+    expect(opening.map((print) => print.echo)).toEqual(["/whoami", "/socials"])
   })
 })
 

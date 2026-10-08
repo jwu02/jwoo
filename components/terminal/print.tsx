@@ -18,13 +18,14 @@ export interface Print {
   echo: string
   rows: readonly PrintRow[]
   /** The not-found line an unknown invocation leaves instead of rows: the
-   * machine's own error, never a Command's. The wiring ticket's renderer draws
-   * it in the Print's accent. */
+   * machine's own error, never a Command's. The renderer draws it in the
+   * Print's accent. */
   error?: string
 }
 
-/** One Print: its Echo, then its rows. The rows are a definition list, so a
- * screen reader reads each label and value as a pair. */
+/** One Print: its Echo, then its rows — or, for an unknown invocation, the
+ * machine's not-found line. The rows are a definition list, so a screen reader
+ * reads each label and value as a pair. */
 function PrintBlock({ print }: { print: Print }) {
   return (
     <div className="mb-6 last:mb-0">
@@ -34,18 +35,24 @@ function PrintBlock({ print }: { print: Print }) {
         jwoo@localhost ~ <span className={ACCENT}>%</span>{" "}
         <span className="text-foreground">{print.echo}</span>
       </p>
-      <dl className="mt-3 grid grid-cols-[7rem_1fr] gap-x-4 gap-y-1.5 pl-0.5">
-        {print.rows.map((row, index) => (
-          // Keyed by position: the output is append-only, so an existing row
-          // never moves and a repeated label or echo cannot collide.
-          <div key={index} className="contents">
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className={row.tone === "accent" ? ACCENT : "text-foreground"}>
-              {row.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {print.error ? (
+        <p className={`mt-3 pl-0.5 ${ACCENT}`}>{print.error}</p>
+      ) : (
+        <dl className="mt-3 grid grid-cols-[7rem_1fr] gap-x-4 gap-y-1.5 pl-0.5">
+          {print.rows.map((row, index) => (
+            // Keyed by position: the output is append-only, so an existing row
+            // never moves and a repeated label or echo cannot collide.
+            <div key={index} className="contents">
+              <dt className="text-muted-foreground">{row.label}</dt>
+              <dd
+                className={row.tone === "accent" ? ACCENT : "text-foreground"}
+              >
+                {row.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   )
 }

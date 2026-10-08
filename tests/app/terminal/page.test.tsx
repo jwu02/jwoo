@@ -1,35 +1,315 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 
 import TerminalPage from "@/app/terminal/page"
+import { COMMANDS } from "@/components/terminal/commands"
 
-// The skeleton's one integration seam: the route, the Print renderer and the
-// opening fixture together. The input bar is drawn but not yet driven — the
-// wiring ticket is what makes it do anything.
-describe("the Terminal application", () => {
-  it("opens with /whoami's content above /socials'", () => {
+// The integration seam: the real registry, the Print renderer and the Input bar
+// together in jsdom, driven the way a visitor drives them — keys and clicks.
+// The machine's own rules are chartered in tests/components/terminal; what is
+// left here is what the visitor sees on the page.
+const CONTACT_ENV_VARS = [
+  "NEXT_PUBLIC_EMAIL",
+  "NEXT_PUBLIC_PHONE",
+  "NEXT_PUBLIC_GITHUB",
+  "NEXT_PUBLIC_WECHAT",
+] as const
+
+const original: Record<string, string | undefined> = {}
+
+function bar(): HTMLInputElement {
+  return screen.getByRole("combobox", { name: "Terminal input" })
+}
+
+/** Type into the field the way a keystroke does: one value change. */
+function type(value: string) {
+  fireEvent.change(bar(), { target: { value } })
+}
+
+function press(key: string) {
+  fireEvent.keyDown(bar(), { key })
+}
+
+/** The Popup row the bar says is lit — `aria-activedescendant` points at it. */
+function litOption(): HTMLElement {
+  return screen.getByRole("option", { selected: true })
+}
+
+/** Run a Command the way the bar does: Enter accepts a highlight, and the
+ * Enter after it runs what is in the field. */
+function run(value: string) {
+  type(value)
+  press("Enter")
+  press("Enter")
+}
+
+/** Every Echo on the screen, in the order printed: the invocation lines, which
+ * are the only slash-words outside a row's own label. */
+function echoes(): string[] {
+  return within(screen.getByRole("log"))
+    .queryAllByText(/^\//)
+    .filter((node) => node.tagName !== "DT")
+    .map((node) => node.textContent ?? "")
+}
+
+beforeEach(() => {
+  window.localStorage.clear()
+  for (const name of CONTACT_ENV_VARS) {
+    original[name] = process.env[name]
+    delete process.env[name]
+  }
+})
+
+afterEach(() => {
+  for (const name of CONTACT_ENV_VARS) {
+    if (original[name] === undefined) delete process.env[name]
+    else process.env[name] = original[name]
+  }
+  jest.restoreAllMocks()
+  // A selection outlives a render, so it must not outlive a test.
+  window.getSelection()?.removeAllRanges()
+})
+
+describe("the opening print", () => {
+  it("is the registry's /whoami, then the registry's /socials", () => {
+    process.env.NEXT_PUBLIC_GITHUB = "github.com/jwu02"
+
     render(<TerminalPage />)
 
     const whoami = screen.getByText("/whoami")
     const socials = screen.getByText("/socials")
-    // The opening print is a transcript, not a set: identity first, contacts
-    // under it, in that order.
+    // A transcript, not a set: identity first, contacts under it.
     expect(whoami.compareDocumentPosition(socials)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING
     )
 
+    // The Profile's own rows, not the skeleton's fixture copy of them.
     expect(screen.getByText("Tony Wu")).toBeInTheDocument()
     expect(screen.getByText("Software Engineer")).toBeInTheDocument()
     expect(screen.getByText("Kevala")).toBeInTheDocument()
     expect(screen.getByText("Sydney, Australia")).toBeInTheDocument()
+    // The contacts the deployment configures, read through the registry.
     expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
-    expect(screen.getByText("tony@jwu02.dev")).toBeInTheDocument()
   })
+})
 
-  it("draws the input bar's field, waiting for a later ticket to drive it", () => {
+describe("the Popup", () => {
+  it("opens on the slash, listing each Command with its description", () => {
     render(<TerminalPage />)
+    type("/")
 
     expect(
-      screen.getByRole("textbox", { name: "Terminal input" }),
+      screen.getByRole("listbox", { name: "Commands" })
     ).toBeInTheDocument()
+    for (const command of COMMANDS) {
+      expect(
+        screen.getByRole("option", { name: new RegExp(command.name) })
+      ).toBeInTheDocument()
+      expect(screen.getByText(command.description)).toBeInTheDocument()
+    }
+    expect(bar()).toHaveAttribute("aria-expanded", "true")
+    expect(bar()).toHaveAttribute("aria-activedescendant", litOption().id)
+  })
+
+  it("narrows by prefix as the query grows, keeping the highlight in the list", () => {
+    render(<TerminalPage />)
+    type("/so")
+
+    expect(screen.getAllByRole("option")).toHaveLength(1)
+    expect(
+      screen.getByRole("option", { name: /\/socials/ })
+    ).toBeInTheDocument()
+    expect(bar()).toHaveAttribute("aria-activedescendant", litOption().id)
+  })
+
+  it("is a combobox of options: closed until the slash, and pointed at the lit row", () => {
+    render(<TerminalPage />)
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    expect(bar()).toHaveAttribute("aria-expanded", "false")
+    expect(bar()).toHaveAttribute("aria-autocomplete", "list")
+    expect(bar()).not.toHaveAttribute("aria-activedescendant")
+
+    type("/")
+    press("ArrowDown")
+    expect(screen.getByRole("option", { name: /\/whoami/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+    // The combobox tracks the lit row, rather than merely naming some row.
+    expect(bar()).toHaveAttribute("aria-activedescendant", litOption().id)
+  })
+
+  it("accepts the highlight with Tab, and never runs it", () => {
+    render(<TerminalPage />)
+    type("/who")
+    press("Tab")
+
+    expect(bar()).toHaveValue("/whoami")
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    // Accepted, not run: the screen still holds only the opening print.
+    expect(echoes()).toEqual(["/whoami", "/socials"])
+  })
+
+  it("accepts a row that is clicked, and leaves it unrun", () => {
+    render(<TerminalPage />)
+    type("/")
+
+    fireEvent.click(screen.getByRole("option", { name: /\/socials/ }))
+
+    expect(bar()).toHaveValue("/socials")
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    expect(echoes()).toEqual(["/whoami", "/socials"])
+  })
+
+  it("closes on Esc, keeping the field, and clears it on a second Esc", () => {
+    render(<TerminalPage />)
+    type("/who")
+    press("Escape")
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    expect(bar()).toHaveValue("/who")
+
+    press("Escape")
+    expect(bar()).toHaveValue("")
+  })
+})
+
+describe("running a Command", () => {
+  it("appends its Echo and its rows below what was already printed", () => {
+    render(<TerminalPage />)
+    run("/whoami")
+
+    expect(echoes()).toEqual(["/whoami", "/socials", "/whoami"])
+    // The same Profile rows, printed a second time by the run.
+    expect(screen.getAllByText("Tony Wu")).toHaveLength(2)
+    expect(bar()).toHaveValue("")
+  })
+
+  it("prints /help's rows read off the registry", () => {
+    render(<TerminalPage />)
+    run("/help")
+
+    expect(echoes()).toEqual(["/whoami", "/socials", "/help"])
+    for (const command of COMMANDS) {
+      expect(screen.getAllByText(command.name).length).toBeGreaterThan(0)
+    }
+  })
+
+  it("prints an unknown command's Echo and its not-found row, leaving the rest alone", () => {
+    render(<TerminalPage />)
+    run("/nope")
+
+    expect(screen.getByText("/nope")).toBeInTheDocument()
+    expect(screen.getByText("command not found: /nope")).toBeInTheDocument()
+    expect(echoes()).toEqual(["/whoami", "/socials", "/nope"])
+  })
+
+  it("wipes the screen to empty on /clear, with no marker", () => {
+    render(<TerminalPage />)
+    run("/clear")
+
+    expect(echoes()).toEqual([])
+    expect(screen.queryByText("Tony Wu")).not.toBeInTheDocument()
+    expect(screen.queryByText("/whoami")).not.toBeInTheDocument()
+  })
+
+  it("keeps the output scrolled to the newest Print", () => {
+    render(<TerminalPage />)
+    const log = screen.getByRole("log")
+    // jsdom lays nothing out, so the screen is only ever as tall as it is told.
+    Object.defineProperty(log, "scrollHeight", {
+      value: 400,
+      configurable: true,
+    })
+
+    run("/help")
+
+    expect(log.scrollTop).toBe(400)
+  })
+
+  it("keeps the bar's key legend out of the output, so /clear leaves it standing", () => {
+    render(<TerminalPage />)
+    expect(screen.getByText("Tab accept")).toBeInTheDocument()
+
+    run("/clear")
+
+    expect(echoes()).toEqual([])
+    expect(screen.getByText("Tab accept")).toBeInTheDocument()
+    expect(screen.getByText("↑ ↓ history")).toBeInTheDocument()
+  })
+})
+
+describe("History", () => {
+  it("walks back with ↑, sets the draft aside, and hands it back with ↓", () => {
+    render(<TerminalPage />)
+    run("/help")
+    type("half-typed")
+
+    press("ArrowUp")
+    expect(bar()).toHaveValue("/help")
+
+    press("ArrowDown")
+    expect(bar()).toHaveValue("half-typed")
+  })
+
+  it("collapses consecutive duplicates", () => {
+    render(<TerminalPage />)
+    run("/help")
+    run("/help")
+
+    press("ArrowUp")
+    expect(bar()).toHaveValue("/help")
+    // One entry, so ↑ again stays where it is rather than stepping twice.
+    press("ArrowUp")
+    expect(bar()).toHaveValue("/help")
+  })
+
+  it("survives a reload", () => {
+    const visit = render(<TerminalPage />)
+    run("/socials")
+    visit.unmount()
+
+    render(<TerminalPage />)
+    press("ArrowUp")
+    expect(bar()).toHaveValue("/socials")
+  })
+
+  it("is kept in memory when storage refuses to hold it", () => {
+    jest.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage is off")
+    })
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("storage is off")
+    })
+
+    const visit = render(<TerminalPage />)
+    run("/socials")
+    visit.unmount()
+
+    render(<TerminalPage />)
+    press("ArrowUp")
+    expect(bar()).toHaveValue("/socials")
+  })
+})
+
+describe("focus", () => {
+  it("moves to the field from a click anywhere in the Terminal", () => {
+    render(<TerminalPage />)
+
+    fireEvent.mouseUp(screen.getByText("Terminal"))
+
+    expect(bar()).toHaveFocus()
+  })
+
+  it("leaves a release that ends a text selection alone, so the selection keeps", () => {
+    render(<TerminalPage />)
+    const range = document.createRange()
+    range.selectNodeContents(screen.getByRole("log"))
+    const selection = window.getSelection()
+    selection?.addRange(range)
+
+    fireEvent.mouseUp(screen.getByText("Terminal"))
+
+    expect(selection?.isCollapsed).toBe(false)
+    expect(bar()).not.toHaveFocus()
   })
 })

@@ -63,8 +63,11 @@ export type InputAction =
   | { type: "type"; value: string }
   /** One of the bar's keys went down. */
   | { type: "key"; key: InputKey }
-  /** A Command was invoked directly, as the Popup's click and the page's seed do. */
+  /** A Command was invoked directly, as the page's seed does. */
   | { type: "run"; value: string }
+  /** A Command was accepted into the field by name — a click on a Popup row,
+   * which knows the row it picked and cannot say it in a keystroke. */
+  | { type: "accept"; name: string }
   /** History was read back from a store at boot. */
   | { type: "hydrate"; history: readonly string[] }
 
@@ -285,6 +288,12 @@ export function reduce(
     }
     case "run":
       return runQuery(state, config, action.value)
+    case "accept": {
+      const command = config.commands.find(
+        (entry) => entry.name === action.name
+      )
+      return command ? accept(state, command) : state
+    }
     case "hydrate":
       return {
         ...state,

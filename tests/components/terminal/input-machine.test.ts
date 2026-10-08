@@ -170,6 +170,28 @@ describe("Tab", () => {
   })
 })
 
+describe("a Popup row's click", () => {
+  it("accepts the picked Command into the field, and never runs it", () => {
+    const state = reduce(typ(initialState(), "/"), CONFIG, {
+      type: "accept",
+      name: "/socials",
+    })
+
+    expect(state.query).toBe("/socials")
+    expect(state.popupOpen).toBe(false)
+    expect(state.active).toBe(0)
+    expect(state.history).toEqual([])
+    expect(state.output).toEqual([])
+  })
+
+  it("leaves the state alone for a name the registry does not hold", () => {
+    const opened = typ(initialState(), "/")
+    expect(reduce(opened, CONFIG, { type: "accept", name: "/nope" })).toBe(
+      opened
+    )
+  })
+})
+
 describe("Esc", () => {
   it("closes the Popup first, keeping the field", () => {
     const closed = key(typ(initialState(), "/who"), "Escape")

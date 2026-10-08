@@ -81,3 +81,18 @@ export const COMMANDS: readonly Command[] = [
     print: () => ({ echo: "/clear", rows: [] }),
   },
 ]
+
+/**
+ * The opening print: the identity Commands pre-run, so a fresh visit is never
+ * empty and the visitor learns the owner before typing. Read off the registry
+ * like any other run — the screen opens with what `/whoami` and `/socials`
+ * print, not with a second copy of it. A name the registry does not hold is a
+ * typo in the line below, so it throws the way the tests' own lookup does.
+ */
+export function openingPrint(): Print[] {
+  return ["/whoami", "/socials"].map((name) => {
+    const command = COMMANDS.find((entry) => entry.name === name)
+    if (!command) throw new Error(`no Command named ${name}`)
+    return command.print()
+  })
+}
