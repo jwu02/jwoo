@@ -19,8 +19,12 @@ The one application the visitor is currently in. There is never more than one: s
 _Avoid_: open app, current window
 
 **Dock**:
-The site's navigation, and the only one it has — every application, in a fixed order, in a rail down the left (a bar along the bottom at narrow widths). It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room. Full screen is the one state that takes it off screen entirely.
+The site's navigation, and the only one it has — every application in a rail down the left (a bar along the bottom at narrow widths). Its order is the visitor's: dragging an application onto another's place moves it there, the others closing around it, and the Dock is what remembers where they left it, so the rail is the same on the next visit. The Desktop is Pinned and never moves; nothing is dropped before it. It carries the current-location indicator, because it stays on screen while the visitor moves between applications, and that indicator is now the only thing on screen that says where the visitor is. Over an application it holds a column of its own; over the Desktop it holds none, floating on the wallpaper instead, so it never moves and only ever stops taking room. Full screen is the one state that takes it off screen entirely.
 _Avoid_: sidebar, menu, launcher
+
+**Pinned**:
+Fixed in the Dock's first position and untouched by rearranging: not dragged onto another's place, and not displaced by one dropped on it. The Desktop is Pinned.
+_Avoid_: locked, docked (that is whether an application is on the Dock at all), first item
 
 **Desktop**:
 Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, because it is not a place within the site. It is the whole viewport rather than an area beside the Shell's chrome: the Dock is over it, not next to it.
