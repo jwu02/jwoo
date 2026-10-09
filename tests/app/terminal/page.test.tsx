@@ -76,24 +76,22 @@ afterEach(() => {
 })
 
 describe("the opening print", () => {
-  it("is the registry's /neofetch, then the registry's /socials", () => {
+  it("is the registry's /neofetch alone, with nothing echoed above it", () => {
     process.env.NEXT_PUBLIC_GITHUB = "github.com/jwu02"
 
     render(<TerminalPage />)
 
-    const whoami = screen.getByText("/neofetch")
-    const socials = screen.getByText("/socials")
-    // A transcript, not a set: identity first, contacts under it.
-    expect(whoami.compareDocumentPosition(socials)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING
-    )
+    // Nobody typed anything, so no invocation line opens the screen.
+    expect(echoes()).toEqual([])
+    expect(screen.queryByText("/neofetch")).not.toBeInTheDocument()
+    // Only the identity Command is pre-run: nothing of /socials is here.
+    expect(screen.queryByText("/socials")).not.toBeInTheDocument()
+    expect(screen.queryByText("github.com/jwu02")).not.toBeInTheDocument()
 
     // The Profile's own rows, not the skeleton's fixture copy of them.
     expect(screen.getByText("Tony Wu")).toBeInTheDocument()
     expect(screen.getByText("Professional Vibecoder")).toBeInTheDocument()
     expect(screen.getByText("Guangdong, China")).toBeInTheDocument()
-    // The contacts the deployment configures, read through the registry.
-    expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
   })
 
   // The picture is drawn beside the rows, not stacked above them: a portrait
@@ -170,7 +168,7 @@ describe("the Popup", () => {
     expect(bar()).toHaveValue("/neofetch")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
     // Accepted, not run: the screen still holds only the opening print.
-    expect(echoes()).toEqual(["/neofetch", "/socials"])
+    expect(echoes()).toEqual([])
   })
 
   it("accepts a row that is clicked, and leaves it unrun", () => {
@@ -181,7 +179,7 @@ describe("the Popup", () => {
 
     expect(bar()).toHaveValue("/socials")
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
-    expect(echoes()).toEqual(["/neofetch", "/socials"])
+    expect(echoes()).toEqual([])
   })
 
   it("closes on Esc, keeping the field, and clears it on a second Esc", () => {
@@ -202,7 +200,7 @@ describe("running a Command", () => {
     render(<TerminalPage />)
     run("/neofetch")
 
-    expect(echoes()).toEqual(["/neofetch", "/socials", "/neofetch"])
+    expect(echoes()).toEqual(["/neofetch"])
     // The same Profile rows, printed a second time by the run.
     expect(screen.getAllByText("Tony Wu")).toHaveLength(2)
     expect(bar()).toHaveValue("")
@@ -214,7 +212,7 @@ describe("running a Command", () => {
 
     expect(screen.getByText("/nope")).toBeInTheDocument()
     expect(screen.getByText("command not found: /nope")).toBeInTheDocument()
-    expect(echoes()).toEqual(["/neofetch", "/socials", "/nope"])
+    expect(echoes()).toEqual(["/nope"])
   })
 
   it("wipes the screen to empty on /clear, with no marker", () => {

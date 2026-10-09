@@ -16,7 +16,9 @@ export interface PrintRow {
 /** What a Command leaves on the screen: the invocation, then its content —
  * rows, and a Portrait where the Command has one. */
 export interface Print {
-  echo: string
+  /** The invocation the visitor ran. Absent on the opening print, which the
+   * machine produces before anyone has typed anything. */
+  echo?: string
   rows: readonly PrintRow[]
   /** The picture to draw beside the rows, as the glyphs themselves — a Command
    * that has one prints it, and no Command has to name an image. A space is
@@ -35,11 +37,14 @@ function PrintBlock({ print }: { print: Print }) {
   return (
     <div className="mb-6 last:mb-0">
       {/* The Echo: the invocation, prefixed by the pastiched machine's prompt —
-          Terminal chrome rather than a Command's data. */}
-      <p className="text-muted-foreground">
-        jwoo@localhost ~ <span className={ACCENT}>%</span>{" "}
-        <span className="text-foreground">{print.echo}</span>
-      </p>
+          Terminal chrome rather than a Command's data. The opening print has
+          none, and shows its content alone. */}
+      {print.echo && (
+        <p className="text-muted-foreground">
+          jwoo@localhost ~ <span className={ACCENT}>%</span>{" "}
+          <span className="text-foreground">{print.echo}</span>
+        </p>
+      )}
       {/* The content wraps rather than shrinks: the Portrait is a picture at a
           fixed width, so a narrow pane puts the rows under it instead of
           squeezing either one. */}

@@ -117,16 +117,16 @@ describe("/clear", () => {
 })
 
 describe("the opening print", () => {
-  // A fresh visit greets with the Commands themselves run, not with a second
-  // copy of their output: identity first, contacts under it.
-  it("is the registry's /neofetch and /socials, in that order", () => {
+  // A fresh visit greets with the identity Command run, not with a second copy
+  // of its output — and with no Echo: the visitor never ran it.
+  it("is the registry's /neofetch, carrying no Echo", () => {
     const opening = openingPrint()
+    const identity = command("/neofetch").print()
 
-    expect(opening).toEqual([
-      command("/neofetch").print(),
-      command("/socials").print(),
-    ])
-    expect(opening.map((print) => print.echo)).toEqual(["/neofetch", "/socials"])
+    expect(opening).toHaveLength(1)
+    expect(opening[0].echo).toBeUndefined()
+    expect(opening[0].rows).toEqual(identity.rows)
+    expect(opening[0].portrait).toBe(identity.portrait)
   })
 })
 

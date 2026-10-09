@@ -93,16 +93,15 @@ export const COMMANDS: readonly Command[] = [
 ]
 
 /**
- * The opening print: the identity Commands pre-run, so a fresh visit is never
+ * The opening print: the identity Command pre-run, so a fresh visit is never
  * empty and the visitor learns the owner before typing. Read off the registry
- * like any other run — the screen opens with what `/neofetch` and `/socials`
- * print, not with a second copy of it. A name the registry does not hold is a
- * typo in the line below, so it throws the way the tests' own lookup does.
+ * like any other run — the screen opens with what `/neofetch` prints, not with
+ * a second copy of it. No Echo: nobody ran it. A name the registry does not
+ * hold is a typo in the line below, so it throws the way the tests' own lookup
+ * does.
  */
 export function openingPrint(): Print[] {
-  return ["/neofetch", "/socials"].map((name) => {
-    const command = COMMANDS.find((entry) => entry.name === name)
-    if (!command) throw new Error(`no Command named ${name}`)
-    return command.print()
-  })
+  const identity = COMMANDS.find((entry) => entry.name === "/neofetch")
+  if (!identity) throw new Error("no Command named /neofetch")
+  return [{ ...identity.print(), echo: undefined }]
 }

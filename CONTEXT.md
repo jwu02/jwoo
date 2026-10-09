@@ -49,7 +49,7 @@ The single list of the Terminal's Commands — the one place a Command is declar
 _Avoid_: command list, dispatcher, command map
 
 **Print**:
-The output a Command leaves on the Terminal's screen: an echo of the invocation followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
+The output a Command leaves on the Terminal's screen: an Echo of the invocation when the visitor ran it, followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
 _Avoid_: output (unqualified), response, render
 
 **Portrait**:
@@ -69,7 +69,7 @@ The command list the Input bar opens above itself while the query is being typed
 _Avoid_: autocomplete menu, dropdown, suggestion list
 
 **Echo**:
-The printed invocation that opens a Command's Print: what the visitor ran, shown above the rows, so the screen reads as a transcript. Every Print names what produced it.
+The printed invocation that opens a Command's Print: what the visitor ran, shown above the rows, so the screen reads as a transcript. A Print the visitor ran names what produced it; the opening Print, produced before anything is typed, has none.
 _Avoid_: prompt line, input log, history entry (that is what History keeps)
 
 **History**:

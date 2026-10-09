@@ -42,8 +42,8 @@ const step = (state: InputState, action: InputAction) =>
  * storage, focus and the scroll position.
  */
 export function Terminal() {
-  // A fresh Terminal has already run the identity Commands — the registry's
-  // prints, computed at mount so /socials reads the deployment's contacts.
+  // A fresh Terminal has already run the identity Command — the registry's
+  // print, computed at mount.
   const [state, dispatch] = useReducer(step, null, () =>
     initialState(openingPrint())
   )
