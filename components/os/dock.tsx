@@ -103,12 +103,11 @@ interface Gesture {
  * pointermove is far too frequent to be worth a render. */
 interface Hand {
   href: string
-  /** The icon's place in the Dock, which is where the hand starts. */
+  /** The icon's place *in the viewport*, which is where the hand starts. Its
+   * `left`/`top` in the Dock are worked back from this against the pane's own
+   * box, so the pane is free to resize under it while one is carried. */
   x: number
   y: number
-  /** The Dock's size while the drag lasts. */
-  width: number
-  height: number
   /** Whether the pointer is still over the Dock. */
   over: boolean
 }
@@ -126,22 +125,21 @@ interface Hand {
  *
  * The visitor may rearrange the applications by dragging one onto another's
  * place. A drag picks an icon up: it leaves the Dock's flow and follows the
- * pointer anywhere on screen, held by the grip the press took. The Dock holds
- * the size it had, so the icons rearrange inside a pane that stands still;
- * while the pointer is over the Dock the place the icon left is held open for
- * it — empty, with nothing drawn in it — and carried off the Dock that place is
- * given up, so the others close up around the space it left. A drop on another's
- * place moves the icon there; a drop off the Dock decides nothing, so the
- * application keeps the place it holds and whatever the drag rearranged on the
- * way stands. Below DRAG_SLOP a press is a selection, and the link navigates as
- * it always did: the cursor is what says which of the two a press is being read
- * as — a pointer while the icons are only there to select, a grabbing hand once
- * a press is held past HOLD_MS or an icon is in hand — and an icon a movement
- * displaces slides into its place rather than jumping to it. The arrangement is
- * theirs, so it is remembered between visits
- * — see `dock-order`. The Desktop is Pinned: it is not picked up, nothing is
- * dropped before it, and however far a drag wanders it is still the first icon
- * afterwards.
+ * pointer anywhere on screen, held by the grip the press took. The Dock goes on
+ * being sized to its contents, so it fits the icons it still holds: while the
+ * pointer is over the Dock the place the icon left is held open for it — empty,
+ * with nothing drawn in it — and carried off the Dock that place is given up, so
+ * the others close up around the space it left and the pane closes with them. A
+ * drop on another's place moves the icon there; a drop off the Dock decides
+ * nothing, so the application keeps the place it holds and whatever the drag
+ * rearranged on the way stands. Below DRAG_SLOP a press is a selection, and the
+ * link navigates as it always did: the cursor is what says which of the two a
+ * press is being read — a pointer while the icons are only there to select, a
+ * grabbing hand once a press is held past HOLD_MS or an icon is in hand — and an
+ * icon a movement displaces slides into its place rather than jumping to it. The
+ * arrangement is theirs, so it is remembered between visits — see `dock-order`.
+ * The Desktop is Pinned: it is not picked up, nothing is dropped before it, and
+ * however far a drag wanders it is still the first icon afterwards.
  *
  * `overlay` is the one thing the Desktop changes about it. An application's
  * surface is laid out *beside* the Dock, so the Dock takes its own column. The
@@ -204,6 +202,10 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
     const icons = Array.from(
       nav.current?.querySelectorAll<HTMLElement>("[data-dock-app]") ?? [],
     )
+    // The pane's own box, read with the icons' places and before any write: the
+    // hand is placed against it, and giving the carried icon's place up moves
+    // it.
+    const box = nav.current?.getBoundingClientRect()
     const seen = new Map<string, Point>()
     const slides: { icon: HTMLElement; x: number; y: number }[] = []
     // Every place first, every displacement after: a write in between the two
@@ -223,6 +225,16 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
     }
     places.current = seen
     for (const { icon, x, y } of slides) icon.style.translate = `${x}px ${y}px`
+
+    // The hand is anchored to the viewport, and the Dock is what moves under
+    // it: a pane sized to its contents closes up when the carried icon's place
+    // is given up, and a centred pane takes its own edges with it. The hand is
+    // placed in the pane, so the pane's box is what its anchor is measured
+    // from — not the box the drag began in.
+    if (hand && handNode.current && box) {
+      handNode.current.style.left = `${hand.x - box.left}px`
+      handNode.current.style.top = `${hand.y - box.top}px`
+    }
 
     // Every icon still displaced, not only the ones displaced just now: this
     // frame is the only thing that clears them, and it can be superseded.
@@ -319,10 +331,8 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       event.currentTarget.setPointerCapture?.(event.pointerId)
       setHand({
         href: current.href,
-        x: current.icon.x,
-        y: current.icon.y,
-        width: current.box.right - current.box.left,
-        height: current.box.bottom - current.box.top,
+        x: current.box.left + current.icon.x,
+        y: current.box.top + current.icon.y,
         over,
       })
     } else {
@@ -378,9 +388,6 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
       onPointerMove={travel}
       onPointerUp={drop}
       onPointerCancel={cancel}
-      // The pane the icons rearrange inside: the size it had when the drag
-      // began, so it neither grows nor shrinks while one is in hand.
-      style={hand ? { width: hand.width, height: hand.height } : undefined}
       className={cn(
         // `self-center` is what makes the bar hug its applications on narrow
         // screens: a flex item in a column stretches to the full width by
@@ -490,7 +497,6 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
           }}
           aria-hidden
           data-dock-hand={hand.href}
-          style={{ left: hand.x, top: hand.y }}
           className="pointer-events-none absolute z-10"
         >
           <span className="flex size-11 scale-110 items-center justify-center rounded-xl bg-foreground/15 text-foreground ring-2 ring-foreground/30 shadow-2xl md:size-10">

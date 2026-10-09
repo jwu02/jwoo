@@ -508,7 +508,7 @@ describe("Dock", () => {
       expect(hand()).not.toHaveAttribute("data-dock-app")
     })
 
-    it("gives up the place it left off the Dock, and holds the Dock's size", () => {
+    it("gives up the place it left off the Dock, and sizes to what is left", () => {
       renderDock()
       const place = stubSlots()
       const nav = screen.getByRole("navigation", { name: "Applications" })
@@ -525,10 +525,12 @@ describe("Dock", () => {
         "Knowledge Graph",
         "Resume",
       ])
-      // The pane holds the size it had, so the Dock itself stays put while the
-      // icons rearrange inside it.
-      expect(nav.style.width).toBe(`${PANE.right}px`)
-      expect(nav.style.height).toBe(`${PANE.bottom}px`)
+      // The pane is sized by its contents, the Dock gives no size of its own:
+      // one icon fewer is one icon worth of pane fewer. jsdom lays nothing out,
+      // so the size the classes give it is not observable here — what is
+      // observable is that the Dock claims none.
+      expect(nav.style.width).toBe("")
+      expect(nav.style.height).toBe("")
 
       place.release(place.off)
 
@@ -538,6 +540,40 @@ describe("Dock", () => {
       expect(nav.style.width).toBe("")
       expect(nav.style.height).toBe("")
       expect(window.localStorage.getItem("dock.order")).toBeNull()
+    })
+
+    // The pane is sized to what it holds, so giving the carried icon's place up
+    // closes it up — and a pane centred where it lives moves its own edges as it
+    // does. The hand is placed in the pane, so its anchor is measured from an
+    // edge that is moving: the icon must not ride the pane out from under the
+    // pointer, and it must not jump when the pane comes back.
+    it("keeps the icon in hand put while the pane closes up around it", () => {
+      renderDock()
+      const place = stubSlots()
+      const nav = screen.getByRole("navigation", { name: "Applications" })
+      const terminal = place.at("Terminal")
+      // A centred pane that loses one icon gives up half of one on the edge that
+      // moves: what the hand's anchor has to answer for.
+      const shift = (SLOT + GAP) / 2
+      nav.getBoundingClientRect = () =>
+        rect({
+          ...PANE,
+          left: hand() && !heldPlace() ? PANE.left + shift : PANE.left,
+        })
+
+      place.press("Terminal")
+      place.move(place.off)
+
+      // Still the icon's own place in the viewport, whatever the pane did:
+      // `left` is measured from the pane's edge, and that edge has moved.
+      expect(hand()!.style.left).toBe(`${terminal.left - shift}px`)
+
+      // Back over the Dock the pane grows again, and the anchor comes back with
+      // it — the hand is where it was all along.
+      const back = place.at("Resume")
+      place.move(back)
+
+      expect(hand()!.style.left).toBe(`${terminal.left}px`)
     })
 
     // "Off the Dock" is the Dock's own box: its padding, and the gaps between
