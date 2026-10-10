@@ -25,13 +25,13 @@ export const HOME = "/"
 
 export const APPS: readonly App[] = [
   { href: HOME, label: "Home", icon: Miyamura },
+  { href: "/terminal", label: "Terminal", icon: Terminal },
   { href: "/activity-telemetry", label: "Activity Telemetry", icon: Activity },
   { href: "/ai-usage", label: "AI Usage", icon: Bot },
   { href: "/knowledge-graph", label: "Knowledge Graph", icon: Globe },
   { href: "/resume", label: "Resume", icon: FileText },
   // Off the Dock until the Tetris cabinet ships its AI autopilot gameplay.
   // { href: "/tetris", label: "Tetris", icon: Tetris },
-  { href: "/terminal", label: "Terminal", icon: Terminal },
 ]
 
 /**

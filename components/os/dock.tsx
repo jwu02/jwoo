@@ -450,7 +450,7 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
                   aria-current={active ? "page" : undefined}
                   onClick={pinned ? undefined : click}
                   className={cn(
-                    "flex size-11 items-center justify-center overflow-hidden rounded-xl transition duration-150 ease-out md:size-10",
+                    "flex size-11 items-center justify-center overflow-hidden rounded-xl os-dock-icon md:size-10",
                     active
                       ? "bg-foreground/15 text-foreground ring-1 ring-foreground/15 shadow-[inset_0_1px_0_oklch(1_0_0/12%)]"
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",

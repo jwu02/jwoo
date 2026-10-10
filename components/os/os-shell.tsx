@@ -41,7 +41,7 @@ function TrafficLights({
         aria-label="Full screen"
         aria-pressed={fullScreen}
         onClick={onToggleFullScreen}
-        className="size-3.5 rounded-full bg-[#28c840] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="size-3.5 cursor-pointer rounded-full bg-[#28c840] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2"
       />
     </div>
   )

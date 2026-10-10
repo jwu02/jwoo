@@ -174,6 +174,25 @@
   backdrop-filter: blur(24px) saturate(150%);
 }
 
+/* The pace of a Dock icon's own changes. A rearrangement slides an icon into
+   its place — dock.tsx displaces it with `translate` and lets this transition
+   close the displacement — and a glide the eye can follow is the point;
+   hover and selection answer a click and stay quick. The duration and curve
+   lists map onto the property list in order, so the first belongs to the
+   slide and the second to everything else. Reduced motion drops the glide:
+   the icon stands where it belongs the frame it is placed. */
+@utility os-dock-icon {
+  transition-property: translate, scale, color, background-color, box-shadow;
+  transition-duration: 300ms, 150ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-dock-icon {
+    transition: none;
+  }
+}
+
 /* Switching applications. A fade rather than a fade-and-slide: a transform on
    the surface would make it a containing block for its own contents for the
    length of the animation, which every application would then have to be right
