@@ -121,7 +121,7 @@ export function ActivityChart({ data, range }: ActivityChartProps) {
   };
 
   return (
-    <div className="w-full space-y-2 rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
+    <div className="w-full space-y-2 rounded-xl bg-card p-4 outline-none [&_*]:!outline-none">
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart

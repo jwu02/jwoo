@@ -73,7 +73,7 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm"
+          className="rounded-xl bg-card p-4 text-card-foreground shadow-sm"
         >
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {item.label}

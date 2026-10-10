@@ -369,7 +369,7 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
   }));
 
   return (
-    <div className="w-full rounded-xl border border-border bg-card p-4 outline-none [&_*]:!outline-none">
+    <div className="w-full rounded-xl bg-card p-4 outline-none [&_*]:!outline-none">
       <div className="space-y-2">
         <div>
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">

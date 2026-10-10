@@ -9,7 +9,7 @@
 
 /** The rounded track the buttons sit in. */
 export const pillGroupClass =
-  "inline-flex rounded-full border border-border bg-card p-1";
+  "inline-flex rounded-full bg-card p-1";
 
 /**
  * One button in the track. The selected button takes the primary fill; the rest

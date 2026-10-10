@@ -8,7 +8,7 @@ interface SummaryCardsProps {
 // The card shell, repeated per total rather than configured into an array: only
 // one of the four carries a unit.
 const CARD =
-  "rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm";
+  "rounded-xl bg-card p-4 text-card-foreground shadow-sm";
 
 export function SummaryCards({ totals }: SummaryCardsProps) {
   return (
