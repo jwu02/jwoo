@@ -68,6 +68,7 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   const { scene } = useGLTF(MOUSE_MODEL_URL, MOUSE_DRACO_PATH)
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
   const size = useThree((state) => state.size)
+  const invalidate = useThree((state) => state.invalidate)
 
   // Scene-derived geometry, captured once after the GLB loads. Held in refs so
   // camera framing and the hover-colour walk never re-render the component.
@@ -148,7 +149,8 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
     camera.up.set(frame.up.x, frame.up.y, frame.up.z)
     camera.position.set(bodyCenter.x, bodyCenter.y + distance, bodyCenter.z)
     camera.lookAt(bodyCenter.x, bodyCenter.y, bodyCenter.z)
-  }, [camera, size])
+    invalidate()
+  }, [camera, size, invalidate])
 
   // Resolve the scene bounds once and frame to the mouse's own footprint. The
   // fit box is the full scene (for the standoff distance) while the look target
@@ -203,15 +205,27 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   )
   const handlePointerOut = useCallback(() => onHover(null), [onHover])
 
+  // The canvas is demand-driven (the only motion is the hover fade), so a hover
+  // change has to ask for the frames the cross-fade is about to use.
+  useEffect(() => {
+    invalidate()
+  }, [hovered, invalidate])
+
   // Hover fade: ease every part's overlay opacity toward 1 (this region) or 0
   // (everything else). Runs per frame — no React state — and a part already at
   // its target is skipped, so an idle mouse does no work.
   useFrame((_state, delta) => {
     const blend = 1 - Math.exp(-delta * MOUSE_FADE_RATE)
+    let animating = false
     for (const [region, materials] of regionOverlaysRef.current) {
       const target = region === hovered ? 1 : 0
-      for (const material of materials) stepFade(material, target, blend)
+      for (const material of materials) {
+        stepFade(material, target, blend)
+        if (material.opacity !== target) animating = true
+      }
     }
+    // Keep the demand loop alive for exactly as long as a part is still fading.
+    if (animating) invalidate()
   })
 
   return (

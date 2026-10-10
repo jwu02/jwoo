@@ -13,12 +13,14 @@ interface MouseCanvasProps {
 
 // Lazily loaded by MouseScene — this is where the mouse scene's three code
 // lives. `flat` keeps the model's material colours faithful, matching the
-// keyboard scene.
+// keyboard scene. Demand-driven like the keyboard: the only motion is the hover
+// cross-fade, and MouseModel invalidates frames while one is in flight.
 export function MouseCanvas({ hovered, onHover, canvasApiRef }: MouseCanvasProps) {
   return (
     <div className="absolute inset-0">
       <SceneCanvas
         flat
+        frameloop="demand"
         camera={{
           // The mouse is ~2.7 world units long and fitTopDown lifts the camera
           // several units above it (vs. the tiny keyboard, which only needs

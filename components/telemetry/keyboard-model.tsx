@@ -144,6 +144,7 @@ export function KeyboardModel({
   const { scene } = useGLTF(KEYBOARD_MODEL_URL, KEYBOARD_DRACO_PATH)
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
   const size = useThree((state) => state.size)
+  const invalidate = useThree((state) => state.invalidate)
 
   // Resolve each physical id's GLB node once and snapshot its rest height. The
   // caps keep their natural GLB colour — the heatmap is a separate overlay layer,
@@ -180,8 +181,11 @@ export function KeyboardModel({
       if (prev) activeRef.current.add(prev)
       if (hovered) activeRef.current.add(hovered)
       prevHoveredRef.current = hovered
+      // Demand frameloop: the loop is stopped between animations, so a hover
+      // change has to ask for the frames the spring is about to use.
+      invalidate()
     }
-  }, [hovered])
+  }, [hovered, invalidate])
 
   // Frame the top-down camera to fit the whole keyboard, and re-fit on resize.
   const boundsRef = useRef<Bounds3 | null>(null)
@@ -203,7 +207,8 @@ export function KeyboardModel({
       frame.cameraPos.z,
     )
     camera.lookAt(frame.target.x, frame.target.y, frame.target.z)
-  }, [camera, size])
+    invalidate()
+  }, [camera, size, invalidate])
 
   useEffect(() => {
     const box = new THREE.Box3().setFromObject(scene)
@@ -366,6 +371,9 @@ export function KeyboardModel({
         else def.node.position.y = def.restY - KEY_PRESS_DEPTH_M
       }
     }
+    // Keep the demand loop alive for exactly as long as a spring is moving;
+    // once the set drains, this stops asking and the canvas goes idle.
+    if (activeRef.current.size > 0) invalidate()
   })
 
   return (

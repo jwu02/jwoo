@@ -50,17 +50,27 @@ export interface SceneCanvasProps {
   directional?: boolean
   /** In-canvas content — models, controllers. Must render only three objects. */
   children: ReactNode
+  /**
+   * Which render loop the canvas runs. Telemetry scenes pass "demand": nothing
+   * in them moves unless the pointer is moving, so the default always-on loop
+   * redrew an identical frame 60 times a second and kept the GPU busy for
+   * nothing. In demand mode a scene must invalidate itself while it animates.
+   * Home keeps the default — its camera is user-driven (orbit, fly-to).
+   */
+  frameloop?: "always" | "demand"
 }
 
 export function SceneCanvas({
   camera,
   flat = false,
   directional = true,
+  frameloop = "always",
   children,
 }: SceneCanvasProps) {
   return (
     <Canvas
       flat={flat}
+      frameloop={frameloop}
       // Cap device pixel ratio at 1.5: the fullscreen hero canvas on a Retina
       // display would otherwise render at 2x (4x the pixel fill), which —
       // combined with the heavy home scene and its rect area lights — is what

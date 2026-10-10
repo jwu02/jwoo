@@ -16,7 +16,9 @@ interface KeyboardCanvasProps {
 // Lazily loaded by KeyboardScene — this is where the keyboard scene's three code
 // lives. NoToneMapping (`flat`) is a deliberate deviation from the home scene:
 // the cap tint IS the data encoding, and ACES compresses/desaturates exactly the
-// mid-tones the ramp uses.
+// mid-tones the ramp uses. The canvas is demand-driven (the keyboard only moves
+// while a hover spring is settling), so KeyboardModel invalidates its own frames
+// rather than leaving a 60 fps loop running on a static image.
 export function KeyboardCanvas({
   counts,
   maxCount,
@@ -29,6 +31,7 @@ export function KeyboardCanvas({
     <div className="absolute inset-0">
       <SceneCanvas
         flat
+        frameloop="demand"
         camera={{
           fov: 40,
           near: 0.01,
