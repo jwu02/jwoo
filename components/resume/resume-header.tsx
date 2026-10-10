@@ -16,6 +16,7 @@ export function ResumeHeader({
           src="/pfp.jpg"
           width={125}
           height={125}
+          loading="eager"
           className="rounded-full"
           alt={header.name}
         />

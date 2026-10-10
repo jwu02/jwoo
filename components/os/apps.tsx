@@ -64,7 +64,7 @@ function slugTitle(pathname: string): string {
 function Miyamura() {
   return (
     <Image
-      src="/miyamura.jpg"
+      src="/miyamura.png"
       alt=""
       width={56}
       height={56}

@@ -43,8 +43,9 @@ const MOUSE_HOVER_MATERIAL = new THREE.MeshStandardMaterial({
   roughness: 1,
 })
 
-/** Exponential approach rate (per second) for a part's hover fade. */
-const MOUSE_FADE_RATE = 9
+/** Exponential approach rate (per second) for a part's hover fade. 24 settles
+ *  the highlight in ~200 ms; 9 took ~500 ms and read as a floaty cross-fade. */
+const MOUSE_FADE_RATE = 24
 
 /** An unfaded part's opacity below this snaps to its target, so a settled part
  *  costs nothing per frame. */
