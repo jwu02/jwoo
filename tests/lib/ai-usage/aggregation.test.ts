@@ -73,6 +73,26 @@ describe("buildTotalsPipeline", () => {
           completionTokens: { $sum: "$completion_tokens" },
           cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
           cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
+          toolCalls: { $sum: "$tool_calls" },
+          toolCallsKnown: {
+            $sum: {
+              $cond: [
+                { $in: [{ $type: "$tool_calls" }, ["missing", "null"]] },
+                0,
+                1,
+              ],
+            },
+          },
+          skillInvocations: { $sum: { $size: { $ifNull: ["$skills", []] } } },
+          skillsKnown: {
+            $sum: {
+              $cond: [
+                { $in: [{ $type: "$skills" }, ["missing", "null"]] },
+                0,
+                1,
+              ],
+            },
+          },
         },
       },
     ]);
@@ -163,6 +183,10 @@ describe("fetchTotals", () => {
         completionTokens: 10,
         cacheHitTokens: 60,
         cacheMissTokens: 40,
+        toolCalls: 7,
+        toolCallsKnown: 2,
+        skillInvocations: 3,
+        skillsKnown: 1,
       },
     ]);
     const result = await fetchTotals(collection);
@@ -173,10 +197,12 @@ describe("fetchTotals", () => {
       completionTokens: 10,
       cacheHitTokens: 60,
       cacheMissTokens: 40,
+      toolCalls: 7,
+      skillInvocations: 3,
     });
   });
 
-  it("returns zeros when collection is empty", async () => {
+  it("returns zeroed tokens and unknown counts when collection is empty", async () => {
     const collection = makeMockCollection([]);
     const result = await fetchTotals(collection);
     expect(result).toEqual({
@@ -186,7 +212,51 @@ describe("fetchTotals", () => {
       completionTokens: 0,
       cacheHitTokens: 0,
       cacheMissTokens: 0,
+      toolCalls: null,
+      skillInvocations: null,
     });
+  });
+
+  it("returns null counts when no record carries the fields", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: null,
+        costYuan: 0.5,
+        totalTokens: 100,
+        promptTokens: 90,
+        completionTokens: 10,
+        cacheHitTokens: 60,
+        cacheMissTokens: 40,
+        toolCalls: 0,
+        toolCallsKnown: 0,
+        skillInvocations: 0,
+        skillsKnown: 0,
+      },
+    ]);
+    const result = await fetchTotals(collection);
+    expect(result.toolCalls).toBeNull();
+    expect(result.skillInvocations).toBeNull();
+  });
+
+  it("shows a partial sum once any record carries the field", async () => {
+    const collection = makeMockCollection([
+      {
+        _id: null,
+        costYuan: 0.5,
+        totalTokens: 100,
+        promptTokens: 90,
+        completionTokens: 10,
+        cacheHitTokens: 60,
+        cacheMissTokens: 40,
+        toolCalls: 7,
+        toolCallsKnown: 1,
+        skillInvocations: 0,
+        skillsKnown: 1,
+      },
+    ]);
+    const result = await fetchTotals(collection);
+    expect(result.toolCalls).toBe(7);
+    expect(result.skillInvocations).toBe(0);
   });
 });
 

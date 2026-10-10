@@ -8,6 +8,10 @@ export interface Totals {
   completionTokens: number;
   cacheHitTokens: number;
   cacheMissTokens: number;
+  // Null means no record carries the field, so the total is unknown rather
+  // than zero; records predating the field will never carry it.
+  toolCalls: number | null;
+  skillInvocations: number | null;
 }
 
 export interface ByModel {

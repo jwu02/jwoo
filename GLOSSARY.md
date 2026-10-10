@@ -34,3 +34,11 @@ _Avoid_: window buttons, dots (that is their look, not what they are)
 **Full screen**:
 The state the green Traffic light toggles: the Dock is hidden and the application's window takes the space the Dock held, everything else about the window unchanged. It belongs to the window: it dies with it, and any navigation or reload restores the Dock. The Desktop is never in it — the Desktop has no window, so nothing there could engage or leave the state.
 _Avoid_: Zoom (that is the knowledge graph's camera), maximize, presentation mode
+
+**Tool Call**:
+One action the assistant takes that its harness reports as a tool call. The Tool Calls card on the AI usage dashboard sums the counts the usage records carry; a Skill Invocation reported as a tool call counts in it too, so the two counts overlap.
+_Avoid_: tool, tool use
+
+**Skill Invocation**:
+One load of a reusable assistant skill. The Skill Invocations card on the AI usage dashboard counts every entry in the recorded list, repeats included.
+_Avoid_: skill use, tool call (a Skill Invocation can be one, but not every Tool Call is a Skill Invocation)

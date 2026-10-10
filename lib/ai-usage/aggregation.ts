@@ -18,6 +18,10 @@ interface TotalsRow {
   completionTokens: number;
   cacheHitTokens: number;
   cacheMissTokens: number;
+  toolCalls: number;
+  toolCallsKnown: number;
+  skillInvocations: number;
+  skillsKnown: number;
 }
 
 export function buildTotalsPipeline(): Record<string, unknown>[] {
@@ -31,6 +35,25 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
         completionTokens: { $sum: "$completion_tokens" },
         cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
         cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
+        toolCalls: { $sum: "$tool_calls" },
+        // $sum skips null and missing fields, so the number of records that
+        // carry each field at all is kept beside the sum: a sum of zero over
+        // zero known records is an unknown total, not a zero one.
+        toolCallsKnown: {
+          $sum: {
+            $cond: [
+              { $in: [{ $type: "$tool_calls" }, ["missing", "null"]] },
+              0,
+              1,
+            ],
+          },
+        },
+        skillInvocations: { $sum: { $size: { $ifNull: ["$skills", []] } } },
+        skillsKnown: {
+          $sum: {
+            $cond: [{ $in: [{ $type: "$skills" }, ["missing", "null"]] }, 0, 1],
+          },
+        },
       },
     },
   ];
@@ -121,6 +144,11 @@ export async function fetchTotals(collection: Collection): Promise<Totals> {
     completionTokens: first?.completionTokens ?? 0,
     cacheHitTokens: first?.cacheHitTokens ?? 0,
     cacheMissTokens: first?.cacheMissTokens ?? 0,
+    // Null when no record carries the field; a partial sum over the records
+    // that do carry it is shown as-is.
+    toolCalls: first && first.toolCallsKnown > 0 ? first.toolCalls : null,
+    skillInvocations:
+      first && first.skillsKnown > 0 ? first.skillInvocations : null,
   };
 }
 

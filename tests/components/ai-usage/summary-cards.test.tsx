@@ -11,6 +11,8 @@ const totals = {
   completionTokens: 10000,
   cacheHitTokens: 54000,
   cacheMissTokens: 36000,
+  toolCalls: 42,
+  skillInvocations: 7,
 };
 
 describe("SummaryCards", () => {
@@ -75,7 +77,41 @@ describe("SummaryCards", () => {
     const labels = Array.from(
       container.querySelectorAll(".grid > div > span")
     ).map((label) => label.textContent);
-    expect(labels).toEqual(["Cost", "Total Tokens", "Cache Hit Rate"]);
+    expect(labels).toEqual([
+      "Cost",
+      "Total Tokens",
+      "Cache Hit Rate",
+      "Tool Calls",
+      "Skill Invocations",
+    ]);
+  });
+
+  it("renders grouped tool call and skill invocation counts", () => {
+    render(
+      <SummaryCards
+        totals={{ ...totals, toolCalls: 12345, skillInvocations: 89 }}
+      />
+    );
+    expect(screen.getByText("12,345")).toBeInTheDocument();
+    expect(screen.getByText("89")).toBeInTheDocument();
+  });
+
+  it("shows a dash for an unknown count rather than a zero", () => {
+    render(
+      <SummaryCards
+        totals={{ ...totals, toolCalls: null, skillInvocations: null }}
+      />
+    );
+    expect(screen.getAllByText("—")).toHaveLength(2);
+  });
+
+  it("renders a genuine zero count as zero", () => {
+    render(
+      <SummaryCards
+        totals={{ ...totals, toolCalls: 0, skillInvocations: 0 }}
+      />
+    );
+    expect(screen.getAllByText("0")).toHaveLength(2);
   });
 
   it("shows an unknown rate when no prompt tokens went through the cache", () => {

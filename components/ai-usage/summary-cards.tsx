@@ -33,6 +33,12 @@ function formatHitRate(hitRate: number | null): {
   return { value: formatNumber(hitRate, 1), unit: "%" };
 }
 
+// An unknown count has no total to wear: like the cache rate, the dash says
+// nothing was recorded rather than saying zero happened.
+function formatCount(value: number | null): string {
+  return value === null ? "—" : formatNumber(value);
+}
+
 export function SummaryCards({ totals }: SummaryCardsProps) {
   const hitRate = cacheHitRate(totals.cacheHitTokens, totals.cacheMissTokens);
 
@@ -52,10 +58,18 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       label: "Cache Hit Rate",
       ...formatHitRate(hitRate),
     },
+    {
+      label: "Tool Calls",
+      value: formatCount(totals.toolCalls),
+    },
+    {
+      label: "Skill Invocations",
+      value: formatCount(totals.skillInvocations),
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
       {items.map((item) => (
         <div
           key={item.label}
