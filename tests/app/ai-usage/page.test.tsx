@@ -30,7 +30,7 @@ const response = {
       totalTokens: 2000,
     },
     {
-      project: "others",
+      project: "Others",
       costYuan: 0.5,
       totalTokens: 500,
     },
@@ -67,37 +67,38 @@ describe("AiUsagePage", () => {
 
   it("defaults to the by-model view", async () => {
     render(<AiUsagePage />);
-    expect(await screen.findByText("claude-opus-5")).toBeInTheDocument();
-    expect(screen.getByText("deepseek-v4-flash")).toBeInTheDocument();
+    // Each label shows once per ring (cost and tokens).
+    expect(await screen.findAllByText("claude-opus-5")).toHaveLength(2);
+    expect(screen.getAllByText("deepseek-v4-flash")).toHaveLength(2);
     expect(screen.queryByText("jwoo")).not.toBeInTheDocument();
   });
 
   it("switches to the by-project view on toggle", async () => {
     render(<AiUsagePage />);
-    await screen.findByText("claude-opus-5");
+    await screen.findAllByText("claude-opus-5");
 
     fireEvent.click(screen.getByRole("button", { name: "Project" }));
 
-    expect(await screen.findByText("work")).toBeInTheDocument();
-    expect(screen.getByText("personal-website")).toBeInTheDocument();
-    expect(screen.getByText("others")).toBeInTheDocument();
+    expect(await screen.findAllByText("work")).toHaveLength(2);
+    expect(screen.getAllByText("personal-website")).toHaveLength(2);
+    expect(screen.getAllByText("Others")).toHaveLength(2);
     expect(screen.queryByText("claude-opus-5")).not.toBeInTheDocument();
   });
 
   it("switches to the by-harness view on toggle", async () => {
     render(<AiUsagePage />);
-    await screen.findByText("claude-opus-5");
+    await screen.findAllByText("claude-opus-5");
 
     fireEvent.click(screen.getByRole("button", { name: "Harness" }));
 
-    expect(await screen.findByText("claude-code")).toBeInTheDocument();
-    expect(screen.getByText("api")).toBeInTheDocument();
+    expect(await screen.findAllByText("claude-code")).toHaveLength(2);
+    expect(screen.getAllByText("api")).toHaveLength(2);
     expect(screen.queryByText("claude-opus-5")).not.toBeInTheDocument();
   });
 
   it("puts the range above the data it governs", async () => {
     render(<AiUsagePage />);
-    await screen.findByText("claude-opus-5");
+    await screen.findAllByText("claude-opus-5");
 
     const pills = screen.getAllByRole("button", { name: "1y" });
     expect(pills).toHaveLength(1);

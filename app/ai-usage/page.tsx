@@ -11,20 +11,16 @@ import { ErrorBanner } from "@/components/polled/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
 import { Range } from "@/lib/ranges"
 import { Response } from "@/lib/ai-usage/types"
+import { BreakdownRow } from "@/lib/ai-usage/breakdown"
 
 // The three breakdown views read three API lists that differ only in what they
 // call their label field, so each view knows its own column header and how to
-// flatten its list into the table's rows.
+// flatten its list into the donuts' rows.
 const BREAKDOWNS: Record<
   BreakdownView,
   {
     header: string
-    rows: (data: Response) => {
-      id: string
-      label: string
-      costYuan: number
-      totalTokens: number
-    }[]
+    rows: (data: Response) => BreakdownRow[]
   }
 > = {
   model: {

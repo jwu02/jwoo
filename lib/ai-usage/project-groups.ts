@@ -2,15 +2,17 @@
 // working directory belongs to. It lives on its own rather than inside the
 // aggregation file so business config is not buried in pipeline code.
 
-/** Fallback project name for cwds that match no PROJECT_GROUPS key. */
-const OTHERS_PROJECT = "others";
+/** Fallback project name for cwds that match no PROJECT_GROUPS key. Spelled
+ *  the same as the breakdown's combined `Others` segment on purpose: both mean
+ *  "not named individually", so the Project view shows one segment, not two. */
+export const OTHERS_PROJECT = "Others";
 
 // Maps a cwd substring (matched case-insensitively) to the project name shown
-// in the breakdown table. Keys are evaluated in order; the first substring
+// in the breakdown. Keys are evaluated in order; the first substring
 // contained in a cwd wins. Order longer, more specific keys before broader
 // ones that their paths also contain — e.g. report-generator sits under
 // kamkiu, so it must be checked first or its rows would fall into "work".
-// Anything matching no key aggregates into the OTHERS_PROJECT row.
+// Anything matching no key aggregates into the OTHERS_PROJECT bucket.
 const PROJECT_GROUPS: Record<string, string> = {
   "training-management-system": "training-management-system",
   "assessment-management-system": "assessment-management-system",

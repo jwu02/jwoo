@@ -229,8 +229,12 @@ The tool that drove an AI-usage session — the agent runtime the session ran un
 _Avoid_: client, agent, tool
 
 **Project**:
-The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.
+The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `Others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.
 _Avoid_: repo, workspace
+
+**Others**:
+The AI usage breakdown's one unnamed segment: everything the breakdown does not name individually. In the Project breakdown that includes the working directories matching no project, so those and the smaller projects share the one segment rather than each getting its own — no reader sees two similarly named "rest" entries, or has to guess which is which.
+_Avoid_: other (singular), misc, remainder
 
 ### Keyboard heatmap
 

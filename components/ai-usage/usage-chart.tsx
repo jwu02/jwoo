@@ -26,7 +26,7 @@ import { aiUsageColorMap, aiUsageColorVar } from "@/lib/ai-usage/colors";
 interface UsageChartProps {
   data: ModelTimeSeries[];
   range: Range;
-  /** Model names in table order; series order and bar colors follow it. */
+  /** Model names in by-model order; series order and bar colors follow it. */
   modelOrder: string[];
 }
 
@@ -34,7 +34,7 @@ interface Series {
   dataKey: string;
   name: string;
   color: string; // full CSS color expression, e.g. "var(--chart-1)" or a color-mix shade
-  /** Tooltip prefix rendered muted, e.g. the ¥ sign in the cost table. */
+  /** Tooltip prefix rendered muted, e.g. the ¥ sign in the cost tooltip. */
   prefix?: string;
   formatValue?: (value: number) => string; // tooltip value formatter
 }
@@ -50,16 +50,16 @@ interface ChartRow {
   [key: string]: string | number;
 }
 
-// Cost tooltip values read at the same fixed precision as the model cost table
-// and the summary card, so one number never shows two different precisions on
-// the same page.
+// Cost tooltip values read at the same fixed precision as the cost donut's
+// tooltip and the summary card, so one number never shows two different
+// precisions on the same page.
 function formatCostValue(value: number): string {
   return formatNumber(value, 2);
 }
 
-// Token counts read at a fixed one decimal, matching the breakdown table's
-// Total Tokens column: the generic compact formatter trims the fraction ("2M"),
-// which reads as a different kind of number beside a "2.5M" row.
+// Token counts read at a fixed one decimal: the generic compact formatter trims
+// the fraction ("2M"), which reads as a different kind of number beside a
+// "2.5M" row.
 function formatTokenValue(value: number): string {
   return formatCompactNumber(value, 1);
 }
@@ -83,7 +83,7 @@ export function formatMillionsAxisLabel(value: number): string {
 // stacked bars from. Each row carries one `tokens:<model>` and one
 // `cost:<model>` value, so both charts can share the same bucket list while
 // the series configs select different keys. Series follow `modelOrder` (the
-// by-model table's order) so bar colors match the table rows.
+// by-model order) so bar colors match the breakdown segments.
 export function buildModelChartData(
   timeSeriesByModel: ModelTimeSeries[],
   modelOrder: string[]
@@ -123,8 +123,8 @@ export function buildModelChartData(
 
 // Bar/legend color for a model. Sibling models of a known provider (deepseek,
 // kimi) get a distinct stepped shade from `colorMap`; everything else falls
-// back to the --chart-N slot at its position in the by-model table (modelOrder),
-// so chart bars and table rows share one color per model even when a range only
+// back to the --chart-N slot at its position in the by-model order (modelOrder),
+// so chart bars and donut segments share one color per model even when a range only
 // shows a subset of the models.
 function chartColorForModel(
   model: string,
@@ -153,7 +153,7 @@ function UsageChartTooltip({
     })
     // Skip idle models (zero in this bucket) and rank the rest by their
     // value, highest first — an unused model's "0" row adds noise, and
-    // the series order (table order) need not match the bucket's ranking.
+    // the series order (by-model order) need not match the bucket's ranking.
     .filter(({ value }) => value !== 0)
     .sort((a, b) => b.value - a.value);
 
@@ -332,8 +332,8 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
   );
 
   // Assign a distinct shade per known-provider model, over the same set the
-  // breakdown table colors, so chart bars, legend swatches and table rows agree
-  // on one color per model. Unknown models stay out of the map and fall back to
+  // breakdown donuts color, so chart bars, legend swatches and donut segments
+  // agree on one color per model. Unknown models stay out of the map and fall back to
   // --chart-N.
   const colorMap = useMemo(() => aiUsageColorMap(modelOrder), [modelOrder]);
 

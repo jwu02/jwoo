@@ -295,7 +295,7 @@ describe("fetchByModel", () => {
 });
 
 describe("fetchByProject", () => {
-  it("aggregates cwds into mapping groups and others", async () => {
+  it("aggregates cwds into mapping groups and Others", async () => {
     const collection = makeMockCollection([
       {
         _id: "/Users/jwu02/Developer/KamKiu/training-management-system",
@@ -359,7 +359,7 @@ describe("fetchByProject", () => {
         totalTokens: 80,
       },
       {
-        project: "others",
+        project: "Others",
         costYuan: 0.25,
         totalTokens: 50,
       },

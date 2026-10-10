@@ -1,4 +1,4 @@
-// Semantic colors for the AI usage charts and breakdown tables.
+// Semantic colors for the AI usage charts and breakdowns.
 //
 // Real `ai_usage` records carry model names like `deepseek-v4-flash` and
 // `kimi-k2.7-code`. A single provider appears as several sibling models, so a
@@ -58,6 +58,13 @@ function shadeExpression(baseVar: string, index: number, total: number): string 
   const pct = strongest - (index * (strongest - lightest)) / (total - 1);
   return `color-mix(in srgb, var(${baseVar}) ${pct}%, white)`;
 }
+
+/**
+ * The combined `Others` segment is not a category, so it wears no brand hue and
+ * no `--chart-N` slot: a neutral grey is the one colour that reads as "no
+ * identity of its own". A reader must never mistake it for a model or project.
+ */
+export const AI_USAGE_OTHERS_COLOR = "var(--muted-foreground)";
 
 /**
  * Assign a color to every name in `names`. Known provider families are grouped

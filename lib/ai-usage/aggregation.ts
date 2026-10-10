@@ -83,8 +83,7 @@ export function buildByModelPipeline(
         totalTokens: { $sum: "$total_tokens" },
       },
     },
-    // Model name breaks cost ties so the table and chart share one
-    // deterministic ordering.
+    // Model name breaks cost ties so the chart's series order is deterministic.
     { $sort: { costYuan: -1, model: 1 } },
   ];
 }
@@ -102,7 +101,7 @@ export function buildByProjectPipeline(
         totalTokens: { $sum: "$total_tokens" },
       },
     },
-    // Full cwd path breaks cost ties so the table ordering is deterministic.
+    // Full cwd path breaks cost ties so the breakdown ordering is deterministic.
     { $sort: { costYuan: -1, _id: 1 } },
   ];
 }
@@ -121,7 +120,7 @@ export function buildByHarnessPipeline(
       },
     },
     // The group output carries the harness value in _id, so sorting on it
-    // breaks cost ties and makes the table ordering deterministic.
+    // breaks cost ties and makes the breakdown ordering deterministic.
     { $sort: { costYuan: -1, _id: 1 } },
   ];
 }
@@ -250,7 +249,7 @@ export async function fetchByHarness(
   }>;
 
   // Documents written before the collector recorded a harness group under a
-  // null _id; label those as "unknown" so the table shows a readable row.
+  // null _id; label those as "unknown" so the breakdown shows a readable name.
   return result.map((item) => ({
     harness: item._id ?? "unknown",
     costYuan: item.costYuan,
@@ -294,7 +293,7 @@ export async function fetchTimeSeriesByModel(
 
   const buckets = generateBuckets(start, interval, now, timeZone);
 
-  // Highest total cost first, matching the by-model table order; tie-break by
+  // Highest total cost first, matching the by-model order; tie-break by
   // model name for determinism.
   const models = [...byModel.keys()].sort((a, b) => {
     const costDiff = (totalCost.get(b) ?? 0) - (totalCost.get(a) ?? 0);
