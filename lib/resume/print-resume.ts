@@ -31,15 +31,22 @@ export function printResume(): void {
   const clone = sourceDocument.documentElement.cloneNode(true) as HTMLElement
   clone.querySelectorAll("script").forEach((script) => script.remove())
 
+  const cleanup = () => iframe.remove()
+
   const doc = iframe.contentDocument
-  if (!doc) return
+  if (!doc) {
+    cleanup()
+    return
+  }
   doc.open()
   doc.write(`<!DOCTYPE html>${clone.outerHTML}`)
   doc.close()
 
   const win = iframe.contentWindow
-  if (!win) return
-  const cleanup = () => iframe.remove()
+  if (!win) {
+    cleanup()
+    return
+  }
   win.addEventListener("afterprint", cleanup, { once: true })
   sourceDocument.defaultView?.setTimeout(cleanup, CLEANUP_FALLBACK_MS)
 
