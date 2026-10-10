@@ -5,11 +5,11 @@ import { SummaryCards } from "@/components/telemetry/summary-cards"
 import { MouseVisual } from "@/components/telemetry/mouse-visual"
 import { KeyboardHeatmap } from "@/components/telemetry/keyboard-heatmap"
 import { HeatmapToggle } from "@/components/telemetry/heatmap-toggle"
-import { RangeSelector } from "@/components/polled/range-selector"
+import { DashboardHeader } from "@/components/polled/dashboard-header"
 import { ActivityChart } from "@/components/telemetry/activity-chart"
 import { ErrorBanner } from "@/components/polled/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
-import { Range, RANGE_OPTIONS } from "@/lib/ranges"
+import { Range } from "@/lib/ranges"
 import { TelemetryResponse } from "@/lib/telemetry/types"
 
 export default function ActivityTelemetryPage() {
@@ -24,11 +24,11 @@ export default function ActivityTelemetryPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      {lastUpdated && (
-        <p className="mb-8 text-sm text-muted-foreground">
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </p>
-      )}
+      <DashboardHeader
+        lastUpdated={lastUpdated}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {error && <ErrorBanner message={error} onRetry={refresh} />}
 
@@ -46,11 +46,16 @@ export default function ActivityTelemetryPage() {
           <SummaryCards totals={data.totals} />
 
           <div>
-            <div className="mb-2 flex items-center justify-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
               <HeatmapToggle
                 showOverlay={showOverlay}
                 onToggle={() => setShowOverlay((value) => !value)}
               />
+              {/* The one panel off the page's clock: the counts are lifetime,
+                  while everything around it follows the range (ADR 0008). */}
+              <span className="text-xs text-muted-foreground">
+                All-time key counts
+              </span>
             </div>
             <div className="grid gap-8 md:grid-cols-[1fr_240px]">
               <KeyboardHeatmap keys={data.keys} showOverlay={showOverlay} />
@@ -63,13 +68,6 @@ export default function ActivityTelemetryPage() {
           </div>
 
           <div>
-            <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <RangeSelector
-                value={range}
-                onChange={setRange}
-                options={RANGE_OPTIONS}
-              />
-            </div>
             <ActivityChart data={data.timeSeries} range={range} />
           </div>
         </div>

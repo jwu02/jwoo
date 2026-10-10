@@ -77,10 +77,10 @@ describe("GET /api/ai-usage", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
-    expect(fetchTotals).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection);
-    expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection);
+    expect(fetchTotals).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
+    expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
+    expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
+    expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
     expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h",
@@ -146,6 +146,10 @@ describe("GET /api/ai-usage", () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
+    expect(fetchTotals).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
+    expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
+    expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
+    expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
     expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",

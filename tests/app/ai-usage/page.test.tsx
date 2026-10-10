@@ -94,4 +94,34 @@ describe("AiUsagePage", () => {
     expect(screen.getByText("api")).toBeInTheDocument();
     expect(screen.queryByText("claude-opus-5")).not.toBeInTheDocument();
   });
+
+  it("puts the range above the data it governs", async () => {
+    render(<AiUsagePage />);
+    await screen.findByText("claude-opus-5");
+
+    const pills = screen.getAllByRole("button", { name: "1y" });
+    expect(pills).toHaveLength(1);
+    const breakdown = screen.getByText("Usage breakdown");
+    expect(
+      pills[0].compareDocumentPosition(breakdown) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("keeps the range reachable when the range holds no usage", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...response,
+        totals: { ...response.totals, totalTokens: 0 },
+      }),
+    }) as unknown as typeof fetch;
+
+    render(<AiUsagePage />);
+
+    expect(
+      await screen.findByText("No AI usage in this range.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "30d" })).toBeInTheDocument();
+  });
 });

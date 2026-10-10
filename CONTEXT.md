@@ -213,7 +213,7 @@ The feature answering "where did AI spend go": cost, tokens and session counts o
 _Avoid_: AI dashboard, usage (on its own)
 
 **Range**:
-How far back a dashboard looks — what the range selector picks. The type and the lookback start are shared; the bucket interval and the option list are each dashboard's own, so a dashboard can re-bucket or add a range without touching its sibling.
+How far back a polled page looks, and the one control that says so: it sits in the page's header with Last updated, and every panel on the page follows it — the summary cards, the breakdowns, the charts, and activity telemetry's mouse. The type and the lookback start are shared; the bucket interval and the option list are each dashboard's own, so a dashboard can re-bucket or add a range without touching its sibling. The key heatmap is the one panel outside it: it is lifetime, deliberately (see ADR 0008).
 _Avoid_: period, timeframe; interval (that is the bucket size, not the range)
 
 **Cache hit rate**:

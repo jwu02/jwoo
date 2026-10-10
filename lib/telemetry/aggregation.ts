@@ -8,8 +8,12 @@ import {
 import { getRangeStart, getBucketInterval } from "@/lib/ranges";
 import { generateBuckets } from "@/lib/timezone";
 
-export function buildTotalsPipeline(): Record<string, unknown>[] {
+export function buildTotalsPipeline(
+  range: TelemetryRange,
+  now = new Date()
+): Record<string, unknown>[] {
   return [
+    { $match: { createdAt: { $gte: getRangeStart(range, now) } } },
     {
       $group: {
         _id: null,
@@ -22,6 +26,9 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
   ];
 }
 
+// Deliberately unfiltered: the key heatmap is the one panel that stays lifetime
+// while everything else on the page follows the range (see ADR 0008). The range
+// would only thin it out, and a lifetime typing map is what it is for.
 export function buildKeyCountsPipeline(): Record<string, unknown>[] {
   return [
     {
@@ -78,9 +85,13 @@ export function buildTimeSeriesPipeline(
 }
 
 export async function fetchTotals(
-  collection: Collection
+  collection: Collection,
+  range: TelemetryRange,
+  now = new Date()
 ): Promise<TelemetryTotals> {
-  const result = await collection.aggregate(buildTotalsPipeline()).toArray();
+  const result = await collection
+    .aggregate(buildTotalsPipeline(range, now))
+    .toArray();
   const first = result[0] as
     | {
         leftClicks: number;

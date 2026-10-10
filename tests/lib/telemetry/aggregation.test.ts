@@ -28,9 +28,11 @@ function makeMockCollection(aggregateResult: unknown[] = []): Collection {
 }
 
 describe("buildTotalsPipeline", () => {
-  it("sums top-level telemetry fields", () => {
-    const pipeline = buildTotalsPipeline();
+  it("matches the range then sums top-level telemetry fields", () => {
+    const now = new Date("2026-08-09T12:00:00.000Z");
+    const pipeline = buildTotalsPipeline("24h", now);
     expect(pipeline).toEqual([
+      { $match: { createdAt: { $gte: new Date("2026-08-08T12:00:00.000Z") } } },
       {
         $group: {
           _id: null,
@@ -107,7 +109,7 @@ describe("fetchTotals", () => {
     const collection = makeMockCollection([
       { leftClicks: 10, rightClicks: 2, movementMeters: 1.5, totalKeyPresses: 25 },
     ]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result).toEqual({
       leftClicks: 10,
       rightClicks: 2,
@@ -118,7 +120,7 @@ describe("fetchTotals", () => {
 
   it("returns zeros when collection is empty", async () => {
     const collection = makeMockCollection([]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result).toEqual({
       leftClicks: 0,
       rightClicks: 0,

@@ -52,7 +52,7 @@ describe("GET /api/telemetry", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
-    expect(fetchTotals).toHaveBeenCalledWith(mockTelemetryCollection);
+    expect(fetchTotals).toHaveBeenCalledWith(mockTelemetryCollection, "24h");
     expect(fetchKeyCounts).toHaveBeenCalledWith(mockKeyboardCollection);
     expect(fetchTimeSeries).toHaveBeenCalledWith(
       mockTelemetryCollection,
@@ -126,6 +126,23 @@ describe("GET /api/telemetry", () => {
       undefined,
       "UTC"
     );
+  });
+
+  it("leaves the key counts unfiltered while the totals follow the range", async () => {
+    (fetchTotals as jest.Mock).mockResolvedValue({
+      leftClicks: 0,
+      rightClicks: 0,
+      movementMeters: 0,
+      totalKeyPresses: 0,
+    });
+    (fetchKeyCounts as jest.Mock).mockResolvedValue({});
+    (fetchTimeSeries as jest.Mock).mockResolvedValue([]);
+
+    const request = new Request("http://localhost:3000/api/telemetry?range=1y");
+    await GET(request);
+
+    expect(fetchTotals).toHaveBeenCalledWith(mockTelemetryCollection, "1y");
+    expect(fetchKeyCounts).toHaveBeenCalledWith(mockKeyboardCollection);
   });
 
   it("returns 400 for an invalid range", async () => {

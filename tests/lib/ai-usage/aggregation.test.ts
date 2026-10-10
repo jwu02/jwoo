@@ -61,9 +61,11 @@ describe("AI usage bucket generation", () => {
 });
 
 describe("buildTotalsPipeline", () => {
-  it("sums ai_usage fields", () => {
-    const pipeline = buildTotalsPipeline();
+  it("matches the range then sums ai_usage fields", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildTotalsPipeline("24h", now);
     expect(pipeline).toEqual([
+      { $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } } },
       {
         $group: {
           _id: null,
@@ -100,9 +102,11 @@ describe("buildTotalsPipeline", () => {
 });
 
 describe("buildByModelPipeline", () => {
-  it("groups by model and sorts by cost descending, model name as tie-break", () => {
-    const pipeline = buildByModelPipeline();
+  it("matches the range, groups by model and sorts by cost descending, model name as tie-break", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildByModelPipeline("24h", now);
     expect(pipeline).toEqual([
+      { $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } } },
       {
         $group: {
           _id: "$model",
@@ -116,9 +120,11 @@ describe("buildByModelPipeline", () => {
 });
 
 describe("buildByProjectPipeline", () => {
-  it("groups by cwd and sorts by cost descending, cwd as tie-break", () => {
-    const pipeline = buildByProjectPipeline();
+  it("matches the range, groups by cwd and sorts by cost descending, cwd as tie-break", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildByProjectPipeline("24h", now);
     expect(pipeline).toEqual([
+      { $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } } },
       {
         $group: {
           _id: "$cwd",
@@ -132,9 +138,11 @@ describe("buildByProjectPipeline", () => {
 });
 
 describe("buildByHarnessPipeline", () => {
-  it("groups by harness and sorts by cost descending, harness name as tie-break", () => {
-    const pipeline = buildByHarnessPipeline();
+  it("matches the range, groups by harness and sorts by cost descending, harness name as tie-break", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildByHarnessPipeline("24h", now);
     expect(pipeline).toEqual([
+      { $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } } },
       {
         $group: {
           _id: "$harness",
@@ -189,7 +197,7 @@ describe("fetchTotals", () => {
         skillsKnown: 1,
       },
     ]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result).toEqual({
       costYuan: 0.5,
       totalTokens: 100,
@@ -204,7 +212,7 @@ describe("fetchTotals", () => {
 
   it("returns zeroed tokens and unknown counts when collection is empty", async () => {
     const collection = makeMockCollection([]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result).toEqual({
       costYuan: 0,
       totalTokens: 0,
@@ -233,7 +241,7 @@ describe("fetchTotals", () => {
         skillsKnown: 0,
       },
     ]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result.toolCalls).toBeNull();
     expect(result.skillInvocations).toBeNull();
   });
@@ -254,7 +262,7 @@ describe("fetchTotals", () => {
         skillsKnown: 1,
       },
     ]);
-    const result = await fetchTotals(collection);
+    const result = await fetchTotals(collection, "24h");
     expect(result.toolCalls).toBe(7);
     expect(result.skillInvocations).toBe(0);
   });
@@ -269,7 +277,7 @@ describe("fetchByModel", () => {
         totalTokens: 100,
       },
     ]);
-    const result = await fetchByModel(collection);
+    const result = await fetchByModel(collection, "24h");
     expect(result).toEqual([
       {
         model: "deepseek-v4-flash",
@@ -281,7 +289,7 @@ describe("fetchByModel", () => {
 
   it("returns empty array when collection is empty", async () => {
     const collection = makeMockCollection([]);
-    const result = await fetchByModel(collection);
+    const result = await fetchByModel(collection, "24h");
     expect(result).toEqual([]);
   });
 });
@@ -333,7 +341,7 @@ describe("fetchByProject", () => {
       },
       { _id: null, costYuan: 0.05, totalTokens: 10 },
     ]);
-    const result = await fetchByProject(collection);
+    const result = await fetchByProject(collection, "24h");
     expect(result).toEqual([
       {
         project: "training-management-system",
@@ -365,7 +373,7 @@ describe("fetchByProject", () => {
 
   it("returns empty array when collection is empty", async () => {
     const collection = makeMockCollection([]);
-    const result = await fetchByProject(collection);
+    const result = await fetchByProject(collection, "24h");
     expect(result).toEqual([]);
   });
 });
@@ -384,7 +392,7 @@ describe("fetchByHarness", () => {
         totalTokens: 40,
       },
     ]);
-    const result = await fetchByHarness(collection);
+    const result = await fetchByHarness(collection, "24h");
     expect(result).toEqual([
       {
         harness: "claude-code",
@@ -401,7 +409,7 @@ describe("fetchByHarness", () => {
 
   it("returns empty array when collection is empty", async () => {
     const collection = makeMockCollection([]);
-    const result = await fetchByHarness(collection);
+    const result = await fetchByHarness(collection, "24h");
     expect(result).toEqual([]);
   });
 });

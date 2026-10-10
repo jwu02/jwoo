@@ -6,9 +6,10 @@ import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
 import { BreakdownView, VIEW_OPTIONS } from "@/components/ai-usage/view-toggle"
 import { RangeSelector } from "@/components/polled/range-selector"
+import { DashboardHeader } from "@/components/polled/dashboard-header"
 import { ErrorBanner } from "@/components/polled/error-banner"
 import { usePolledJson, viewerTimeZone } from "@/hooks/use-polled-json"
-import { Range, RANGE_OPTIONS } from "@/lib/ranges"
+import { Range } from "@/lib/ranges"
 import { Response } from "@/lib/ai-usage/types"
 
 // The three breakdown views read three API lists that differ only in what they
@@ -67,11 +68,11 @@ export default function AiUsagePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      {lastUpdated && (
-        <p className="mb-8 text-sm text-muted-foreground">
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </p>
-      )}
+      <DashboardHeader
+        lastUpdated={lastUpdated}
+        range={range}
+        onRangeChange={setRange}
+      />
 
       {error && <ErrorBanner message={error} onRetry={refresh} />}
 
@@ -90,18 +91,11 @@ export default function AiUsagePage() {
 
           {isEmpty ? (
             <p className="text-sm text-muted-foreground">
-              No AI usage recorded yet.
+              No AI usage in this range.
             </p>
           ) : (
             <>
               <div>
-                <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <RangeSelector
-                    value={range}
-                    onChange={setRange}
-                    options={RANGE_OPTIONS}
-                  />
-                </div>
                 <UsageChart
                   data={data.timeSeriesByModel}
                   range={range}

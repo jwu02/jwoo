@@ -24,8 +24,12 @@ interface TotalsRow {
   skillsKnown: number;
 }
 
-export function buildTotalsPipeline(): Record<string, unknown>[] {
+export function buildTotalsPipeline(
+  range: Range,
+  now = new Date()
+): Record<string, unknown>[] {
   return [
+    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
     {
       $group: {
         _id: null,
@@ -59,8 +63,12 @@ export function buildTotalsPipeline(): Record<string, unknown>[] {
   ];
 }
 
-export function buildByModelPipeline(): Record<string, unknown>[] {
+export function buildByModelPipeline(
+  range: Range,
+  now = new Date()
+): Record<string, unknown>[] {
   return [
+    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
     {
       $group: {
         _id: "$model",
@@ -74,8 +82,12 @@ export function buildByModelPipeline(): Record<string, unknown>[] {
   ];
 }
 
-export function buildByProjectPipeline(): Record<string, unknown>[] {
+export function buildByProjectPipeline(
+  range: Range,
+  now = new Date()
+): Record<string, unknown>[] {
   return [
+    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
     {
       $group: {
         _id: "$cwd",
@@ -88,8 +100,12 @@ export function buildByProjectPipeline(): Record<string, unknown>[] {
   ];
 }
 
-export function buildByHarnessPipeline(): Record<string, unknown>[] {
+export function buildByHarnessPipeline(
+  range: Range,
+  now = new Date()
+): Record<string, unknown>[] {
   return [
+    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
     {
       $group: {
         _id: "$harness",
@@ -134,8 +150,14 @@ export function buildTimeSeriesByModelPipeline(
   ];
 }
 
-export async function fetchTotals(collection: Collection): Promise<Totals> {
-  const result = await collection.aggregate(buildTotalsPipeline()).toArray();
+export async function fetchTotals(
+  collection: Collection,
+  range: Range,
+  now = new Date()
+): Promise<Totals> {
+  const result = await collection
+    .aggregate(buildTotalsPipeline(range, now))
+    .toArray();
   const first = result[0] as TotalsRow | undefined;
   return {
     costYuan: first?.costYuan ?? 0,
@@ -153,10 +175,12 @@ export async function fetchTotals(collection: Collection): Promise<Totals> {
 }
 
 export async function fetchByModel(
-  collection: Collection
+  collection: Collection,
+  range: Range,
+  now = new Date()
 ): Promise<ByModel[]> {
   const result = (await collection
-    .aggregate(buildByModelPipeline())
+    .aggregate(buildByModelPipeline(range, now))
     .toArray()) as Array<{
     _id: string;
     costYuan: number;
@@ -170,10 +194,12 @@ export async function fetchByModel(
 }
 
 export async function fetchByProject(
-  collection: Collection
+  collection: Collection,
+  range: Range,
+  now = new Date()
 ): Promise<ByProject[]> {
   const result = (await collection
-    .aggregate(buildByProjectPipeline())
+    .aggregate(buildByProjectPipeline(range, now))
     .toArray()) as Array<{
     _id: string | null;
     costYuan: number;
@@ -205,10 +231,12 @@ export async function fetchByProject(
 }
 
 export async function fetchByHarness(
-  collection: Collection
+  collection: Collection,
+  range: Range,
+  now = new Date()
 ): Promise<ByHarness[]> {
   const result = (await collection
-    .aggregate(buildByHarnessPipeline())
+    .aggregate(buildByHarnessPipeline(range, now))
     .toArray()) as Array<{
     _id: string | null;
     costYuan: number;

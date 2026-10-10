@@ -70,6 +70,33 @@ describe("ActivityTelemetryPage", () => {
     expect(await screen.findByText(/^Last updated:/)).toBeInTheDocument();
   });
 
+  it("puts the range above the data it governs", async () => {
+    render(<ActivityTelemetryPage />);
+    await screen.findByText("5,400");
+
+    const pills = screen.getAllByRole("button", { name: "30d" });
+    expect(pills).toHaveLength(1);
+    const chart = screen.getByTestId("activity-chart");
+    expect(
+      pills[0].compareDocumentPosition(chart) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("offers the range before the first response lands", () => {
+    render(<ActivityTelemetryPage />);
+
+    expect(screen.queryByText("5,400")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "30d" })).toBeInTheDocument();
+  });
+
+  it("says the keyboard counts are lifetime, while the rest follows the range", async () => {
+    render(<ActivityTelemetryPage />);
+    await screen.findByText("5,400");
+
+    expect(screen.getByText("All-time key counts")).toBeInTheDocument();
+  });
+
   it("requests the chosen range when the range changes", async () => {
     render(<ActivityTelemetryPage />);
     await screen.findByText("5,400");

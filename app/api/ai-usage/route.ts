@@ -30,10 +30,13 @@ export async function GET(request: Request): Promise<NextResponse> {
     const aiUsageCollection = getCollection("ai_usage");
     const [totals, byModel, byProject, byHarness, timeSeriesByModel] =
       await Promise.all([
-        fetchTotals(aiUsageCollection),
-        fetchByModel(aiUsageCollection),
-        fetchByProject(aiUsageCollection),
-        fetchByHarness(aiUsageCollection),
+        // Every panel on this page is the range's: the cards, the three
+        // breakdowns, and the chart. Only activity telemetry has a panel
+        // outside it (its key heatmap — see ADR 0008).
+        fetchTotals(aiUsageCollection, rangeParam),
+        fetchByModel(aiUsageCollection, rangeParam),
+        fetchByProject(aiUsageCollection, rangeParam),
+        fetchByHarness(aiUsageCollection, rangeParam),
         fetchTimeSeriesByModel(
           aiUsageCollection,
           rangeParam,

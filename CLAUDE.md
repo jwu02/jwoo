@@ -20,6 +20,7 @@ The site is framed as an OS: every route is an *application* the Dock selects. `
 
 - `.env` needs `MONGO_URI` (read lazily, throws if missing) and `ACTIVITY_DB_NAME` (defaults to `activity-telemetry`).
 - Buckets are UTC ISO strings; aggregations take an injectable `now = new Date()`; `alignToInterval` deliberately mirrors MongoDB `$dateTrunc`.
+- Each dashboard has one range selector, in its header row, and it governs every panel on that page except the activity-telemetry key heatmap, which is lifetime by design. See `docs/adr/0008-range-governs-the-page.md`.
 - Dark only: `<html class="dark">` is fixed in `app/layout.tsx`. There is no theme toggle — the OS chrome is glass, which needs a dark wallpaper to read as glass.
 - Domain vocabulary in `CONTEXT.md`; hard-to-reverse decisions in `docs/adr/`.
 

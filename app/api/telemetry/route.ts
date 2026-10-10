@@ -30,7 +30,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     const telemetryCollection = getCollection("telemetry");
     const keyboardCollection = getCollection("keyboard_heatmap");
     const [totals, keys, timeSeries] = await Promise.all([
-      fetchTotals(telemetryCollection),
+      // The totals follow the range; the key counts deliberately do not (ADR
+      // 0008 — the heatmap is the page's one lifetime panel).
+      fetchTotals(telemetryCollection, rangeParam),
       fetchKeyCounts(keyboardCollection),
       fetchTimeSeries(telemetryCollection, rangeParam, undefined, timeZone),
     ]);
