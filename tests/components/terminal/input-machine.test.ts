@@ -74,17 +74,17 @@ describe("the Popup", () => {
 
     expect(state.popupOpen).toBe(true)
     expect(names(state)).toEqual([
-      "/clear",
-      "/contacts",
-      "/neofetch",
-      "/socials",
-      "/home",
       "/activity-telemetry",
       "/ai-usage",
+      "/clear",
+      "/contacts",
+      "/home",
       "/knowledge-graph",
+      "/neofetch",
       "/resume",
+      "/socials",
     ])
-    expect(lit(state, CONFIG)?.name).toBe("/clear")
+    expect(lit(state, CONFIG)?.name).toBe("/activity-telemetry")
   })
 
   it("narrows by prefix as the query grows", () => {
@@ -132,19 +132,40 @@ describe("the Popup", () => {
     expect(matches(narrowed, config).map((c) => c.name)).toEqual(["/pong"])
   })
 
+  it("lists alphabetically, whatever order the registry is declared in", () => {
+    const custom: readonly Command[] = ["/zebra", "/apple", "/mango"].map(
+      (name) => ({
+        name,
+        description: name,
+        print: () => ({ echo: name, rows: [] }),
+      })
+    )
+    const config: InputConfig = { commands: custom }
+
+    const opened = reduce(initialState(), config, {
+      type: "type",
+      value: "/",
+    })
+    expect(matches(opened, config).map((c) => c.name)).toEqual([
+      "/apple",
+      "/mango",
+      "/zebra",
+    ])
+  })
+
   it("cycles the highlight, wrapping at either end", () => {
     let state = typ(initialState(), "/")
     expect(state.active).toBe(0)
 
     state = key(state, "ArrowUp")
-    expect(lit(state, CONFIG)?.name).toBe("/resume")
+    expect(lit(state, CONFIG)?.name).toBe("/socials")
     state = key(state, "ArrowDown")
-    expect(lit(state, CONFIG)?.name).toBe("/clear")
+    expect(lit(state, CONFIG)?.name).toBe("/activity-telemetry")
 
     state = key(state, "ArrowDown")
-    expect(lit(state, CONFIG)?.name).toBe("/contacts")
+    expect(lit(state, CONFIG)?.name).toBe("/ai-usage")
     state = key(state, "ArrowUp")
-    expect(lit(state, CONFIG)?.name).toBe("/clear")
+    expect(lit(state, CONFIG)?.name).toBe("/activity-telemetry")
   })
 
   it("keeps an empty match up rather than vanishing, and consumes the arrows", () => {

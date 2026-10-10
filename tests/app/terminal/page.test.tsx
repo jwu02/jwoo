@@ -194,7 +194,7 @@ describe("the Popup", () => {
 
     type("/")
     press("ArrowDown")
-    expect(screen.getByRole("option", { name: /\/contacts/ })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /\/ai-usage/ })).toHaveAttribute(
       "aria-selected",
       "true"
     )

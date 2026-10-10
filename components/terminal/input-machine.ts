@@ -17,7 +17,8 @@ import type { Print } from "./print"
 
 /** What the machine is allowed to know: the registry, nothing else. */
 export interface InputConfig {
-  /** The Command registry, in the order the Popup lists it. */
+  /** The Command registry, in whatever order it is declared: the Popup sorts
+   * it, so a new Command is one entry anywhere in the list. */
   commands: readonly Command[]
 }
 
@@ -106,15 +107,16 @@ function oneMatches(name: string, query: string): boolean {
   return typed === "" || command.startsWith(typed)
 }
 
-/** The Commands the Popup is showing, in registry order. Closed means none. */
+/** The Commands the Popup is showing, alphabetical by name so the list reads
+ * the same however the registry is declared. Closed means none. */
 export function matches(
   state: InputState,
   config: InputConfig
 ): readonly Command[] {
   if (!state.popupOpen) return []
-  return config.commands.filter((command) =>
-    oneMatches(command.name, state.query)
-  )
+  return config.commands
+    .filter((command) => oneMatches(command.name, state.query))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /** The Command the Popup has lit, clamped to the list in case it shrank under it. */
