@@ -12,6 +12,7 @@
 //   - any `glm-*` model                            -> --ai-glm       (yellow)
 //   - the `Claude Code` harness                    -> --claude-orange (orange)
 //   - the `OpenCode` harness                       -> --ai-opencode   (white)
+//   - the `Pi` harness                             -> --ai-pi        (steel blue)
 //
 // Anything else (e.g. projects) falls back to the --chart-N slot at the
 // caller's index, so unknown entities keep the previous positional behavior.
@@ -38,6 +39,8 @@ const FAMILY_KEYWORDS: { familyVar: string; matches: (n: string) => boolean }[] 
       familyVar: "--ai-opencode",
       matches: (n) => n.includes("opencode") || n.includes("open code"),
     },
+    // Exact match: "pi" as a substring would also catch "pipeline", "api", …
+    { familyVar: "--ai-pi", matches: (n) => n === "pi" },
   ];
 
 function detectFamily(name: string): string | null {

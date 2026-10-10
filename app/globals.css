@@ -87,6 +87,7 @@
     --ai-kimi: #8C52FF;
     --ai-glm: #FACC15;
     --ai-opencode: #E2E4E7;
+    --ai-pi: #6198BB;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -134,6 +135,7 @@
     --ai-kimi: #8C52FF;
     --ai-glm: #FACC15;
     --ai-opencode: #F4F5F6;
+    --ai-pi: #6198BB;
 }
 
 @layer base {

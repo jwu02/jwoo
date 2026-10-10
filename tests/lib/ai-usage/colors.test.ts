@@ -31,6 +31,16 @@ describe("aiUsageColorVar", () => {
       expect(aiUsageColorVar("open-code", 0)).toBe("var(--ai-opencode)");
     });
 
+    it("maps the Pi harness to the steel-blue var", () => {
+      expect(aiUsageColorVar("Pi", 0)).toBe("var(--ai-pi)");
+      expect(aiUsageColorVar("pi", 0)).toBe("var(--ai-pi)");
+    });
+
+    it("does not mistake names containing \"pi\" for the Pi harness", () => {
+      expect(aiUsageColorVar("pipeline", 0)).toBe("var(--chart-1)");
+      expect(aiUsageColorVar("api", 0)).toBe("var(--chart-1)");
+    });
+
     it("maps the DeepSeek Harness to the same blue as the deepseek models", () => {
       expect(aiUsageColorVar("DeepSeek Harness", 0)).toBe("var(--ai-deepseek)");
     });
