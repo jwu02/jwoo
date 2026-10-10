@@ -51,6 +51,17 @@ describe("ResumeA4Page", () => {
     expect(screen.getByText(/Python, Java, JavaScript/)).toBeInTheDocument()
   })
 
+  // A <ul> may only contain <li>: a stray <div> is invalid content and leaves
+  // the list with no items for assistive tech.
+  it("puts every technical skill group in its own list item", () => {
+    render(<ResumeA4Page data={en} />)
+    const list = screen.getByText(/Languages:/).closest("ul")
+    expect(list).not.toBeNull()
+    expect(
+      Array.from(list?.children ?? []).map((child) => child.tagName)
+    ).toEqual(en.technicalSkills.map(() => "LI"))
+  })
+
   it("renders every interest", () => {
     render(<ResumeA4Page data={en} />)
     for (const interest of en.interests) {

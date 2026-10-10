@@ -52,10 +52,10 @@ export function ResumeA4Page({ data }: { data: ResumeData }) {
           <div>
             <SectionTitle title={titles.technicalSkills} />
             <ul className="flex flex-col">
-              {data.technicalSkills.map((skill, index) => (
-                <div key={index}>
+              {data.technicalSkills.map((skill) => (
+                <li key={skill.group}>
                   <b>{skill.group}:</b> {skill.data.join(", ")}
-                </div>
+                </li>
               ))}
             </ul>
           </div>
