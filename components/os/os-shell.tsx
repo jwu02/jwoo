@@ -104,15 +104,17 @@ export function OSShell({ children }: { children: React.ReactNode }) {
     // a second copy of the markup, and a plain row from `md` up. `isolate` is
     // what lets the wallpaper sit at a negative depth: without a stacking
     // context here it would resolve against the root's, which is behind this
-    // element's own background, and never be seen at all.
-    <div className="relative isolate flex h-svh flex-col-reverse overflow-hidden bg-background text-foreground md:flex-row print:h-auto print:overflow-visible">
+    // element's own background, and never be seen at all. The frame's own dark
+    // background does not print: the sheet is the only thing on paper, so a
+    // frame taller than the sheet (any reason) would print as a dark band.
+    <div className="relative isolate flex h-svh flex-col-reverse overflow-hidden bg-background text-foreground md:flex-row print:h-auto print:overflow-visible print:bg-transparent">
       {/* The wallpaper. Home paints its own scene over this, so it is only ever
           seen around an application's surface. It is held below everything —
           a decorative layer that painted above the Shell's own contents would
           hide any of them that does not happen to make a layer of its own. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-background bg-[radial-gradient(120%_85%_at_50%_-15%,rgba(255,255,255,0.07),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-background bg-[radial-gradient(120%_85%_at_50%_-15%,rgba(255,255,255,0.07),transparent_55%)] print:bg-transparent print:bg-none"
       />
       {/* Floating over the desktop rather than taking a column from it: the
           scene runs the full width of the viewport, and the Dock's glass sits
