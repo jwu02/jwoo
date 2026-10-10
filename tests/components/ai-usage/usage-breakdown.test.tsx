@@ -64,24 +64,25 @@ describe("UsageBreakdown", () => {
     ).toHaveAttribute("aria-valuenow", "50");
   });
 
-  it("places each bar to the left of its value", () => {
+  it("places each value to the left of its bar", () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     const bar = screen.getByRole("progressbar", {
       name: /claude-opus-5 cost share/i,
     });
     const value = screen.getByText("1.20");
     expect(
-      bar.compareDocumentPosition(value) & Node.DOCUMENT_POSITION_FOLLOWING
+      value.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("left-aligns the bars within each cell", () => {
+  it("gives every value a fixed column so the bars line up", () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     const bar = screen.getByRole("progressbar", {
       name: /claude-opus-5 cost share/i,
     });
-    const row = bar.parentElement!;
-    expect(row.className).toContain("justify-start");
+    const value = bar.parentElement!.querySelector("span")!;
+    expect(value.className).toContain("min-w-20");
+    expect(value.className).toContain("shrink-0");
   });
 
   it("renders bars tall enough to hover", () => {

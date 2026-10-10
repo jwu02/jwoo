@@ -13,12 +13,12 @@ describe("applications", () => {
   it("keeps the applications in their settled order", () => {
     expect(APPS.map((app) => app.href)).toEqual([
       "/",
+      "/terminal",
       "/activity-telemetry",
       "/ai-usage",
       "/knowledge-graph",
       "/resume",
       // "/tetris",
-      "/terminal",
     ])
   })
 
