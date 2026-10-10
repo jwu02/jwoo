@@ -16,7 +16,7 @@ export default function ActivityTelemetryPage() {
   const [range, setRange] = useState<Range>("24h")
   // The heatmap overlay toggle lives above the keyboard/mouse row (owned here so
   // it doesn't add height to the keyboard card, keeping the two cards aligned).
-  const [showOverlay, setShowOverlay] = useState(true)
+  const [showOverlay, setShowOverlay] = useState(false)
   const { data, loading, error, lastUpdated, refresh } =
     usePolledJson<TelemetryResponse>(
       `/api/telemetry?range=${range}&tz=${encodeURIComponent(viewerTimeZone())}`

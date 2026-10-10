@@ -21,9 +21,12 @@ interface KeyboardSceneProps {
 // The keyboard fills a fixed-height box. The height is set taller than the mouse
 // scene's h-80 so the card is more keyboard-shaped (width/height < the model's
 // ~2.4:1 aspect): width then becomes the camera's binding axis, so the keyboard
-// fills the card left–right instead of shrinking to fit the height. The mouse is
-// left on its own (shorter) box; both models centre vertically, so they still read
-// as a joined row.
+// fills the card left–right instead of shrinking to fit the height. That leaves
+// height as headroom — growing the box only pads the top/bottom; it can never
+// widen the keyboard, so the horizontal breathing room comes from the camera's
+// fit margin (keyboard-model), not from this height. The mouse is left on its own
+// (shorter) box; both models centre vertically, so they still read as a joined
+// row.
 //
 // No three imports here on purpose: this module is in the route's eager graph,
 // and only the lazily loaded canvas may pull three in (ADR 0001).

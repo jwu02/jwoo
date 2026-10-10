@@ -17,6 +17,7 @@ export function HeatmapToggle({ showOverlay, onToggle }: HeatmapToggleProps) {
         checked={showOverlay}
         onCheckedChange={() => onToggle()}
         aria-label="Show keyboard heatmap"
+        className="cursor-pointer"
       />
       <span className="text-sm text-muted-foreground">Heatmap</span>
     </div>

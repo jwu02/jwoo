@@ -1,7 +1,7 @@
 "use client"
 
 import { useCursor, useGLTF } from "@react-three/drei"
-import { useThree, type ThreeEvent } from "@react-three/fiber"
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { useCallback, useEffect, useRef } from "react"
 import * as THREE from "three"
 
@@ -34,27 +34,33 @@ interface MouseModelProps {
 // skin). THREE.Color.set() parses the "#rrggbb" string directly.
 const MOUSE_HOVER_HEX = "#d97757"
 
-// The hover look, shared by every region mesh: the textures are simply absent
-// (not tinted over), so the region reads as a solid matte orange. One material
-// instance is enough because the look carries no per-mesh state — hover swaps
-// each mesh's material to this and back to its own rest material.
+// The hover look, shared by every region mesh as a TEMPLATE: the textures are
+// simply absent (not tinted over), so the region reads as a solid matte orange.
+// Each region mesh gets its own clone so the faded-in opacity is per-part.
 const MOUSE_HOVER_MATERIAL = new THREE.MeshStandardMaterial({
   color: new THREE.Color(MOUSE_HOVER_HEX),
   metalness: 0,
   roughness: 1,
 })
 
-// One region mesh plus the isolated copy of its GLB material. Each mesh gets its
-// own clone so a hovered region never writes over a shared primitive used by its
-// neighbour (the left/right buttons ship one shared material).
-interface RegionMesh {
-  mesh: THREE.Mesh
-  rest: THREE.MeshStandardMaterial
-}
+/** Exponential approach rate (per second) for a part's hover fade. */
+const MOUSE_FADE_RATE = 9
 
-/** Point one region mesh at the shared highlight, or back at its rest material. */
-function applyRegionState(entry: RegionMesh, active: boolean) {
-  entry.mesh.material = active ? MOUSE_HOVER_MATERIAL : entry.rest
+/** An unfaded part's opacity below this snaps to its target, so a settled part
+ *  costs nothing per frame. */
+const MOUSE_FADE_EPSILON = 0.01
+
+/** Ease one overlay's opacity toward its target (0 or 1), snapping on arrival. */
+function stepFade(
+  material: THREE.MeshStandardMaterial,
+  target: number,
+  blend: number,
+) {
+  if (material.opacity === target) return
+  material.opacity += (target - material.opacity) * blend
+  if (Math.abs(target - material.opacity) < MOUSE_FADE_EPSILON) {
+    material.opacity = target
+  }
 }
 
 export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) {
@@ -71,35 +77,50 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   // look at the shell while still framing the full box (for the clip distance).
   const bodyCenterRef = useRef<THREE.Vector3 | null>(null)
 
-  // Resolve each region's meshes (descendants of its node) once and keep an
-  // isolated clone of each mesh's GLB material as its rest state, so hover can
-  // swap the mesh's material between the two. Keyed on the GLB scene so it is
-  // captured once, never re-walked.
-  const regionMeshesRef = useRef<Map<MouseRegion, RegionMesh[]>>(new Map())
+  // Resolve each region's meshes (descendants of its node) once, and hang a
+  // highlight overlay off every one: a copy of the region's own geometry at
+  // local identity (so it tracks the parent transform exactly) whose material
+  // is a per-mesh clone of MOUSE_HOVER_MATERIAL, transparent and fully faded
+  // out. Hover animates that opacity instead of swapping `mesh.material`, which
+  // is what turns the old instant tint into a cross-fade — and the GLB's own
+  // (possibly shared) materials are never touched. Keyed on the GLB scene so it
+  // is captured once, never re-walked.
+  const regionOverlaysRef = useRef<Map<MouseRegion, THREE.MeshStandardMaterial[]>>(
+    new Map(),
+  )
   useEffect(() => {
-    const resolved = new Map<MouseRegion, RegionMesh[]>()
+    const resolved = new Map<MouseRegion, THREE.MeshStandardMaterial[]>()
     for (const region of Object.keys(MOUSE_REGION_NODES) as MouseRegion[]) {
-      const meshes: RegionMesh[] = []
+      const overlays: THREE.MeshStandardMaterial[] = []
       for (const name of MOUSE_REGION_NODES[region]) {
         const node = scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name))
         if (!node) continue
+        // Collect the meshes before adding overlays — traverse() would otherwise
+        // descend into the overlay it just saw added.
+        const meshes: THREE.Mesh[] = []
         node.traverse((object) => {
           const mesh = object as THREE.Mesh
           if (!mesh.isMesh) return
           const material = mesh.material as THREE.MeshStandardMaterial
           if (!material?.color) return
-          // Clone per mesh so adjacent regions (the left/right buttons ship one
-          // shared primitive) never fight over the same material — the clone is
-          // this mesh's rest material and is restored verbatim, so one region
-          // can never leave its highlight on another.
-          const isolated = material.clone()
-          mesh.material = isolated
-          meshes.push({ mesh, rest: isolated })
+          meshes.push(mesh)
         })
+        for (const mesh of meshes) {
+          const material = MOUSE_HOVER_MATERIAL.clone()
+          material.transparent = true
+          material.opacity = 0
+          material.depthWrite = false
+          const overlay = new THREE.Mesh(mesh.geometry, material)
+          // Hover resolution walks up from the hit mesh, so a no-op raycast keeps
+          // the hit set identical to the GLB's own meshes.
+          overlay.raycast = () => {}
+          mesh.add(overlay)
+          overlays.push(material)
+        }
       }
-      resolved.set(region, meshes)
+      resolved.set(region, overlays)
     }
-    regionMeshesRef.current = resolved
+    regionOverlaysRef.current = resolved
   }, [scene])
 
   // Frame the fixed top-down camera to fit the whole model, then re-fit on
@@ -181,16 +202,16 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   )
   const handlePointerOut = useCallback(() => onHover(null), [onHover])
 
-  // Hover highlight: swap each region mesh's material between the shared flat
-  // orange highlight and its own rest material. A plain React effect on
-  // `hovered` (no per-frame loop) — hover changes colour rather than pressing
-  // down.
-  useEffect(() => {
-    for (const [region, meshes] of regionMeshesRef.current) {
-      const active = region === hovered
-      for (const entry of meshes) applyRegionState(entry, active)
+  // Hover fade: ease every part's overlay opacity toward 1 (this region) or 0
+  // (everything else). Runs per frame — no React state — and a part already at
+  // its target is skipped, so an idle mouse does no work.
+  useFrame((_state, delta) => {
+    const blend = 1 - Math.exp(-delta * MOUSE_FADE_RATE)
+    for (const [region, materials] of regionOverlaysRef.current) {
+      const target = region === hovered ? 1 : 0
+      for (const material of materials) stepFade(material, target, blend)
     }
-  }, [hovered])
+  })
 
   return (
     <group onPointerMove={handlePointerMove} onPointerOut={handlePointerOut}>
