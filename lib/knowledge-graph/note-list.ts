@@ -43,3 +43,26 @@ export function filterNotes(rows: readonly NoteRow[], query: string): NoteRow[] 
 export function standsForNote(row: NoteRow, noteId: string | null): boolean {
   return noteId !== null && row.title === noteId;
 }
+
+// The note the Random note button jumps to: a uniformly picked note id, and
+// never the one already holding the Focus — a press that landed back on the
+// framed note would move nothing and read as a button that does not work.
+//
+// Null is "nothing to pick": an empty graph, or a graph whose only note is the
+// one already framed. The pool is the graph rather than the note list, because
+// the search is a view of the list and the graph is the same graph whatever it
+// is typed into.
+//
+// The rng is a parameter so a pick is a fact under test rather than a coin
+// toss, the same seam the Tetris engine takes a seed through. It is expected to
+// return [0, 1) the way Math.random does; a wasted index is not guarded against,
+// because the only callers are the default and a test that has one.
+export function pickRandomNote(
+  nodes: readonly KnowledgeGraphNode[],
+  excludeId: string | null,
+  rng: () => number = Math.random
+): string | null {
+  const pool = nodes.filter((node) => node.id !== excludeId);
+  if (pool.length === 0) return null;
+  return pool[Math.floor(rng() * pool.length)].id;
+}

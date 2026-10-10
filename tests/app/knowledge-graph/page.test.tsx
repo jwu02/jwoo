@@ -579,6 +579,66 @@ describe("KnowledgeGraphPage note list panel", () => {
   });
 });
 
+describe("KnowledgeGraphPage random note", () => {
+  const randomNote = () => screen.getByRole("button", { name: "Random note" });
+
+  // Which note the pick lands on is the lib's to test; what the page owns is
+  // which note a press hands the renderer. Math.random is pinned so the pick is
+  // a fact here too — it only ever chooses the pool's first note.
+  function pressRandom(pick = 0) {
+    const random = jest.spyOn(Math, "random").mockReturnValue(pick);
+    fireEvent.click(randomNote());
+    random.mockRestore();
+  }
+
+  it("takes the Focus on a note picked out of the graph", async () => {
+    await renderLoadedPage();
+
+    pressRandom();
+
+    expect(focusedNoteProp()).toBe("A.md");
+    expect(focusedRows()).toEqual(["A.md"]);
+  });
+
+  it("never picks the note already holding the Focus", async () => {
+    await renderLoadedPage();
+
+    pressRandom();
+    pressRandom();
+
+    expect(focusedNoteProp()).toBe("B.md");
+    expect(focusedRows()).toEqual(["B.md"]);
+  });
+
+  // The button belongs to the graph, not to the panel: the jump is still there
+  // with the list collapsed, and below the desktop breakpoint — where the list
+  // is behind a sheet — it is the only control that is not.
+  it("is there, and leaves the panel alone, with the note list collapsed", async () => {
+    await renderLoadedPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide notes" }));
+
+    expect(randomNote()).toBeInTheDocument();
+    pressRandom();
+    // The list is not made to follow the jump: no panel opened for the mark.
+    expect(screen.queryByTestId("kg-note-list")).not.toBeInTheDocument();
+  });
+
+  // The pool is the graph, not the rows the search kept: the search narrows the
+  // list, and the graph is the same graph whatever is typed into it. The
+  // accepted cost of that is the row the search filtered out cannot answer the
+  // mark, so the mark is nowhere — deliberately, not by oversight.
+  it("picks out of the whole graph, not the rows the search kept", async () => {
+    await renderLoadedPage();
+    fireEvent.change(searchFields()[0], { target: { value: "B" } });
+
+    pressRandom();
+
+    expect(focusedNoteProp()).toBe("A.md");
+    expect(focusedRows()).toEqual([]);
+  });
+});
+
 describe("KnowledgeGraphPage cache countdown", () => {
   const NOW = new Date("2026-09-14T06:32:00.000Z");
 

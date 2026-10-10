@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ShuffleIcon } from "lucide-react";
 import {
   ForceGraph,
   type ForceGraphHandle,
@@ -11,6 +12,7 @@ import { PacmanLoader } from "@/components/knowledge-graph/pacman-loader";
 import { useCacheClock } from "@/components/knowledge-graph/use-cache-clock";
 import { ErrorBanner } from "@/components/polled/error-banner";
 import { usePolledJson } from "@/hooks/use-polled-json";
+import { pickRandomNote } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphSnapshot } from "@/lib/knowledge-graph/types";
 
 // The page fills its application's surface and no more, because every state has
@@ -99,6 +101,17 @@ export default function KnowledgeGraphPage() {
   // state below rather than reaching the scene with nothing in it.
   const graph = !loading && data && data.nodes.length > 0 ? data : null;
 
+  // The Random note button: a press is the same jump a row's click or a node's
+  // click is — the Focus is taken on a note picked out of the graph, so the
+  // camera does the flying and the list does the marking, exactly as they do
+  // for either of those. The pick is the graph's, not the list's: the search
+  // narrows the rows, and the graph is the same graph whatever it is typed
+  // into.
+  const pickNote = useCallback(() => {
+    const picked = pickRandomNote(graph?.nodes ?? [], focusedNote);
+    if (picked !== null) focusNote(picked);
+  }, [graph, focusedNote, focusNote]);
+
   // Asked for by the renderer when its layout has been run to rest, framed and
   // shown. Which snapshot it drew, rather than a flag, because the question is
   // about one snapshot's graph: a rebuilt graph is a blank box again the moment
@@ -151,6 +164,21 @@ export default function KnowledgeGraphPage() {
           corner, and a row-relative box puts it there without the page having
           to know how wide the sidebar or the note panel are. */}
       {countdown && <CacheNotice {...countdown} />}
+      {/* The graph's other corner, and the graph's own control: it is there
+          whether or not the panel is open, and below the desktop breakpoint —
+          where the list is behind a sheet — it is the only one that is. The
+          top-right is the list's two controls and the bottom-left the cache
+          notice, so the top-left is where nothing else is. Painted under the
+          loading overlay below, which is what leaves it unpressable until
+          there is a graph to jump around. */}
+      <button
+        type="button"
+        onClick={pickNote}
+        aria-label="Random note"
+        className="absolute top-3 left-3 z-20 cursor-pointer rounded-md border border-border bg-card p-2 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ShuffleIcon aria-hidden="true" className="size-4" />
+      </button>
       {/* The snapshot arriving is not the graph arriving: the layout is run
           to rest and framed before any of it is drawn, so the page covers
           that moment with its loading state. An overlay rather than a

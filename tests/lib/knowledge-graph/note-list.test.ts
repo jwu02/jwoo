@@ -1,6 +1,7 @@
 import {
   buildNoteList,
   filterNotes,
+  pickRandomNote,
   standsForNote,
 } from "@/lib/knowledge-graph/note-list";
 import type { KnowledgeGraphNode } from "@/lib/knowledge-graph/types";
@@ -105,6 +106,43 @@ describe("filterNotes", () => {
 
   it("preserves the order it was given", () => {
     expect(titles(filterNotes(rows, ".md"))).toEqual(titles(rows));
+  });
+});
+
+// The Random note button's pick. The rng is injected, so what is asserted here
+// is the pool — which notes are eligible — rather than which way the coin
+// landed.
+describe("pickRandomNote", () => {
+  const first = () => 0;
+  const almostLast = () => 0.999;
+
+  it("picks a note from the graph when nothing holds the Focus", () => {
+    expect(pickRandomNote(graph, null, first)).toBe("alpha.md");
+  });
+
+  // A press that landed back on the note already framed would move nothing and
+  // read as a button that does not work.
+  it("never picks the note that already holds the Focus", () => {
+    expect(pickRandomNote(graph, "alpha.md", first)).toBe("beta.md");
+  });
+
+  it("reaches the whole pool, not just its first note", () => {
+    expect(pickRandomNote(graph, null, almostLast)).toBe("gamma.md");
+  });
+
+  // One note is still something to jump to — the one case where a press does
+  // not have to avoid anything. It is only a graph of one *focused* note that
+  // has nothing left to pick.
+  it("picks the only note when no note holds the Focus", () => {
+    expect(pickRandomNote([oldest], null, first)).toBe("alpha.md");
+  });
+
+  it("reads a graph that is only the focused note as nothing to pick", () => {
+    expect(pickRandomNote([oldest], "alpha.md", first)).toBeNull();
+  });
+
+  it("reads an empty graph as nothing to pick", () => {
+    expect(pickRandomNote([], null, first)).toBeNull();
   });
 });
 
