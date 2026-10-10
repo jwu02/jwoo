@@ -337,6 +337,14 @@
   body:has(.resume-page) {
     background: #fff !important;
   }
+  /* Latin glyphs carry far less ink than CJK ones at the same weight and
+     colour, so the English sheet prints visibly lighter than the Chinese one
+     built from the same markup, and its grey (dates, company, place) reads
+     faintest of all. Print the sheet a step heavier and darker. */
+  .resume-page {
+    font-weight: 500;
+    --muted-foreground: oklch(0.42 0 0);
+  }
 }
 
 /* Knowledge graph hover highlighting (Obsidian-style). d3 joins classes onto
