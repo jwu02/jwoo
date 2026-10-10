@@ -55,7 +55,11 @@ export function ResumeView() {
   const help = PRINT_HELP[locale]
 
   return (
-    <div className="flex flex-col px-4 md:px-0">
+    // Tailwind's `md:` (48rem) is wider than the print layout viewport (~756px
+    // for A4), so `md:px-0` never reaches print: the 16px gutter pushes the
+    // 210mm sheet off the page, leaving a dark strip of shell background and
+    // clipping the sheet's far edge. `print:px-0` is what actually drops it.
+    <div className="flex flex-col px-4 md:px-0 print:px-0">
       <div className="mt-6 flex items-center justify-center gap-2 print:hidden">
         <LanguageToggle locale={locale} onChange={handleChange} />
         <Tooltip>
