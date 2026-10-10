@@ -24,12 +24,19 @@ interface TotalsRow {
   skillsKnown: number;
 }
 
+// Every panel on this page follows the range, and ai_usage documents are dated
+// by `recorded_at` — so the filter that does it lives here once rather than in
+// each of the four pipelines.
+function rangeMatch(range: Range, now: Date): Record<string, unknown> {
+  return { $match: { recorded_at: { $gte: getRangeStart(range, now) } } };
+}
+
 export function buildTotalsPipeline(
   range: Range,
   now = new Date()
 ): Record<string, unknown>[] {
   return [
-    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: null,
@@ -68,7 +75,7 @@ export function buildByModelPipeline(
   now = new Date()
 ): Record<string, unknown>[] {
   return [
-    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: "$model",
@@ -87,7 +94,7 @@ export function buildByProjectPipeline(
   now = new Date()
 ): Record<string, unknown>[] {
   return [
-    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: "$cwd",
@@ -105,7 +112,7 @@ export function buildByHarnessPipeline(
   now = new Date()
 ): Record<string, unknown>[] {
   return [
-    { $match: { recorded_at: { $gte: getRangeStart(range, now) } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: "$harness",
@@ -124,11 +131,10 @@ export function buildTimeSeriesByModelPipeline(
   now = new Date(),
   timeZone = "UTC"
 ): Record<string, unknown>[] {
-  const start = getRangeStart(range, now);
   const interval = getBucketInterval(range);
 
   return [
-    { $match: { recorded_at: { $gte: start } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: {

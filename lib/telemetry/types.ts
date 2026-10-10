@@ -1,5 +1,3 @@
-export type TelemetryRange = "24h" | "30d" | "1y";
-
 export interface TelemetryTotals {
   leftClicks: number;
   rightClicks: number;

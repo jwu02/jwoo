@@ -26,15 +26,22 @@ export function DashboardHeader({
   onRangeChange,
 }: DashboardHeaderProps) {
   return (
-    <div className="mb-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <p className="text-sm text-muted-foreground">
-        {lastUpdated && `Last updated: ${lastUpdated.toLocaleTimeString()}`}
-      </p>
-      <RangeSelector
-        value={range}
-        onChange={onRangeChange}
-        options={RANGE_OPTIONS}
-      />
+    <div className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+      {lastUpdated && (
+        <p className="text-sm text-muted-foreground">
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
+      {/* `ml-auto` rather than `justify-between`: when the row wraps at a
+          narrow width the pills must still land against the right edge, and a
+          lone `justify-between` item would sit at the start of its own line. */}
+      <div className="ml-auto">
+        <RangeSelector
+          value={range}
+          onChange={onRangeChange}
+          options={RANGE_OPTIONS}
+        />
+      </div>
     </div>
   )
 }

@@ -1,19 +1,21 @@
 import { Collection } from "mongodb";
-import {
-  TelemetryRange,
-  TelemetryTotals,
-  KeyCounts,
-  TimeSeriesPoint,
-} from "./types";
-import { getRangeStart, getBucketInterval } from "@/lib/ranges";
+import { TelemetryTotals, KeyCounts, TimeSeriesPoint } from "./types";
+import { getRangeStart, getBucketInterval, Range } from "@/lib/ranges";
 import { generateBuckets } from "@/lib/timezone";
 
+// Every telemetry aggregation except the key counts is scoped to the range, and
+// telemetry's documents are dated by `createdAt` — so the filter that does it
+// lives here once rather than in each pipeline.
+function rangeMatch(range: Range, now: Date): Record<string, unknown> {
+  return { $match: { createdAt: { $gte: getRangeStart(range, now) } } };
+}
+
 export function buildTotalsPipeline(
-  range: TelemetryRange,
+  range: Range,
   now = new Date()
 ): Record<string, unknown>[] {
   return [
-    { $match: { createdAt: { $gte: getRangeStart(range, now) } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: null,
@@ -53,15 +55,14 @@ export function buildKeyCountsPipeline(): Record<string, unknown>[] {
 }
 
 export function buildTimeSeriesPipeline(
-  range: TelemetryRange,
+  range: Range,
   now = new Date(),
   timeZone = "UTC"
 ): Record<string, unknown>[] {
-  const start = getRangeStart(range, now);
   const interval = getBucketInterval(range);
 
   return [
-    { $match: { createdAt: { $gte: start } } },
+    rangeMatch(range, now),
     {
       $group: {
         _id: {
@@ -86,7 +87,7 @@ export function buildTimeSeriesPipeline(
 
 export async function fetchTotals(
   collection: Collection,
-  range: TelemetryRange,
+  range: Range,
   now = new Date()
 ): Promise<TelemetryTotals> {
   const result = await collection
@@ -120,7 +121,7 @@ export async function fetchKeyCounts(collection: Collection): Promise<KeyCounts>
 
 export async function fetchTimeSeries(
   collection: Collection,
-  range: TelemetryRange,
+  range: Range,
   now = new Date(),
   timeZone = "UTC"
 ): Promise<TimeSeriesPoint[]> {

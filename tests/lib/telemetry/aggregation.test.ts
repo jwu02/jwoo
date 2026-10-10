@@ -6,12 +6,11 @@ import {
   fetchKeyCounts,
   fetchTimeSeries,
 } from "@/lib/telemetry/aggregation";
-import { getRangeStart, getBucketInterval } from "@/lib/ranges";
+import { getRangeStart, getBucketInterval, Range } from "@/lib/ranges";
 import { generateBuckets } from "@/lib/timezone";
-import { TelemetryRange } from "@/lib/telemetry/types";
 import { Collection } from "mongodb";
 
-function telemetryBuckets(range: TelemetryRange, now: Date): string[] {
+function telemetryBuckets(range: Range, now: Date): string[] {
   return generateBuckets(
     getRangeStart(range, now),
     getBucketInterval(range),
