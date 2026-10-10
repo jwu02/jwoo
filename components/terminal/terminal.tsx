@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useEffect, useReducer, useRef } from "react"
 
 import { useVisualViewport } from "@/hooks/use-visual-viewport"
@@ -39,7 +40,7 @@ const step = (state: InputState, action: InputAction) =>
  * The bar is the machine's only driver. Every keystroke the bar has an opinion
  * about goes into `reduce`; every Print on the screen came out of it; and the
  * only things this component knows that the machine does not are the browser's:
- * storage, focus and the scroll position.
+ * storage, focus, the scroll position and the router.
  */
 export function Terminal() {
   // A fresh Terminal has already run the identity Command — the registry's
@@ -49,6 +50,11 @@ export function Terminal() {
   )
   const field = useRef<HTMLInputElement>(null)
   const output = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+
+  // The prints the Terminal has already acted on. The output is append-only,
+  // so the count is all the bookkeeping a Print needs to be crossed off once.
+  const actedOn = useRef(state.output.length)
 
   // The pane, and only the pane, follows the software keyboard — the Shell and
   // its Dock stay where they are, and the keyboard landing on top of the Dock
@@ -66,6 +72,17 @@ export function Terminal() {
     // cannot overwrite what the last visit left.
     if (state.history.length > 0) saveHistory(state.history)
   }, [state.history])
+
+  // A Command's way of taking the visitor somewhere is its Print's `href`: the
+  // machine says where, and the page — the only part holding a router — goes.
+  // `/clear` wipes the screen, so the mark is pulled back with the output it
+  // emptied rather than left pointing past a shorter list.
+  useEffect(() => {
+    const from = Math.min(actedOn.current, state.output.length)
+    actedOn.current = state.output.length
+    const href = state.output.slice(from).find((print) => print.href)?.href
+    if (href) router.push(href)
+  }, [state.output, router])
 
   // Output appends and the screen follows it down — and keeps following when
   // the software keyboard shrinks the pane under it, which takes the newest

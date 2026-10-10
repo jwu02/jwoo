@@ -23,9 +23,13 @@ export interface App {
 /** The desktop's route: the one view that is not an application. */
 export const HOME = "/"
 
+/** The Terminal's own route. Named here because the Terminal itself reads the
+ * registry — it is the one application it does not offer a way into. */
+export const TERMINAL = "/terminal"
+
 export const APPS: readonly App[] = [
   { href: HOME, label: "Home", icon: Miyamura },
-  { href: "/terminal", label: "Terminal", icon: Terminal },
+  { href: TERMINAL, label: "Terminal", icon: Terminal },
   { href: "/activity-telemetry", label: "Activity Telemetry", icon: Activity },
   { href: "/ai-usage", label: "AI Usage", icon: Bot },
   { href: "/knowledge-graph", label: "Knowledge Graph", icon: Globe },

@@ -4,6 +4,14 @@ import TerminalPage from "@/app/terminal/page"
 import { COMMANDS } from "@/components/terminal/commands"
 import { PORTRAIT } from "@/components/terminal/portrait"
 
+// The route a way out follows. `mock`-prefixed so the `jest.mock` factory
+// below is allowed to close over it.
+const mockPush = jest.fn()
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 // The integration seam: the real registry, the Print renderer and the Input bar
 // together in jsdom, driven the way a visitor drives them — keys and clicks.
 // The machine's own rules are chartered in tests/components/terminal; what is
@@ -65,6 +73,7 @@ function portraits(): HTMLElement[] {
 
 beforeEach(() => {
   window.localStorage.clear()
+  mockPush.mockClear()
   for (const name of CONTACT_ENV_VARS) {
     original[name] = process.env[name]
     delete process.env[name]
@@ -291,6 +300,36 @@ describe("running a Command", () => {
     expect(echoes()).toEqual([])
     expect(screen.getByText("Tab accept")).toBeInTheDocument()
     expect(screen.getByText("↑ ↓ history")).toBeInTheDocument()
+  })
+})
+
+describe("the ways out", () => {
+  it("follows a way out's Print to its route", () => {
+    render(<TerminalPage />)
+    run("/resume")
+
+    expect(mockPush).toHaveBeenCalledWith("/resume")
+  })
+
+  it("stays on the screen for a print-only Command", () => {
+    render(<TerminalPage />)
+    run("/neofetch")
+
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  // A wipe empties the screen, and the mark on how far the Terminal has acted
+  // comes back with it: the next run is the one that gets followed, not one
+  // whose index the wipe already passed.
+  it("follows nothing after a wipe, until a new Command runs", () => {
+    render(<TerminalPage />)
+    run("/resume")
+    expect(mockPush).toHaveBeenCalledTimes(1)
+
+    run("/clear")
+    run("/neofetch")
+
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 })
 

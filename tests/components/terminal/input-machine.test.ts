@@ -73,7 +73,17 @@ describe("the Popup", () => {
     const state = typ(initialState(), "/")
 
     expect(state.popupOpen).toBe(true)
-    expect(names(state)).toEqual(["/clear", "/contacts", "/neofetch", "/socials"])
+    expect(names(state)).toEqual([
+      "/clear",
+      "/contacts",
+      "/neofetch",
+      "/socials",
+      "/home",
+      "/activity-telemetry",
+      "/ai-usage",
+      "/knowledge-graph",
+      "/resume",
+    ])
     expect(lit(state, CONFIG)?.name).toBe("/clear")
   })
 
@@ -84,8 +94,8 @@ describe("the Popup", () => {
     expect(names(typ(initialState(), "/cl"))).toEqual(["/clear"])
   })
 
-  it("matches nothing for the honest /a — prefix only, no fuzzy", () => {
-    const state = typ(initialState(), "/a")
+  it("matches nothing for the honest /z — prefix only, no fuzzy", () => {
+    const state = typ(initialState(), "/z")
     expect(state.popupOpen).toBe(true)
     expect(names(state)).toEqual([])
   })
@@ -127,7 +137,7 @@ describe("the Popup", () => {
     expect(state.active).toBe(0)
 
     state = key(state, "ArrowUp")
-    expect(lit(state, CONFIG)?.name).toBe("/socials")
+    expect(lit(state, CONFIG)?.name).toBe("/resume")
     state = key(state, "ArrowDown")
     expect(lit(state, CONFIG)?.name).toBe("/clear")
 
@@ -138,7 +148,7 @@ describe("the Popup", () => {
   })
 
   it("keeps an empty match up rather than vanishing, and consumes the arrows", () => {
-    const state = typ(initialState(), "/a")
+    const state = typ(initialState(), "/z")
 
     // The empty list still takes the key — it is up, it is just empty.
     expect(consumes(state, CONFIG, "ArrowDown")).toBe(true)
@@ -157,7 +167,7 @@ describe("Tab", () => {
   })
 
   it("is not trapped: unconsumed with nothing lit or no Popup", () => {
-    const noMatch = typ(initialState(), "/a")
+    const noMatch = typ(initialState(), "/z")
     expect(consumes(noMatch, CONFIG, "Tab")).toBe(false)
     expect(key(noMatch, "Tab")).toBe(noMatch)
 

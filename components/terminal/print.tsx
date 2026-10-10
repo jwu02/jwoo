@@ -28,6 +28,10 @@ export interface Print {
    * machine's own error, never a Command's. The renderer draws it in the
    * Print's accent. */
   error?: string
+  /** The application route this Print takes the visitor to. A Command that is
+   * a way out of the Terminal carries one; the page follows it and the
+   * renderer draws the Print unchanged. */
+  href?: string
 }
 
 /** The pastiched machine's prompt, authored once: every Echo prefixes its

@@ -1,3 +1,4 @@
+import { APPS, TERMINAL } from "@/components/os/apps"
 import { getContacts } from "@/lib/resume/contacts"
 import type { ContactKey } from "@/lib/resume/types"
 
@@ -7,8 +8,9 @@ import { ageOn, PROFILE } from "./profile"
 
 /**
  * One of the Terminal's built-in operations, named with a leading slash and
- * declared once in COMMANDS. In v1 every Command is print-only: it produces its
- * Print and does nothing else.
+ * declared once in COMMANDS. Every Command prints: it produces its Print and
+ * nothing else. A Command whose Print carries an `href` is a way out of the
+ * Terminal — the page follows that route, and the Command still only printed.
  */
 export interface Command {
   /** The invocation, slash and all — what the Popup lists and the Input bar
@@ -53,6 +55,27 @@ function contactRows(keys: readonly ContactKey[]): Print["rows"] {
 }
 
 /**
+ * The ways out of the Terminal: one Command per application, drawn from the
+ * same registry the Dock navigates by, so a route the Terminal can reach is
+ * never a second list to drift. The Terminal itself is the one it does not
+ * offer — the visitor already stands there.
+ *
+ * A Command's name is its route's slug, which is what a terminal would type;
+ * the Desktop's route has none, so it goes by the name the Dock gives it.
+ */
+const WAYS_OUT: readonly Command[] = APPS.filter(
+  (app) => app.href !== TERMINAL
+).map((app) => {
+  const name = `/${app.href.split("/").filter(Boolean).pop() ?? "home"}`
+  return {
+    name,
+    description: `Open ${app.label}`,
+    // No rows: going there is the navigation's doing, not a row's.
+    print: () => ({ echo: name, rows: [], href: app.href }),
+  }
+})
+
+/**
  * The Command registry: the one place a Command is declared, and the one list
  * the Popup matches against. Adding a Command is one entry
  * here; nothing else in the Terminal needs to know it exists.
@@ -90,6 +113,7 @@ export const COMMANDS: readonly Command[] = [
     description: "Where to find me",
     print: () => ({ echo: "/socials", rows: contactRows(SOCIAL_KEYS) }),
   },
+  ...WAYS_OUT,
 ]
 
 /**

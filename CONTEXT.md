@@ -41,15 +41,19 @@ An Application at `/terminal` styled as a command line: append-only output above
 _Avoid_: console, shell (that is the OS chrome), emulator
 
 **Command**:
-One of the Terminal's built-in operations, named with a leading slash and matched by the input bar's popup. Declared once in the Command registry with its name, its description and how it prints. In v1 every Command is print-only: it produces its Print and does nothing else — no navigation, no side effects, no acting on the site.
+One of the Terminal's built-in operations, named with a leading slash and matched by the input bar's popup. Declared once in the Command registry with its name, its description and how it prints. A Command prints and nothing more: it yields its Print and has no side effects. A Command that is a way out of the Terminal — into another application — says so as its Print's destination; the Terminal follows it, and the Command still only printed.
 _Avoid_: intent (that is Tetris's), action, executable, handler
 
 **Command registry**:
-The single list of the Terminal's Commands — the one place a Command is declared, and the one list the popup matches against. Adding a Command is one entry here; nothing else in the Terminal needs to know it exists.
+The single list of the Terminal's Commands — the one place a Command is declared, and the one list the popup matches against. Adding a Command is one entry here; nothing else in the Terminal needs to know it exists. Its ways out are entries the list makes from the applications' registry, so an application the Dock holds is reachable from the Terminal at once.
 _Avoid_: command list, dispatcher, command map
 
+**Way out**:
+A Command that leaves the Terminal for an application: it prints like any other, and the route it names is the one the Terminal follows once that Print is on the screen. There is one per application the Dock holds — the applications' registry is the list they are made from — and none for the Terminal itself, because the visitor is already there.
+_Avoid_: link, redirect, navigation command
+
 **Print**:
-The output a Command leaves on the Terminal's screen: an Echo of the invocation when the visitor ran it, followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. Print-only is the v1 rule that a Command does nothing beyond producing a Print.
+The output a Command leaves on the Terminal's screen: an Echo of the invocation when the visitor ran it, followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. A Print is also where a Command says where it takes the visitor: its destination, the route of the application the Terminal follows once the Print is on the screen, carried only by the Commands that are ways out.
 _Avoid_: output (unqualified), response, render
 
 **Portrait**:

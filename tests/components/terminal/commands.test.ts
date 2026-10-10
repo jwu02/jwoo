@@ -1,3 +1,4 @@
+import { APPS, TERMINAL } from "@/components/os/apps"
 import { COMMANDS, openingPrint } from "@/components/terminal/commands"
 import { PORTRAIT } from "@/components/terminal/portrait"
 import { PROFILE, ageOn } from "@/components/terminal/profile"
@@ -18,12 +19,17 @@ const CONTACT_ENV_VARS = [
 ] as const
 
 describe("the Command registry", () => {
-  it("declares the v1 four, once each, in their order", () => {
+  it("declares the print-only Commands, then a way out per application, once each", () => {
     expect(COMMANDS.map((entry) => entry.name)).toEqual([
       "/clear",
       "/contacts",
       "/neofetch",
       "/socials",
+      "/home",
+      "/activity-telemetry",
+      "/ai-usage",
+      "/knowledge-graph",
+      "/resume",
     ])
     expect(new Set(COMMANDS.map((entry) => entry.name)).size).toBe(
       COMMANDS.length
@@ -34,6 +40,39 @@ describe("the Command registry", () => {
   // Every Print names what produced it: the Echo is the Command's own name.
   it("echoes each Command's own name", () => {
     for (const entry of COMMANDS) expect(entry.print().echo).toBe(entry.name)
+  })
+})
+
+describe("the ways out", () => {
+  // The registry is the Dock's own list, read rather than copied: every
+  // application but the Terminal is reachable, and each at its own route.
+  it("reaches every application but the Terminal, at its own route", () => {
+    expect(
+      COMMANDS.map((entry) => entry.print().href).filter(
+        (href) => href !== undefined
+      )
+    ).toEqual(
+      APPS.filter((app) => app.href !== TERMINAL).map((app) => app.href)
+    )
+  })
+
+  it("prints only an Echo and a route: going there is the navigation's doing", () => {
+    expect(command("/home").print()).toEqual({
+      echo: "/home",
+      rows: [],
+      href: "/",
+    })
+    for (const href of ["/activity-telemetry", "/resume"]) {
+      expect(command(href).print()).toEqual({ echo: href, rows: [], href })
+    }
+  })
+
+  // Print-only Commands stay standing: nothing about them takes the visitor off
+  // the screen.
+  it("leaves the print-only Commands where they are", () => {
+    for (const href of ["/clear", "/contacts", "/neofetch", "/socials"]) {
+      expect(command(href).print().href).toBeUndefined()
+    }
   })
 })
 
