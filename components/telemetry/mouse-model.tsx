@@ -92,6 +92,7 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
   )
   useEffect(() => {
     const resolved = new Map<MouseRegion, THREE.MeshStandardMaterial[]>()
+    const created: THREE.Mesh[] = []
     for (const region of Object.keys(MOUSE_REGION_NODES) as MouseRegion[]) {
       const overlays: THREE.MeshStandardMaterial[] = []
       for (const name of MOUSE_REGION_NODES[region]) {
@@ -117,12 +118,23 @@ export function MouseModel({ hovered, onHover, canvasApiRef }: MouseModelProps) 
           // the hit set identical to the GLB's own meshes.
           overlay.raycast = () => {}
           mesh.add(overlay)
+          created.push(overlay)
           overlays.push(material)
         }
       }
       resolved.set(region, overlays)
     }
     regionOverlaysRef.current = resolved
+    // useGLTF caches the parsed scene, so it survives unmount: detach the
+    // overlays and free their materials, or the next visit's traverse collects
+    // them as meshes and every visit nests another set. Geometry is the parent
+    // mesh's, so it is not disposed here.
+    return () => {
+      for (const overlay of created) {
+        overlay.removeFromParent()
+        if (overlay.material instanceof THREE.Material) overlay.material.dispose()
+      }
+    }
   }, [scene])
 
   // Frame the fixed top-down camera to fit the whole model, then re-fit on
