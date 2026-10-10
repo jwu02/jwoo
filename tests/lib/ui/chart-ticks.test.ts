@@ -39,6 +39,27 @@ describe("getTicksForRange", () => {
     ]);
   });
 
+  it("labels half-hour-offset hourly buckets (Asia/Kolkata)", () => {
+    // Local-aligned hours land on UTC :30 for +5:30/+5:45 zones; the old
+    // getUTCMinutes()===0 filter returned no ticks at all here.
+    const buckets = Array.from({ length: 24 }, (_, i) =>
+      new Date(Date.UTC(2025, 7, 9, 12, 30) + i * 3_600_000).toISOString()
+    );
+
+    const ticks = getTicksForRange(buckets, "24h");
+
+    expect(ticks).toEqual([
+      buckets[0],
+      buckets[3],
+      buckets[6],
+      buckets[9],
+      buckets[12],
+      buckets[15],
+      buckets[18],
+      buckets[21],
+    ]);
+  });
+
   it("returns every 5th bucket for 30d daily buckets", () => {
     const buckets = Array.from({ length: 30 }, (_, i) =>
       new Date(Date.UTC(2025, 6, 10 + i)).toISOString()

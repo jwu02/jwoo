@@ -40,12 +40,17 @@ export function getTicksForRange(
 
   switch (range) {
     case "24h": {
-      // Telemetry buckets every 30 minutes, AI usage hourly — both align on
-      // the :00, so labeling the :00 bucket of every 3rd hour works for each.
-      return buckets.filter((bucket) => {
-        const date = new Date(bucket);
-        return date.getUTCMinutes() === 0 && date.getUTCHours() % 3 === 0;
-      });
+      // Telemetry buckets every 30 minutes, AI usage hourly. Buckets are
+      // aligned to the viewer's local clock, so a UTC-hour check misses
+      // half-hour zones (Asia/Kolkata's :30 labels never land on UTC :00) and
+      // puts the labels on the wrong local hour elsewhere. Pick by position
+      // instead: uniform buckets, one label every 3 hours.
+      const stepMinutes =
+        buckets.length > 1
+          ? (Date.parse(buckets[1]) - Date.parse(buckets[0])) / 60_000
+          : 30;
+      const stride = Math.max(1, Math.round(180 / stepMinutes));
+      return buckets.filter((_, index) => index % stride === 0);
     }
     case "30d": {
       // Daily buckets; label every 5th day to keep the axis readable.
