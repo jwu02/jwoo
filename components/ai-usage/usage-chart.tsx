@@ -59,8 +59,9 @@ function formatCostValue(value: number): string {
 
 // Token counts read at a fixed one decimal: the generic compact formatter trims
 // the fraction ("2M"), which reads as a different kind of number beside a
-// "2.5M" row.
-function formatTokenValue(value: number): string {
+// "2.5M" row. Shared with the breakdown donut so one token count never shows
+// two shapes on the same page.
+export function formatTokenValue(value: number): string {
   return formatCompactNumber(value, 1);
 }
 

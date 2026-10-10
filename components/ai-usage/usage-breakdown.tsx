@@ -10,6 +10,9 @@ import {
 } from "recharts";
 import { ChartTooltipCard } from "@/components/chart-tooltip";
 import { formatNumber } from "@/lib/ui/chart-format";
+// The breakdown sits under the chart and covers the same token counts, so it
+// reads them through the chart's own formatter rather than a second one.
+import { formatTokenValue } from "@/components/ai-usage/usage-chart";
 import {
   aiUsageColorMap,
   aiUsageColorVar,
@@ -85,7 +88,7 @@ function Donut({
   emptyLabel: string;
   labelHeader: string;
   colorMap: Map<string, string>;
-  /** The exact value the legend's percentage stands for, shown on hover. */
+  /** The exact value a row stands for, in both the legend and on hover. */
   formatValue: (value: number) => string;
 }) {
   const segments = buildDonutSegments(rows, metric);
@@ -154,7 +157,7 @@ function Donut({
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {formatNumber(slice.share, 1)}%
+                  {formatValue(slice.value)}
                 </span>
               </li>
             ))}
@@ -195,9 +198,7 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
         emptyLabel="No tokens recorded in this range."
         labelHeader={labelHeader}
         colorMap={colorMap}
-        // The exact count, not a rounded K/M figure: the legend beside it reads
-        // at one decimal, and the tooltip is where the real number lives.
-        formatValue={(value) => formatNumber(value)}
+        formatValue={formatTokenValue}
       />
     </div>
   );

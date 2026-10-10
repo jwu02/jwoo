@@ -68,15 +68,17 @@ describe("UsageBreakdown", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows each segment's share of its own donut", () => {
+  it("shows each segment's actual value in the legend, per its own donut", () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
-    // Cost 2.5; claude-opus-5 = 1.2 → 48%. Tokens: 3000 of 6000 → 50%.
-    expect(screen.getAllByText("48.0%")).toHaveLength(1);
-    expect(screen.getAllByText("50.0%")).toHaveLength(1);
-    // deepseek is 0.8 of 2.5 (32%) and 2000 of 6000 (33.3%): the two donuts
-    // rank and divide independently.
-    expect(screen.getByText("32.0%")).toBeInTheDocument();
-    expect(screen.getByText("33.3%")).toBeInTheDocument();
+    // The cost donut ranks by cost, the token donut by tokens, and each legend
+    // prints the value it ranked on: this is a value, not a share.
+    for (const value of ["¥1.20", "¥0.80", "¥0.50"]) {
+      expect(screen.getAllByText(value)).toHaveLength(1);
+    }
+    for (const value of ["3.0K", "2.0K", "1.0K"]) {
+      expect(screen.getAllByText(value)).toHaveLength(1);
+    }
+    expect(screen.queryByText("48.0%")).not.toBeInTheDocument();
   });
 
   it("folds everything past the seventh into one Others entry", () => {
@@ -106,11 +108,14 @@ describe("UsageBreakdown", () => {
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
-    // The cost donut ranks claude-opus-5 first, so it is the hovered sector.
-    expect(await screen.findByText("¥1.20")).toBeInTheDocument();
+    // The cost donut ranks claude-opus-5 first, so it is the hovered sector;
+    // the legend already carries the value, so the tooltip's share is what
+    // proves the card rendered.
+    expect(await screen.findByText("48.0%")).toBeInTheDocument();
+    expect(screen.getAllByText("¥1.20")).toHaveLength(2);
   });
 
-  it("shows a token count exactly, not rounded to a K/M figure", async () => {
+  it("reads token counts the way the chart does, not at full length", async () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     // The three cost sectors come first, then the three token sectors.
     const sector = document.querySelectorAll(".recharts-sector")[3]!;
@@ -118,7 +123,8 @@ describe("UsageBreakdown", () => {
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
-    expect(await screen.findByText("3,000")).toBeInTheDocument();
+    expect(await screen.findByText("50.0%")).toBeInTheDocument();
+    expect(screen.getAllByText("3.0K")).toHaveLength(2);
   });
 
   it("gives the combined segment the neutral, not a chart slot", () => {

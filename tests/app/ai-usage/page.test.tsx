@@ -1,7 +1,10 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import AiUsagePage from "@/app/ai-usage/page";
 
+// The chart itself is stubbed out, but its token formatter is real: the donut
+// beside it reads token counts through the same function.
 jest.mock("@/components/ai-usage/usage-chart", () => ({
+  ...jest.requireActual("@/components/ai-usage/usage-chart"),
   UsageChart: () => <div data-testid="usage-chart" />,
 }));
 
