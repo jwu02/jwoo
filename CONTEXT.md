@@ -61,7 +61,7 @@ The owner's picture as the Terminal draws it: the grid of dithered glyphs `/neof
 _Avoid_: avatar, ascii art (that is the technique, not the thing), pfp, thumbnail
 
 **Profile**:
-The owner's static self-description the Terminal prints about: name, age, role and location, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.
+The owner's static self-description the Terminal prints about: name, age, role, location and languages, held as config rather than derived from the resume — the resume's name localizes and knows none of the rest. The location is the owner's own, not the visitor's.
 _Avoid_: about, bio, user
 
 **Input bar**:

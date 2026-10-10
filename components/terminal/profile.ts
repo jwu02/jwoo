@@ -10,6 +10,16 @@ export const PROFILE = {
   role: "Professional Vibecoder",
   /** The owner's own location, not the visitor's. */
   location: "Guangdong, China",
+  /** One language per entry: the Command joins them with newlines, so each
+   * gets its own line. */
+  languages: [
+    "English (Native)",
+    "Mandarin (Heritage)",
+    "Cantonese (Heritage)",
+    "Taishanese (Heritage)",
+    "Japanese (Intermediate)",
+    "French (Intermediate)",
+  ],
 }
 
 /**

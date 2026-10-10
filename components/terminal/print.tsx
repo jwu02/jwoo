@@ -87,7 +87,7 @@ function PrintBlock({ print }: { print: Print }) {
               <div key={index} className="contents">
                 <dt className="text-muted-foreground">{row.label}</dt>
                 <dd
-                  className={row.tone === "accent" ? ACCENT : "text-foreground"}
+                  className={`whitespace-pre-line ${row.tone === "accent" ? ACCENT : "text-foreground"}`}
                 >
                   {row.value}
                 </dd>

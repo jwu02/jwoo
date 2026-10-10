@@ -88,12 +88,14 @@ describe("/neofetch", () => {
     }
   })
 
-  it("prints the four Profile rows", () => {
+  it("prints the Profile rows", () => {
     expect(command("/neofetch").print().rows).toEqual([
       { label: "Name", value: PROFILE.name },
       { label: "Age", value: String(ageOn(PROFILE.birthdate, new Date())) },
       { label: "Role", value: PROFILE.role },
       { label: "Location", value: PROFILE.location },
+      // One per line: the newlines are what the renderer breaks on.
+      { label: "Languages", value: PROFILE.languages.join("\n") },
     ])
   })
 })

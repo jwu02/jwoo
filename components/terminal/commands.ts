@@ -105,6 +105,7 @@ export const COMMANDS: readonly Command[] = [
         { label: "Age", value: String(ageOn(PROFILE.birthdate, new Date())) },
         { label: "Role", value: PROFILE.role },
         { label: "Location", value: PROFILE.location },
+        { label: "Languages", value: PROFILE.languages.join("\n") },
       ],
     }),
   },
