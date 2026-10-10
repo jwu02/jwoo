@@ -21,6 +21,12 @@ function bar(): HTMLInputElement {
   return screen.getByRole("combobox", { name: "Terminal input" })
 }
 
+/** The prompt line standing empty at the end of the output — the line being
+ * typed at, which no Echo follows. It is the output's last line. */
+function standingPrompt(): HTMLElement {
+  return screen.getByRole("log").lastElementChild as HTMLElement
+}
+
 /** Type into the field the way a keystroke does: one value change. */
 function type(value: string) {
   fireEvent.change(bar(), { target: { value } })
@@ -111,6 +117,33 @@ describe("the opening print", () => {
     expect(
       portrait.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING
     ).not.toBe(0)
+  })
+})
+
+describe("the standing prompt", () => {
+  it("is empty below the opening print, before anything is typed", () => {
+    render(<TerminalPage />)
+
+    // The opening print has no Echo, so the only prompt is this one.
+    expect(echoes()).toEqual([])
+    const prompt = standingPrompt()
+    expect(prompt.textContent).toBe("jwoo@localhost ~ %")
+    // Below the Profile rows it greets the visitor after, not above them.
+    expect(
+      screen.getByText("Tony Wu").compareDocumentPosition(prompt) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0)
+  })
+
+  it("is left empty again below the last Echo once a Command has run", () => {
+    render(<TerminalPage />)
+    run("/contacts")
+
+    expect(echoes()).toEqual(["/contacts"])
+    expect(standingPrompt().previousElementSibling).toHaveTextContent(
+      "jwoo@localhost ~ % /contacts"
+    )
+    expect(standingPrompt().textContent).toBe("jwoo@localhost ~ %")
   })
 })
 
@@ -222,6 +255,8 @@ describe("running a Command", () => {
     expect(echoes()).toEqual([])
     expect(screen.queryByText("Tony Wu")).not.toBeInTheDocument()
     expect(screen.queryByText("/neofetch")).not.toBeInTheDocument()
+    // A wiped screen is still a screen being typed at.
+    expect(standingPrompt().textContent).toBe("jwoo@localhost ~ %")
   })
 
   it("draws a Portrait per run, and none is left behind by /clear", () => {

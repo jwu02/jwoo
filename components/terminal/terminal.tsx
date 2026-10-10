@@ -17,7 +17,7 @@ import {
   type InputConfig,
   type InputState,
 } from "./input-machine"
-import { PrintList } from "./print"
+import { PrintList, Prompt } from "./print"
 
 /** The registry the bar is fed. The machine imports no list of its own. */
 const CONFIG: InputConfig = { commands: COMMANDS }
@@ -132,6 +132,12 @@ export function Terminal() {
         className="min-h-0 flex-1 overflow-auto px-5 py-5 font-mono text-[13.5px] leading-snug md:px-8 md:py-7"
       >
         <PrintList prints={state.output} />
+        {/* The line being typed at: the same prompt an Echo wears, standing
+            empty at the end of the output. It is not a Print — nobody ran it
+            and /clear wipes the Prints, not the line waiting for one. */}
+        <p aria-hidden="true" className="text-muted-foreground">
+          <Prompt />
+        </p>
       </div>
 
       {/* An OS text field, not a terminal prompt: rounded, translucent, the

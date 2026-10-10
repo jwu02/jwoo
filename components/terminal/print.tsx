@@ -30,6 +30,16 @@ export interface Print {
   error?: string
 }
 
+/** The pastiched machine's prompt, authored once: every Echo prefixes its
+ * invocation with it, and the output ends with it, standing empty. */
+export function Prompt() {
+  return (
+    <>
+      jwoo@localhost ~ <span className={ACCENT}>%</span>
+    </>
+  )
+}
+
 /** One Print: its Echo, then its content — the Portrait beside the rows, or,
  * for an unknown invocation, the machine's not-found line. The rows are a
  * definition list, so a screen reader reads each label and value as a pair. */
@@ -41,7 +51,7 @@ function PrintBlock({ print }: { print: Print }) {
           none, and shows its content alone. */}
       {print.echo && (
         <p className="text-muted-foreground">
-          jwoo@localhost ~ <span className={ACCENT}>%</span>{" "}
+          <Prompt />{" "}
           <span className="text-foreground">{print.echo}</span>
         </p>
       )}
