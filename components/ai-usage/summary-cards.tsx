@@ -73,12 +73,9 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-xl bg-card p-4 text-right text-card-foreground shadow-sm"
+          className="rounded-xl bg-card p-4 text-card-foreground shadow-sm"
         >
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {item.label}
-          </span>
-          <div className="mt-2 text-2xl font-semibold tabular-nums">
+          <div className="text-2xl font-semibold tabular-nums">
             {item.unitBefore ? (
               <span className="mr-1 text-sm font-normal text-muted-foreground">
                 {item.unit}
@@ -91,6 +88,9 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
               </span>
             ) : null}
           </div>
+          <span className="mt-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {item.label}
+          </span>
         </div>
       ))}
     </div>

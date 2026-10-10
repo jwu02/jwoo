@@ -20,8 +20,9 @@ describe("SummaryCards", () => {
   it("renders cards in canonical order with Mouse Movement label", () => {
     const { container } = render(<SummaryCards totals={totals} />);
 
-    const cards = Array.from(container.querySelectorAll(".grid > div"));
-    const labels = cards.map((card) => card.querySelector("span")?.textContent);
+    const labels = Array.from(
+      container.querySelectorAll(".grid > div > span")
+    ).map((label) => label.textContent);
 
     expect(labels).toEqual([
       "Key Presses",
