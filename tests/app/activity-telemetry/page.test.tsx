@@ -90,11 +90,11 @@ describe("ActivityTelemetryPage", () => {
     expect(screen.getByRole("button", { name: "30d" })).toBeInTheDocument();
   });
 
-  it("says the keyboard counts are lifetime, while the rest follows the range", async () => {
+  it("says the keyboard counts are a 30-day window, while the rest follows the range", async () => {
     render(<ActivityTelemetryPage />);
     await screen.findByText("5,400");
 
-    expect(screen.getByText("All-time key counts")).toBeInTheDocument();
+    expect(screen.getByText("Data from last 30 days")).toBeInTheDocument();
   });
 
   it("requests the chosen range when the range changes", async () => {

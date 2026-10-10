@@ -47,14 +47,15 @@ export default function ActivityTelemetryPage() {
 
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+              {/* The one panel off the page's clock: the counts cover a fixed
+                  30-day window (the source retains no more), while everything
+                  around it follows the range (ADR 0008). */}
               <HeatmapToggle
                 showOverlay={showOverlay}
                 onToggle={() => setShowOverlay((value) => !value)}
               />
-              {/* The one panel off the page's clock: the counts are lifetime,
-                  while everything around it follows the range (ADR 0008). */}
               <span className="text-xs text-muted-foreground">
-                All-time key counts
+                Data from last 30 days
               </span>
             </div>
             <div className="grid gap-8 md:grid-cols-[1fr_240px]">
