@@ -91,29 +91,29 @@ export default function AiUsagePage() {
             </p>
           ) : (
             <>
-              <div>
+              <section className="space-y-6">
+                <div>
+                  <div className="mb-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 className="text-lg font-semibold tracking-tight">
+                      Usage breakdown
+                    </h2>
+                    <RangeSelector
+                      value={view}
+                      onChange={setView}
+                      options={VIEW_OPTIONS}
+                    />
+                  </div>
+                  <UsageBreakdown
+                    rows={BREAKDOWNS[view].rows(data)}
+                    labelHeader={BREAKDOWNS[view].header}
+                  />
+                </div>
                 <UsageChart
                   data={data.timeSeriesByModel}
                   range={range}
                   modelOrder={data.byModel.map((model) => model.model)}
                 />
-              </div>
-              <div>
-                <div className="mb-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-lg font-semibold tracking-tight">
-                    Usage breakdown
-                  </h2>
-                  <RangeSelector
-                    value={view}
-                    onChange={setView}
-                    options={VIEW_OPTIONS}
-                  />
-                </div>
-                <UsageBreakdown
-                  rows={BREAKDOWNS[view].rows(data)}
-                  labelHeader={BREAKDOWNS[view].header}
-                />
-              </div>
+              </section>
             </>
           )}
         </div>
