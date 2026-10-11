@@ -36,7 +36,7 @@ const rows = [
   },
 ];
 
-// Nine rows, so the tail past the seventh folds into `Others`.
+// Nine rows, so the tail past the fifth folds into `Others`.
 const manyRows = Array.from({ length: 9 }, (_, i) => ({
   id: `m${i}`,
   label: `m${i}`,
@@ -81,11 +81,11 @@ describe("UsageBreakdown", () => {
     expect(screen.queryByText("48.0%")).not.toBeInTheDocument();
   });
 
-  it("folds everything past the seventh into one Others entry", () => {
+  it("folds everything past the fifth into one Others entry", () => {
     render(<UsageBreakdown rows={manyRows} labelHeader="Model" />);
-    // Both donuts fold: seven named rows plus Others.
+    // Both donuts fold: five named rows plus Others.
     expect(screen.getAllByText("Others")).toHaveLength(2);
-    expect(screen.getAllByRole("listitem")).toHaveLength(16);
+    expect(screen.getAllByRole("listitem")).toHaveLength(12);
   });
 
   it("carries every segment as text, not only as a donut", () => {

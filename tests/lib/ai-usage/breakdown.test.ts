@@ -26,7 +26,7 @@ describe("buildDonutSegments", () => {
     ]);
   });
 
-  it("folds everything past the seventh into one Others segment", () => {
+  it("folds everything past the fifth into one Others segment", () => {
     const rows = Array.from({ length: 10 }, (_, i) =>
       row(String.fromCharCode(97 + i), 10 - i, 10 - i)
     );
@@ -37,12 +37,10 @@ describe("buildDonutSegments", () => {
       "c",
       "d",
       "e",
-      "f",
-      "g",
       OTHERS_SEGMENT,
     ]);
-    // Rows h, i, j hold 3 + 2 + 1.
-    expect(segments.at(-1)).toEqual({ label: OTHERS_SEGMENT, value: 6 });
+    // Rows f, g, h, i, j hold 5 + 4 + 3 + 2 + 1.
+    expect(segments.at(-1)).toEqual({ label: OTHERS_SEGMENT, value: 15 });
   });
 
   it("never draws more than the cap", () => {
@@ -62,8 +60,8 @@ describe("buildDonutSegments", () => {
     const cost = buildDonutSegments(rows, "costYuan").map((s) => s.label);
     const tokens = buildDonutSegments(rows, "totalTokens").map((s) => s.label);
 
-    expect(cost).toEqual(["a", "b", "c", "d", "e", "f", "g", OTHERS_SEGMENT]);
-    expect(tokens).toEqual(["h", "g", "f", "e", "d", "c", "b", OTHERS_SEGMENT]);
+    expect(cost).toEqual(["a", "b", "c", "d", "e", OTHERS_SEGMENT]);
+    expect(tokens).toEqual(["h", "g", "f", "e", "d", OTHERS_SEGMENT]);
   });
 
   it("sums a row already called Others into the combined segment", () => {
@@ -78,8 +76,8 @@ describe("buildDonutSegments", () => {
       (segment) => segment.label === OTHERS_SEGMENT
     );
     expect(others).toHaveLength(1);
-    // The fallback row (0.5) joins the folded tail (`n7`, worth 1).
-    expect(others[0].value).toBe(1.5);
+    // The fallback row (0.5) joins the folded tail (`n5`..`n7`, worth 3 + 2 + 1).
+    expect(others[0].value).toBe(6.5);
   });
 
   it("drops rows with no value", () => {

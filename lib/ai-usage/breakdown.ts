@@ -7,8 +7,8 @@ import { OTHERS_PROJECT } from "./project-groups";
  *  single `Others` rather than two similarly spelled slices. */
 export const OTHERS_SEGMENT = OTHERS_PROJECT;
 
-/** The most segments a donut draws: seven named plus {@link OTHERS_SEGMENT}. */
-export const MAX_SEGMENTS = 8;
+/** The most segments a donut draws: five named plus {@link OTHERS_SEGMENT}. */
+export const MAX_SEGMENTS = 6;
 
 /** One row of a usage breakdown, shared by the page and the donut pair. */
 export interface BreakdownRow {
@@ -28,7 +28,7 @@ export interface DonutSegment {
 }
 
 /**
- * Fold a breakdown into at most {@link MAX_SEGMENTS} segments: the seven
+ * Fold a breakdown into at most {@link MAX_SEGMENTS} segments: the five
  * largest by `metric`, then one `Others` holding everything else.
  *
  * A row already called `Others` never ranks on its own — it is already "not
