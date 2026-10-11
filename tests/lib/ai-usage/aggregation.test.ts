@@ -78,14 +78,9 @@ describe("buildTotalsPipeline", () => {
           cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
           cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
           toolCalls: { $sum: "$tool_calls" },
+          // Only a number is added by $sum, so only a number is "known".
           toolCallsKnown: {
-            $sum: {
-              $cond: [
-                { $in: [{ $type: "$tool_calls" }, ["missing", "null"]] },
-                0,
-                1,
-              ],
-            },
+            $sum: { $cond: [{ $isNumber: "$tool_calls" }, 1, 0] },
           },
           skillInvocations: {
             $sum: {

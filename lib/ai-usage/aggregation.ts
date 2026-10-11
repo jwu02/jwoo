@@ -48,17 +48,15 @@ export function buildTotalsPipeline(
         cacheHitTokens: { $sum: "$prompt_cache_hit_tokens" },
         cacheMissTokens: { $sum: "$prompt_cache_miss_tokens" },
         toolCalls: { $sum: "$tool_calls" },
-        // $sum skips null and missing fields, so the number of records that
-        // carry each field at all is kept beside the sum: a sum of zero over
-        // zero known records is an unknown total, not a zero one.
+        // $sum adds only numbers, so the number of records whose value it
+        // actually added is kept beside the sum: a sum of zero over zero known
+        // records is an unknown total, not a zero one. The predicate is
+        // $isNumber rather than "not null or missing" for the same reason the
+        // skills count filters on type — a value that is not a number is not a
+        // Tool Call, and counting it as known would show a partial sum as a
+        // total instead of the unknown dash.
         toolCallsKnown: {
-          $sum: {
-            $cond: [
-              { $in: [{ $type: "$tool_calls" }, ["missing", "null"]] },
-              0,
-              1,
-            ],
-          },
+          $sum: { $cond: [{ $isNumber: "$tool_calls" }, 1, 0] },
         },
         // Counted the same way the skill breakdown counts them: an entry that
         // names no skill is not a Skill Invocation, so the card's total and the
