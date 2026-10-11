@@ -217,7 +217,7 @@ The feature answering "how active was I": mouse and keyboard behaviour over a ra
 _Avoid_: telemetry (unqualified), activity dashboard
 
 **AI usage**:
-The feature answering "where did AI spend go": cost, tokens and session counts over a range, broken down by model, project and harness. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
+The feature answering "where did AI spend go": cost, tokens and tool call and skill invocation counts over a range, broken down by model, project and harness, with the range's most invoked skills ranked beside the breakdown. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
 _Avoid_: AI dashboard, usage (on its own)
 
 **Range**:
@@ -232,12 +232,16 @@ _Avoid_: cache ratio, cache effectiveness
 The tool that drove an AI-usage session — the agent runtime the session ran under. One of the three breakdowns; sessions recorded before the collector captured it show as `unknown`.
 _Avoid_: client, agent, tool
 
+**Skill**:
+One reusable assistant skill, named exactly as the collector recorded it. The name is not folded or regrouped, so a namespaced skill keeps its prefix and reads as its own row. The Most invoked skills list ranks skills by invocations over the range — a count and nothing else: a session's cost is the session's, and a session may invoke several skills, so a per-skill cost share would be double-counted or invented.
+_Avoid_: tool (a Skill Invocation can be one, but not every Tool Call is a skill invocation), plugin, command
+
 **Project**:
 The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `Others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.
 _Avoid_: repo, workspace
 
 **Others**:
-The AI usage breakdown's one unnamed segment: everything the breakdown does not name individually. In the Project breakdown that includes the working directories matching no project, so those and the smaller projects share the one segment rather than each getting its own — no reader sees two similarly named "rest" entries, or has to guess which is which.
+The AI usage breakdown's one unnamed segment: everything the breakdown does not name individually. In the Project breakdown that includes the working directories matching no project, so those and the smaller projects share the one segment rather than each getting its own — no reader sees two similarly named "rest" entries, or has to guess which is which. The Most invoked skills list folds its own tail into the same segment.
 _Avoid_: other (singular), misc, remainder
 
 ### Keyboard heatmap

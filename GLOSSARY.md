@@ -40,5 +40,5 @@ One action the assistant takes that its harness reports as a tool call. The Tool
 _Avoid_: tool, tool use
 
 **Skill Invocation**:
-One load of a reusable assistant skill. The Skill Invocations card on the AI usage dashboard counts every entry in the recorded list, repeats included.
+One load of a reusable assistant skill. Repeat loads of the same skill are separate invocations, so every entry in a record's list counts: the Skill Invocations card on the AI usage dashboard totals them, and the dashboard's Most invoked skills list ranks those same entries by skill. An entry that names no skill is not a Skill Invocation, and neither one counts it.
 _Avoid_: skill use, tool call (a Skill Invocation can be one, but not every Tool Call is a Skill Invocation)

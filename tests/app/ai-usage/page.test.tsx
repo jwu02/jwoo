@@ -50,6 +50,10 @@ const response = {
       totalTokens: 1000,
     },
   ],
+  bySkill: [
+    { skill: "implement", invocations: 1791 },
+    { skill: "grill-with-docs", invocations: 299 },
+  ],
   timeSeriesByModel: [],
 };
 
@@ -110,6 +114,47 @@ describe("AiUsagePage", () => {
       pills[0].compareDocumentPosition(breakdown) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  it("ranks the most invoked skills below the chart", async () => {
+    render(<AiUsagePage />);
+    await screen.findAllByText("claude-opus-5");
+
+    // Counts, not cost or tokens: the count is the only number a skill has.
+    expect(screen.getByText("implement")).toBeInTheDocument();
+    expect(screen.getByText("1,791")).toBeInTheDocument();
+    expect(screen.getByText("grill-with-docs")).toBeInTheDocument();
+
+    const heading = screen.getByRole("heading", {
+      name: "Most invoked skills",
+    });
+    expect(
+      screen.getByTestId("usage-chart").compareDocumentPosition(heading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("leaves the skills list outside the breakdown's pills", async () => {
+    render(<AiUsagePage />);
+    await screen.findAllByText("claude-opus-5");
+
+    fireEvent.click(screen.getByRole("button", { name: "Harness" }));
+
+    expect(await screen.findAllByText("claude-code")).toHaveLength(2);
+    expect(screen.getByText("implement")).toBeInTheDocument();
+  });
+
+  it("says so when the range invoked no skills", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...response, bySkill: [] }),
+    }) as unknown as typeof fetch;
+
+    render(<AiUsagePage />);
+
+    expect(
+      await screen.findByText("No skills invoked in this range.")
+    ).toBeInTheDocument();
   });
 
   it("keeps the range reachable when the range holds no usage", async () => {

@@ -7,6 +7,7 @@ import {
   ByHarness,
   ByModel,
   ByProject,
+  BySkill,
   ModelTimeSeries,
   Totals,
 } from "./types";
@@ -59,7 +60,19 @@ export function buildTotalsPipeline(
             ],
           },
         },
-        skillInvocations: { $sum: { $size: { $ifNull: ["$skills", []] } } },
+        // Counted the same way the skill breakdown counts them: an entry that
+        // names no skill is not a Skill Invocation, so the card's total and the
+        // skills list never disagree.
+        skillInvocations: {
+          $sum: {
+            $size: {
+              $filter: {
+                input: { $ifNull: ["$skills", []] },
+                cond: { $eq: [{ $type: "$$this" }, "string"] },
+              },
+            },
+          },
+        },
         skillsKnown: {
           $sum: {
             $cond: [{ $in: [{ $type: "$skills" }, ["missing", "null"]] }, 0, 1],
@@ -122,6 +135,27 @@ export function buildByHarnessPipeline(
     // The group output carries the harness value in _id, so sorting on it
     // breaks cost ties and makes the breakdown ordering deterministic.
     { $sort: { costYuan: -1, _id: 1 } },
+  ];
+}
+
+export function buildBySkillPipeline(
+  range: Range,
+  now = new Date()
+): Record<string, unknown>[] {
+  return [
+    rangeMatch(range, now),
+    // Skills are a list per record and a record may list the same skill twice,
+    // so the count is the number of entries across the range's records, not the
+    // number of records that mention it.
+    { $unwind: "$skills" },
+    // 51 records carry `skills: null` rather than a list. $unwind emits that as
+    // a single value, and it names no skill, so it is dropped rather than
+    // counted as one called "null".
+    { $match: { skills: { $type: "string" } } },
+    { $group: { _id: "$skills", invocations: { $sum: 1 } } },
+    // Skill name breaks count ties so the ranking is deterministic between
+    // polls, like every other breakdown's tie-break.
+    { $sort: { invocations: -1, _id: 1 } },
   ];
 }
 
@@ -254,6 +288,21 @@ export async function fetchByHarness(
     harness: item._id ?? "unknown",
     costYuan: item.costYuan,
     totalTokens: item.totalTokens,
+  }));
+}
+
+export async function fetchBySkill(
+  collection: Collection,
+  range: Range,
+  now = new Date()
+): Promise<BySkill[]> {
+  const result = (await collection
+    .aggregate(buildBySkillPipeline(range, now))
+    .toArray()) as Array<{ _id: string; invocations: number }>;
+
+  return result.map((item) => ({
+    skill: item._id,
+    invocations: item.invocations,
   }));
 }
 

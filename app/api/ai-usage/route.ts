@@ -5,6 +5,7 @@ import {
   fetchByModel,
   fetchByProject,
   fetchByHarness,
+  fetchBySkill,
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 import { isValidTimeZone } from "@/lib/timezone";
@@ -28,15 +29,16 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const aiUsageCollection = getCollection("ai_usage");
-    const [totals, byModel, byProject, byHarness, timeSeriesByModel] =
+    const [totals, byModel, byProject, byHarness, bySkill, timeSeriesByModel] =
       await Promise.all([
         // Every panel on this page is the range's: the cards, the three
-        // breakdowns, and the chart. Only activity telemetry has a panel
-        // outside it (its key heatmap — see ADR 0008).
+        // breakdowns, the skills list, and the chart. Only activity telemetry
+        // has a panel outside it (its key heatmap — see ADR 0008).
         fetchTotals(aiUsageCollection, rangeParam),
         fetchByModel(aiUsageCollection, rangeParam),
         fetchByProject(aiUsageCollection, rangeParam),
         fetchByHarness(aiUsageCollection, rangeParam),
+        fetchBySkill(aiUsageCollection, rangeParam),
         fetchTimeSeriesByModel(
           aiUsageCollection,
           rangeParam,
@@ -50,6 +52,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       byModel,
       byProject,
       byHarness,
+      bySkill,
       timeSeriesByModel,
     };
 

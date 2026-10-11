@@ -3,11 +3,13 @@ import {
   buildByModelPipeline,
   buildByProjectPipeline,
   buildByHarnessPipeline,
+  buildBySkillPipeline,
   buildTimeSeriesByModelPipeline,
   fetchTotals,
   fetchByModel,
   fetchByProject,
   fetchByHarness,
+  fetchBySkill,
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 import { getBucketInterval } from "@/lib/ai-usage/ranges";
@@ -85,7 +87,16 @@ describe("buildTotalsPipeline", () => {
               ],
             },
           },
-          skillInvocations: { $sum: { $size: { $ifNull: ["$skills", []] } } },
+          skillInvocations: {
+            $sum: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ["$skills", []] },
+                  cond: { $eq: [{ $type: "$$this" }, "string"] },
+                },
+              },
+            },
+          },
           skillsKnown: {
             $sum: {
               $cond: [
@@ -151,6 +162,22 @@ describe("buildByHarnessPipeline", () => {
         },
       },
       { $sort: { costYuan: -1, _id: 1 } },
+    ]);
+  });
+});
+
+describe("buildBySkillPipeline", () => {
+  it("matches the range, unwinds the skill list and sorts by invocations descending", () => {
+    const now = new Date("2026-08-18T12:00:00.000Z");
+    const pipeline = buildBySkillPipeline("24h", now);
+    expect(pipeline).toEqual([
+      { $match: { recorded_at: { $gte: new Date("2026-08-17T12:00:00.000Z") } } },
+      { $unwind: "$skills" },
+      // A record's list can carry a null entry; it names no skill, so it is
+      // dropped rather than counted as one called "null".
+      { $match: { skills: { $type: "string" } } },
+      { $group: { _id: "$skills", invocations: { $sum: 1 } } },
+      { $sort: { invocations: -1, _id: 1 } },
     ]);
   });
 });
@@ -410,6 +437,26 @@ describe("fetchByHarness", () => {
   it("returns empty array when collection is empty", async () => {
     const collection = makeMockCollection([]);
     const result = await fetchByHarness(collection, "24h");
+    expect(result).toEqual([]);
+  });
+});
+
+describe("fetchBySkill", () => {
+  it("returns skill rows with their invocation counts", async () => {
+    const collection = makeMockCollection([
+      { _id: "implement", invocations: 1791 },
+      { _id: "grill-with-docs", invocations: 299 },
+    ]);
+    const result = await fetchBySkill(collection, "24h");
+    expect(result).toEqual([
+      { skill: "implement", invocations: 1791 },
+      { skill: "grill-with-docs", invocations: 299 },
+    ]);
+  });
+
+  it("returns empty array when collection is empty", async () => {
+    const collection = makeMockCollection([]);
+    const result = await fetchBySkill(collection, "24h");
     expect(result).toEqual([]);
   });
 });

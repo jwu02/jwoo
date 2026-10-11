@@ -12,6 +12,7 @@ jest.mock("@/lib/ai-usage/aggregation", () => ({
   fetchByModel: jest.fn(),
   fetchByProject: jest.fn(),
   fetchByHarness: jest.fn(),
+  fetchBySkill: jest.fn(),
   fetchTimeSeriesByModel: jest.fn(),
 }));
 
@@ -21,6 +22,7 @@ import {
   fetchByModel,
   fetchByProject,
   fetchByHarness,
+  fetchBySkill,
   fetchTimeSeriesByModel,
 } from "@/lib/ai-usage/aggregation";
 
@@ -58,6 +60,10 @@ describe("GET /api/ai-usage", () => {
         totalTokens: 100,
       },
     ]);
+    (fetchBySkill as jest.Mock).mockResolvedValue([
+      { skill: "implement", invocations: 1791 },
+      { skill: "grill-with-docs", invocations: 299 },
+    ]);
     (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([
       {
         model: "deepseek-v4-flash",
@@ -81,6 +87,7 @@ describe("GET /api/ai-usage", () => {
     expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
     expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
     expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
+    expect(fetchBySkill).toHaveBeenCalledWith(mockAiUsageCollection, "24h");
     expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "24h",
@@ -113,6 +120,10 @@ describe("GET /api/ai-usage", () => {
           totalTokens: 100,
         },
       ],
+      bySkill: [
+        { skill: "implement", invocations: 1791 },
+        { skill: "grill-with-docs", invocations: 299 },
+      ],
       timeSeriesByModel: [
         {
           model: "deepseek-v4-flash",
@@ -140,6 +151,7 @@ describe("GET /api/ai-usage", () => {
     (fetchByModel as jest.Mock).mockResolvedValue([]);
     (fetchByProject as jest.Mock).mockResolvedValue([]);
     (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchBySkill as jest.Mock).mockResolvedValue([]);
     (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request("http://localhost:3000/api/ai-usage?range=30d");
@@ -150,6 +162,7 @@ describe("GET /api/ai-usage", () => {
     expect(fetchByModel).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
     expect(fetchByProject).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
     expect(fetchByHarness).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
+    expect(fetchBySkill).toHaveBeenCalledWith(mockAiUsageCollection, "30d");
     expect(fetchTimeSeriesByModel).toHaveBeenCalledWith(
       mockAiUsageCollection,
       "30d",
@@ -170,6 +183,7 @@ describe("GET /api/ai-usage", () => {
     (fetchByModel as jest.Mock).mockResolvedValue([]);
     (fetchByProject as jest.Mock).mockResolvedValue([]);
     (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchBySkill as jest.Mock).mockResolvedValue([]);
     (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request(
@@ -198,6 +212,7 @@ describe("GET /api/ai-usage", () => {
     (fetchByModel as jest.Mock).mockResolvedValue([]);
     (fetchByProject as jest.Mock).mockResolvedValue([]);
     (fetchByHarness as jest.Mock).mockResolvedValue([]);
+    (fetchBySkill as jest.Mock).mockResolvedValue([]);
     (fetchTimeSeriesByModel as jest.Mock).mockResolvedValue([]);
 
     const request = new Request(

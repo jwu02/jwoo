@@ -32,6 +32,14 @@ export interface ByHarness {
   totalTokens: number;
 }
 
+/** One skill's count over the range. The metric is invocations and nothing
+ *  else: a record's cost is the record's, and it can list several skills, so a
+ *  per-skill cost would either double-count or be an invented split. */
+export interface BySkill {
+  skill: string;
+  invocations: number;
+}
+
 interface ModelTimeSeriesPoint {
   bucket: string; // ISO date string
   costYuan: number;
@@ -48,5 +56,6 @@ export interface Response {
   byModel: ByModel[];
   byProject: ByProject[];
   byHarness: ByHarness[];
+  bySkill: BySkill[];
   timeSeriesByModel: ModelTimeSeries[];
 }

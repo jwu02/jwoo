@@ -4,6 +4,7 @@ import { useState } from "react"
 import { SummaryCards } from "@/components/ai-usage/summary-cards"
 import { UsageChart } from "@/components/ai-usage/usage-chart"
 import { UsageBreakdown } from "@/components/ai-usage/usage-breakdown"
+import { SkillList } from "@/components/ai-usage/skill-list"
 import { BreakdownView, VIEW_OPTIONS } from "@/components/ai-usage/view-toggle"
 import { RangeSelector } from "@/components/polled/range-selector"
 import { DashboardHeader } from "@/components/polled/dashboard-header"
@@ -113,6 +114,15 @@ export default function AiUsagePage() {
                   range={range}
                   modelOrder={data.byModel.map((model) => model.model)}
                 />
+              </section>
+              {/* Its own section, not a fourth view of the breakdown above:
+                  the pill there chooses how cost and tokens are grouped, and
+                  a skill has no cost or token split of its own. */}
+              <section className="space-y-6">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Most invoked skills
+                </h2>
+                <SkillList rows={data.bySkill} />
               </section>
             </>
           )}
