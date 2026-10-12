@@ -4,6 +4,14 @@ import {
   oklchToSrgbHex,
 } from "@/lib/telemetry/heatmap-colors";
 
+// Perceived lightness of a hex colour (Rec.601 luma over sRGB).
+function luma(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
 describe("keyIntensity", () => {
   it("scales a count by maxCount", () => {
     expect(keyIntensity(25, 100)).toBe(0.25);
@@ -38,26 +46,35 @@ describe("oklchToSrgbHex", () => {
   });
 });
 
-describe("keycapColor", () => {
+describe("keycapColor in the dark appearance", () => {
   it("reproduces the intensified ramp at the three pinned intensities", () => {
-    expect(keycapColor(0)).toBe("#222222");
-    expect(keycapColor(0.5)).toBe("#8c3d12");
-    expect(keycapColor(1)).toBe("#ff4c00");
+    expect(keycapColor(0, "dark")).toBe("#222222");
+    expect(keycapColor(0.5, "dark")).toBe("#8c3d12");
+    expect(keycapColor(1, "dark")).toBe("#ff4c00");
   });
 
-  // Perceived lightness of a hex colour (Rec.601 luma over sRGB).
-  function luma(hex: string): number {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return 0.299 * r + 0.587 * g + 0.114 * b;
-  }
-
-  it("is monotonic in lightness (0 → 1 darkens less, warms up)", () => {
-    const dark = luma(keycapColor(0));
-    const mid = luma(keycapColor(0.5));
-    const hot = luma(keycapColor(1));
+  it("is monotonic in lightness (0 → 1 warms up from near-black)", () => {
+    const dark = luma(keycapColor(0, "dark"));
+    const mid = luma(keycapColor(0.5, "dark"));
+    const hot = luma(keycapColor(1, "dark"));
     expect(dark).toBeLessThan(mid);
     expect(mid).toBeLessThan(hot);
+  });
+});
+
+describe("keycapColor in the light appearance", () => {
+  it("starts cold at a near-white cap, never the dark appearance's near-black", () => {
+    expect(keycapColor(0, "light")).toBe("#eeeeee");
+    expect(keycapColor(0.5, "light")).toBe("#ffa77f");
+    // The hot end is the same vivid orange in either appearance.
+    expect(keycapColor(1, "light")).toBe("#ff4c00");
+  });
+
+  it("darkens as it warms, the reverse direction of the dark ramp", () => {
+    const cold = luma(keycapColor(0, "light"));
+    const mid = luma(keycapColor(0.5, "light"));
+    const hot = luma(keycapColor(1, "light"));
+    expect(cold).toBeGreaterThan(mid);
+    expect(mid).toBeGreaterThan(hot);
   });
 });

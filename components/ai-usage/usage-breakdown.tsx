@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import {
   PieChart,
   Pie,
@@ -9,6 +10,11 @@ import {
   TooltipContentProps,
 } from "recharts";
 import { ChartTooltipCard } from "@/components/chart-tooltip";
+import {
+  appearanceServerSnapshot,
+  appearanceSnapshot,
+  subscribeAppearance,
+} from "@/components/os/appearance";
 import { formatNumber } from "@/lib/ui/chart-format";
 // The breakdown sits under the chart and covers the same token counts, so it
 // reads them through the chart's own formatter rather than a second one.
@@ -169,6 +175,13 @@ function Donut({
 }
 
 export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
+  // The sibling shades' direction follows the appearance (lib/ai-usage/colors).
+  const appearance = useSyncExternalStore(
+    subscribeAppearance,
+    appearanceSnapshot,
+    appearanceServerSnapshot
+  );
+
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No AI usage recorded yet.</p>
@@ -178,7 +191,10 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
   // Sibling models of a known provider get distinct shades (matching the chart
   // legend), so a model reads the same way in the donut, the legend and the
   // chart above even when a donut folds it into `Others`.
-  const colorMap = aiUsageColorMap(rows.map((row) => row.label));
+  const colorMap = aiUsageColorMap(
+    rows.map((row) => row.label),
+    appearance
+  );
 
   return (
     <div className="grid gap-6 md:grid-cols-2">

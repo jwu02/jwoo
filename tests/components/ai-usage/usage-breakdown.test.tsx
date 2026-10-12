@@ -4,6 +4,7 @@ import {
   UsageBreakdown,
   segmentColor,
 } from "@/components/ai-usage/usage-breakdown";
+import { clearAppearance, saveAppearance } from "@/components/os/appearance";
 
 // The donut needs a real box to lay its sectors out in; jsdom reports zero for
 // the wrapper, so ResponsiveContainer is handed a size the way the chart test
@@ -45,6 +46,10 @@ const manyRows = Array.from({ length: 9 }, (_, i) => ({
 }));
 
 describe("UsageBreakdown", () => {
+  // The appearance store is module state shared across the file's renders, so
+  // put it back where a fresh visit finds it after each test.
+  afterEach(() => act(() => clearAppearance()));
+
   it("renders one legend entry per segment in both donuts", () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     for (const label of ["deepseek-v4-flash", "gpt-4o", "claude-opus-5"]) {
@@ -148,5 +153,27 @@ describe("UsageBreakdown", () => {
     expect(
       screen.getByText("No tokens recorded in this range.")
     ).toBeInTheDocument();
+  });
+
+  it("shades sibling models by the appearance, darkening over a light card", () => {
+    // Two models of one provider are a ramp; the direction must come from the
+    // appearance, not from a fixed mix toward white.
+    const siblings = [
+      { id: "deepseek-v4-flash", label: "deepseek-v4-flash", costYuan: 1, totalTokens: 1 },
+      { id: "deepseek-v4-pro", label: "deepseek-v4-pro", costYuan: 1, totalTokens: 1 },
+    ];
+    const swatches = () =>
+      [...document.querySelectorAll("span[style*='--ai-deepseek']")].map(
+        (el) => el.getAttribute("style") ?? ""
+      );
+
+    act(() => saveAppearance("light"));
+    const light = render(<UsageBreakdown rows={siblings} labelHeader="Model" />);
+    expect(swatches().some((style) => style.includes("black"))).toBe(true);
+    light.unmount();
+
+    act(() => saveAppearance("dark"));
+    render(<UsageBreakdown rows={siblings} labelHeader="Model" />);
+    expect(swatches().some((style) => style.includes("white"))).toBe(true);
   });
 });

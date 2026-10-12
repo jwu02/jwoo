@@ -2,10 +2,22 @@
 
 import { useCursor, useGLTF } from "@react-three/drei"
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import * as THREE from "three"
 
 import { resolveTopLevelNode } from "@/components/home/scene-hit"
+import {
+  appearanceServerSnapshot,
+  appearanceSnapshot,
+  subscribeAppearance,
+} from "@/components/os/appearance"
 import { projectNodeSpan } from "@/components/three/scene-span"
 import { keyIntensity, keycapColor } from "@/lib/telemetry/heatmap-colors"
 import {
@@ -146,6 +158,15 @@ export function KeyboardModel({
   const size = useThree((state) => state.size)
   const invalidate = useThree((state) => state.invalidate)
 
+  // The heatmap ramp's direction follows the appearance, so a light page gets a
+  // light cold end rather than a near-black cap. The overlay texture is rebuilt
+  // when this changes, just as it is when the counts do.
+  const appearance = useSyncExternalStore(
+    subscribeAppearance,
+    appearanceSnapshot,
+    appearanceServerSnapshot,
+  )
+
   // Resolve each physical id's GLB node once and snapshot its rest height. The
   // caps keep their natural GLB colour — the heatmap is a separate overlay layer,
   // and hover only presses the cap down (no material mutation), so the chassis'
@@ -269,7 +290,7 @@ export function KeyboardModel({
       // back of the keyboard. Hence the inverted vertical coordinate.
       const x = u * canvasWidth
       const y = (1 - v) * canvasHeight
-      const color = keycapColor(intensity)
+      const color = keycapColor(intensity, appearance)
       const grad = ctx.createRadialGradient(x, y, 0, x, y, radius)
       // Max overlay alpha for a fully-hot key; intensity is already in [0, 1]
       // (keyIntensity clamps), so it doubles as the gradient's peak alpha.
@@ -313,7 +334,7 @@ export function KeyboardModel({
         return null
       })
     }
-  }, [scene, registry, counts, maxCount, showOverlay])
+  }, [scene, registry, counts, maxCount, showOverlay, appearance])
 
   // Expose the tooltip anchor projection via the api ref the wrapper owns.
   useEffect(() => {

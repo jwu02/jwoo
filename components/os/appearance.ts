@@ -11,11 +11,13 @@
 // and in that case the choice simply lives in memory for this visit. A visitor
 // who has never chosen follows the appearance their own system reports.
 
-const KEY = "os.appearance"
-const DARK = "dark"
+import type { Appearance } from "@/lib/appearance"
 
 /** The two appearances the OS is drawn in. */
-export type Appearance = "light" | "dark"
+export type { Appearance }
+
+const KEY = "os.appearance"
+const DARK = "dark"
 
 /** The key the choice is stored under. */
 export const APPEARANCE_KEY = KEY

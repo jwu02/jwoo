@@ -5,7 +5,9 @@
 // flat one-color-per-provider rule makes them indistinguishable. Instead the
 // provider's brand hue is kept, and each sibling model gets a stepped shade of
 // that hue (a lightness ramp) so they read as the same family but stay
-// tellable apart:
+// tellable apart. The direction of that ramp follows the appearance: later
+// siblings lighten toward white over a dark card and darken toward black over a
+// light one, so they stay distinguishable in either.
 //
 //   - any `deepseek-*` model / `DeepSeek Harness`  -> --ai-deepseek  (blue)
 //   - any `kimi-*` model                           -> --ai-kimi      (purple)
@@ -21,6 +23,8 @@
 // `color-mix(in srgb, var(--ai-deepseek) 70%, white)`) rather than bare
 // variable names, because shade mixing cannot be wrapped in `var()`. Use the
 // result directly as the `fill` / `backgroundColor` value.
+
+import type { Appearance } from "@/lib/appearance"
 
 /** Lowercase and collapse every separator run (whitespace, -, _, ., /) into a
  *  single space so "deepseek-v4-flash", "Claude Code" and "open-code" all
@@ -50,16 +54,23 @@ function detectFamily(name: string): string | null {
 }
 
 /** A stepped shade of `baseVar`: index 0 is the full-strength colour, and each
- *  later sibling is lightened toward white so it reads as a lighter tint over a
- *  dark card. (Mixing toward the background would go dark in the site's
- *  dark theme and blend away, so the ramp always lightens instead.) */
-function shadeExpression(baseVar: string, index: number, total: number): string {
-  // The first sibling is the pure brand colour; every later one lightens.
+ *  later sibling steps away from it toward the appearance's own extreme — white
+ *  over a dark card, black over a light one — so the siblings stay
+ *  distinguishable instead of mixing into the card behind them. */
+function shadeExpression(
+  baseVar: string,
+  index: number,
+  total: number,
+  appearance: Appearance,
+): string {
+  // The first sibling is the pure brand colour; every later one takes more of
+  // the mix colour.
   if (total <= 1 || index === 0) return `var(${baseVar})`;
   const strongest = 100;
-  const lightest = 55;
-  const pct = strongest - (index * (strongest - lightest)) / (total - 1);
-  return `color-mix(in srgb, var(${baseVar}) ${pct}%, white)`;
+  const weaklyShaded = 55;
+  const pct = strongest - (index * (strongest - weaklyShaded)) / (total - 1);
+  const mix = appearance === "dark" ? "white" : "black";
+  return `color-mix(in srgb, var(${baseVar}) ${pct}%, ${mix})`;
 }
 
 /**
@@ -70,12 +81,16 @@ function shadeExpression(baseVar: string, index: number, total: number): string 
 export const AI_USAGE_OTHERS_COLOR = "var(--muted-foreground)";
 
 /**
- * Assign a color to every name in `names`. Known provider families are grouped
- * and shaded across their members (sorted stably, so a model keeps the same
- * shade regardless of the list's sort order); unknown names are omitted, so
- * callers can fall back to their own --chart-N positional logic.
+ * Assign a color to every name in `names`, in the given appearance. Known
+ * provider families are grouped and shaded across their members (sorted stably,
+ * so a model keeps the same shade regardless of the list's sort order); unknown
+ * names are omitted, so callers can fall back to their own --chart-N positional
+ * logic.
  */
-export function aiUsageColorMap(names: string[]): Map<string, string> {
+export function aiUsageColorMap(
+  names: string[],
+  appearance: Appearance,
+): Map<string, string> {
   const groups = new Map<string, { familyVar: string; members: string[] }>();
 
   for (const name of names) {
@@ -90,7 +105,7 @@ export function aiUsageColorMap(names: string[]): Map<string, string> {
   for (const { familyVar, members } of groups.values()) {
     const sorted = [...members].sort((a, b) => a.localeCompare(b));
     sorted.forEach((name, index) => {
-      map.set(name, shadeExpression(familyVar, index, sorted.length));
+      map.set(name, shadeExpression(familyVar, index, sorted.length, appearance));
     });
   }
   return map;

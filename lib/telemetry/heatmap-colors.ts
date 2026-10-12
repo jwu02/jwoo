@@ -3,12 +3,14 @@
  *
  * The SVG heatmap tinted each keycap with an oklch ramp from a dark charcoal
  * (no presses) to a warm orange (hottest key). The 3D model reproduces that
- * ramp exactly, but `THREE.Color.setStyle("oklch(...)")` silently returns white
+ * ramp exactly in the dark appearance, but `THREE.Color.setStyle("oklch(...)")` silently returns white
  * in three r185 (it log-errors "Unknown color model oklch" and falls back to
  * white), so the ramp is resolved here to a plain sRGB hex string and fed to
  * `<color>.set(hex)` instead. Keeping this in a pure module (no three imports)
  * lets it be unit-tested against the exact pinned values of the SVG ramp.
  */
+
+import type { Appearance } from "@/lib/appearance"
 
 /**
  * Normalise a key's press count to an intensity in [0, 1]. `maxCount` is the
@@ -63,13 +65,21 @@ function clamp01(value: number): number {
 }
 
 /**
- * The overlay colour for a given intensity (0..1). A warm hue of 45° from the
- * original SVG ramp, pushed hotter for the continuous overlay: lightness
- * 0.25..0.67 and chroma 0..0.24, so the top of the ramp reads as a vivid
- * orange instead of the muted legacy #d8662a.
+ * The overlay colour for a given intensity (0..1), in the given appearance. The
+ * ramp anchors at a warm hue of 45° and always ends hot at the same vivid
+ * orange; only the cold end follows the appearance, so the direction flips with
+ * it. In the dark appearance cold is a dark charcoal and intensity warms it up;
+ * in the light appearance cold is a near-white cap, so a barely-pressed key is
+ * not a near-black one on a light page, and intensity darkens toward the orange.
  */
-export function keycapColor(intensity: number): string {
-  const l = 0.25 + intensity * 0.42
+export function keycapColor(
+  intensity: number,
+  appearance: Appearance,
+): string {
+  // Cold anchors: charcoal on a dark page, near-white on a light one.
+  const coldL = appearance === "dark" ? 0.25 : 0.95
+  const hotL = 0.67
+  const l = coldL + intensity * (hotL - coldL)
   const c = intensity * 0.24
   return oklchToSrgbHex(l, c, 45)
 }

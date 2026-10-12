@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   BarChart,
   Bar,
@@ -12,6 +12,11 @@ import {
   TooltipContentProps,
 } from "recharts";
 import { ChartTooltipCard } from "@/components/chart-tooltip";
+import {
+  appearanceServerSnapshot,
+  appearanceSnapshot,
+  subscribeAppearance,
+} from "@/components/os/appearance";
 import { Range } from "@/lib/ranges";
 import { ModelTimeSeries } from "@/lib/ai-usage/types";
 import { getNiceYTicks, getTicksForRange } from "@/lib/ui/chart-ticks";
@@ -335,8 +340,16 @@ export function UsageChart({ data, range, modelOrder }: UsageChartProps) {
   // Assign a distinct shade per known-provider model, over the same set the
   // breakdown donuts color, so chart bars, legend swatches and donut segments
   // agree on one color per model. Unknown models stay out of the map and fall back to
-  // --chart-N.
-  const colorMap = useMemo(() => aiUsageColorMap(modelOrder), [modelOrder]);
+  // --chart-N. The shades' direction follows the appearance (lib/ai-usage/colors).
+  const appearance = useSyncExternalStore(
+    subscribeAppearance,
+    appearanceSnapshot,
+    appearanceServerSnapshot
+  );
+  const colorMap = useMemo(
+    () => aiUsageColorMap(modelOrder, appearance),
+    [modelOrder, appearance]
+  );
 
   // Keyed by model name so one legend toggle hides the model in both the cost
   // and tokens charts (they share the same models, hence one legend).

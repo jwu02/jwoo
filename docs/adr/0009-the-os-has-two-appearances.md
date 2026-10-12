@@ -12,7 +12,7 @@ An appearance is a class on `<html>` and nothing more: `:root` holds the light t
 
 The document is server-rendered dark — the OS's own first appearance — and an inline script in its head corrects the class from storage before the browser's first paint, so a visitor whose appearance is light never sees a dark flash. The store that owns the choice (`components/os/appearance.ts`) is the one place that reads and writes the key and the one place that puts the class on; the Shell only keeps it there, so nothing depends on hydration to get the appearance right and React never has to be the source of truth for it.
 
-An application's world does not follow it, except that the Desktop's scene is its own dark world either way: the arcade cabinet and the 3D scenes keep their own look in both appearances, because they are screens rather than chrome — a screen does not turn into a pale page because the room around it did. The printed resume is likewise unaffected: its sheet forces print's light tokens itself.
+An application's world does not follow it, except that the Desktop's scene is its own dark world either way: the arcade cabinet and the 3D scenes keep their own look in both appearances, because they are screens rather than chrome — a screen does not turn into a pale page because the room around it did. A ramp that encodes data is the exception: the keyboard heatmap's key colours and the AI-usage sibling shades take their direction from the appearance, because they must stay readable against the page rather than belong to the scene's own world. The printed resume is likewise unaffected: its sheet forces print's light tokens itself.
 
 ## Considered options
 
@@ -26,6 +26,6 @@ An application's world does not follow it, except that the Desktop's scene is it
 
 `CLAUDE.md`'s "dark only" instruction was the convention this reverses and is corrected in the same change.
 
-Two colour ramps bake in a direction that was only correct in the dark appearance — the keyboard heatmap's ramp and the AI-usage sibling shades — and are made appearance-aware separately.
+Two colour ramps bake in a direction that was only correct in the dark appearance — the keyboard heatmap's ramp and the AI-usage sibling shades — and are made appearance-aware separately: each now takes its direction from the appearance, so a barely-pressed key is not a near-black cap on a light page and siblings do not lighten into a light card. The appearance's name is shared at `lib/appearance.ts`, so neither feature's lib reaches into `components/` for it.
 
 The store is the single owner of the key, so anything that later needs to list or delete it (Settings' Data section) asks the store rather than touching storage.

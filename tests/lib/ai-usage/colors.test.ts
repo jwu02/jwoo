@@ -79,11 +79,14 @@ describe("aiUsageColorVar", () => {
 
 describe("aiUsageColorMap", () => {
   it("gives each sibling model of a provider a distinct shaded blue", () => {
-    const map = aiUsageColorMap([
-      "deepseek-v4-pro",
-      "deepseek-v4-flash",
-      "deepseek-v4-flash-vision-exp",
-    ]);
+    const map = aiUsageColorMap(
+      [
+        "deepseek-v4-pro",
+        "deepseek-v4-flash",
+        "deepseek-v4-flash-vision-exp",
+      ],
+      "dark"
+    );
     const colors = [...map.values()];
     // Three models, three distinguishable shades, all in the deepseek hue.
     expect(colors).toHaveLength(3);
@@ -95,8 +98,8 @@ describe("aiUsageColorMap", () => {
   });
 
   it("assigns shades stably regardless of input order", () => {
-    const a = aiUsageColorMap(["deepseek-v4-pro", "deepseek-v4-flash"]);
-    const b = aiUsageColorMap(["deepseek-v4-flash", "deepseek-v4-pro"]);
+    const a = aiUsageColorMap(["deepseek-v4-pro", "deepseek-v4-flash"], "dark");
+    const b = aiUsageColorMap(["deepseek-v4-flash", "deepseek-v4-pro"], "dark");
     // Same model name resolves to the same shade either way.
     expect(a.get("deepseek-v4-flash")).toBe(b.get("deepseek-v4-flash"));
     expect(a.get("deepseek-v4-pro")).toBe(b.get("deepseek-v4-pro"));
@@ -105,14 +108,14 @@ describe("aiUsageColorMap", () => {
   });
 
   it("gives glm siblings distinct yellow shades", () => {
-    const map = aiUsageColorMap(["glm-5.3-flash", "glm-5-air"]);
+    const map = aiUsageColorMap(["glm-5.3-flash", "glm-5-air"], "dark");
     expect(map.size).toBe(2);
     expect(new Set(map.values()).size).toBe(2);
     expect([...map.values()].every((c) => c.includes("--ai-glm"))).toBe(true);
   });
 
   it("gives kimi siblings distinct purple shades", () => {
-    const map = aiUsageColorMap(["kimi-k2.5", "kimi-k2.7-code"]);
+    const map = aiUsageColorMap(["kimi-k2.5", "kimi-k2.7-code"], "dark");
     expect(map.size).toBe(2);
     expect(new Set(map.values()).size).toBe(2);
     expect([...map.values()].every((c) => c.includes("--ai-kimi"))).toBe(true);
@@ -120,25 +123,28 @@ describe("aiUsageColorMap", () => {
 
   it("returns the base color (unmixed) for a lone family member", () => {
     // A harness view with a single deepseek entry is not a ramp.
-    const map = aiUsageColorMap(["DeepSeek Harness"]);
+    const map = aiUsageColorMap(["DeepSeek Harness"], "dark");
     expect(map.get("DeepSeek Harness")).toBe("var(--ai-deepseek)");
   });
 
   it("omits unknown names so callers keep their positional fallback", () => {
-    const map = aiUsageColorMap(["model-a", "work", "model-b"]);
+    const map = aiUsageColorMap(["model-a", "work", "model-b"], "dark");
     expect(map.size).toBe(0);
   });
 
   it("handles an empty list", () => {
-    expect(aiUsageColorMap([]).size).toBe(0);
+    expect(aiUsageColorMap([], "dark").size).toBe(0);
   });
 
-  it("lightens later siblings toward white, not the dark background", () => {
-    const map = aiUsageColorMap([
-      "deepseek-v4-flash",
-      "deepseek-v4-pro",
-      "deepseek-v4-flash-vision-exp",
-    ]);
+  it("lightens later siblings toward white in the dark appearance", () => {
+    const map = aiUsageColorMap(
+      [
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+        "deepseek-v4-flash-vision-exp",
+      ],
+      "dark"
+    );
     // The first sibling keeps the full-strength brand colour; each later one
     // mixes toward white so it reads as a lighter tint over a dark card (never
     // darker, which a mix toward the background would be in dark mode).
@@ -151,5 +157,36 @@ describe("aiUsageColorMap", () => {
     // white) than the middle one, i.e. it is a lighter tint.
     const pct = (c: string) => Number(c.match(/var\(--ai-deepseek\)\s+([\d.]+)%/)?.[1]);
     expect(pct(last)).toBeLessThan(pct(middle));
+  });
+});
+
+describe("aiUsageColorMap in the light appearance", () => {
+  it("darkens later siblings toward black so they stay distinct on a light card", () => {
+    const map = aiUsageColorMap(
+      [
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+        "deepseek-v4-flash-vision-exp",
+      ],
+      "light"
+    );
+    expect(map.get("deepseek-v4-flash")).toBe("var(--ai-deepseek)");
+    const middle = map.get("deepseek-v4-flash-vision-exp")!; // lexicographic index 1
+    const last = map.get("deepseek-v4-pro")!; // lexicographic index 2
+    expect(middle).toMatch(/black\)$/);
+    expect(last).toMatch(/black\)$/);
+    expect(middle).not.toContain("white");
+    // The last sibling takes a smaller percentage of the brand colour (more
+    // black) than the middle one, i.e. it is a darker shade.
+    const pct = (c: string) => Number(c.match(/var\(--ai-deepseek\)\s+([\d.]+)%/)?.[1]);
+    expect(pct(last)).toBeLessThan(pct(middle));
+  });
+
+  it("runs the opposite way to the dark appearance", () => {
+    const names = ["deepseek-v4-flash", "deepseek-v4-pro"];
+    const dark = aiUsageColorMap(names, "dark");
+    const light = aiUsageColorMap(names, "light");
+    expect(dark.get("deepseek-v4-pro")).toContain("white");
+    expect(light.get("deepseek-v4-pro")).toContain("black");
   });
 });

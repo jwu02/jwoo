@@ -57,7 +57,7 @@ The application where the visitor sees and changes what the site looks like and 
 _Avoid_: preferences (as the application's name), control panel, config
 
 **Appearance**:
-The visual scheme the whole OS is rendered in: light or dark. It governs the material the OS is made of — the glass, the wallpaper's glow, the tokens every application draws with — and not what an application shows: the arcade cabinet and the 3D scenes keep their own worlds in either scheme.
+The visual scheme the whole OS is rendered in: light or dark. It governs the material the OS is made of — the glass, the wallpaper's glow, the tokens every application draws with — and not what an application shows: the arcade cabinet and the 3D scenes keep their own worlds in either scheme. A ramp that encodes data is the exception: the keyboard heatmap's key colours and the AI-usage sibling shades follow the appearance, because they must stay readable against the page rather than belong to the scene's own world.
 _Avoid_: theme, colour scheme, mode
 
 **Preference**:
