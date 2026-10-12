@@ -55,6 +55,15 @@ function storedEntryWeight(label: string, bytes: number): string {
   return `${label} takes up ${formatBytes(bytes)}`
 }
 
+/**
+ * Whether an entry steps back because another one is lit. The pointer being on
+ * a legend chip and on a bar segment are the same state, so the two always
+ * agree about which entry is being read.
+ */
+function isDimmed(litKey: string | null, key: string): boolean {
+  return litKey !== null && litKey !== key
+}
+
 /** The two appearances, in display order, for the shared pill group. */
 const APPEARANCE_OPTIONS: RangeOption<Appearance>[] = [
   { value: "light", label: "Light" },
@@ -63,11 +72,14 @@ const APPEARANCE_OPTIONS: RangeOption<Appearance>[] = [
 
 /**
  * The Settings application: one scrolling column of sections, each a window
- * onto what another part of the OS owns. It keeps no state of its own —
- * resetting the Dock's arrangement is the Dock store's act, performed here on
- * the visitor's behalf.
+ * onto what another part of the OS owns. It keeps no state of its own beyond
+ * which Data entry the pointer is on — resetting the Dock's arrangement is the
+ * Dock store's act, performed here on the visitor's behalf.
  */
 export function Settings() {
+  // Which entry the pointer or the caret is on. The Data section is the only
+  // reader; the four sections below neither know nor care.
+  const [litKey, setLitKey] = useState<string | null>(null)
   const order = useSyncExternalStore(
     subscribeDockOrder,
     dockOrderSnapshot,
@@ -181,10 +193,11 @@ export function Settings() {
         </p>
 
         {/* One bar, the entries against their own sum — the site holds no
-            capacity it could draw free space against. Decoration: the sizes it
-            draws are in a tooltip on the segment and in the legend's chip, so
-            nothing here is load-bearing for a screen reader. An entry weighing
-            nothing draws no segment rather than a sliver it does not own. */}
+            capacity it could draw free space against. Decoration: the sizes
+            are said by a tooltip hanging off a segment, lit from the legend's
+            chip below, so nothing here is load-bearing for a screen reader. An
+            entry weighing nothing keeps a segment at no width, which draws
+            nothing rather than a sliver it does not own. */}
         <div
           data-stored-bar
           className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
@@ -192,20 +205,33 @@ export function Settings() {
         >
           {STORED_DATA.map((entry, index) => {
             const bytes = sizes[entry.key] ?? 0
-            if (bytes === 0) return null
             return (
-              <Tooltip key={entry.key}>
+              <Tooltip
+                key={entry.key}
+                open={litKey === entry.key}
+                onOpenChange={(open) => setLitKey(open ? entry.key : null)}
+              >
                 {/* Not focusable, deliberately: a segment inside this
                     decorative bar would add a tab stop saying nothing the
-                    legend below does not already say. */}
+                    legend below does not already say. The tooltip hangs here
+                    rather than on the chip so it always rises over the bar the
+                    number is about — and an entry weighing nothing keeps a
+                    zero-width segment for it to rise over. */}
                 <TooltipTrigger
                   render={
                     <div
                       data-stored-segment={entry.key}
+                      className={`transition-opacity ${
+                        isDimmed(litKey, entry.key) ? "opacity-50" : ""
+                      }`}
                       style={{
-                        width: `${(bytes / total) * 100}%`,
+                        width: `${
+                          total === 0 ? 0 : (bytes / total) * 100
+                        }%`,
                         backgroundColor: storedEntryColor(index),
                       }}
+                      onMouseEnter={() => setLitKey(entry.key)}
+                      onMouseLeave={() => setLitKey(null)}
                     />
                   }
                 />
@@ -221,35 +247,32 @@ export function Settings() {
           aria-label="Stored data"
           className="flex flex-wrap items-center gap-x-4 gap-y-2"
         >
-          {STORED_DATA.map((entry, index) => {
-            const bytes = sizes[entry.key] ?? 0
-            return (
-              <li key={entry.key}>
-                <Tooltip>
-                  {/* A pointer is not the only way in: the chip is a real
-                      control, so focusing it says what hovering it does. */}
-                  <TooltipTrigger
-                    render={
-                      <button
-                        type="button"
-                        className="flex cursor-default items-center gap-2 rounded-sm text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                    }
-                  >
-                    <span
-                      aria-hidden
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: storedEntryColor(index) }}
-                    />
-                    {entry.label}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {storedEntryWeight(entry.label, bytes)}
-                  </TooltipContent>
-                </Tooltip>
-              </li>
-            )
-          })}
+          {STORED_DATA.map((entry, index) => (
+            <li key={entry.key}>
+              {/* The chip lights the entry rather than saying anything itself:
+                  it is a real control because hover is unreachable by
+                  keyboard, and where the tooltip goes is the bar's business. */}
+              <button
+                type="button"
+                className={`flex cursor-default items-center gap-2 rounded-sm text-sm transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  isDimmed(litKey, entry.key)
+                    ? "text-muted-foreground opacity-50"
+                    : ""
+                }`}
+                onMouseEnter={() => setLitKey(entry.key)}
+                onMouseLeave={() => setLitKey(null)}
+                onFocus={() => setLitKey(entry.key)}
+                onBlur={() => setLitKey(null)}
+              >
+                <span
+                  aria-hidden
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: storedEntryColor(index) }}
+                />
+                {entry.label}
+              </button>
+            </li>
+          ))}
         </ul>
 
         <DeleteEverything />

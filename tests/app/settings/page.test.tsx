@@ -230,10 +230,45 @@ describe("Data", () => {
     expect(
       await screen.findByText("Appearance takes up 4 B"),
     ).toBeInTheDocument()
+    // It hangs off the bar's own segment, not the chip: the tooltip rises over
+    // the bar whichever of the two the pointer is on.
+    expect(
+      document.querySelector('[data-stored-segment="os.appearance"]'),
+    ).toHaveAttribute("data-popup-open")
+    expect(
+      screen.getByRole("button", { name: "Appearance" }),
+    ).not.toHaveAttribute("data-popup-open")
+  })
+
+  // Reading one entry steps the other three back, in the legend and on the bar
+  // together — they are the same entries, so they go quiet together.
+  it("dims every other entry while one of them is read", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
+
+    const { container } = renderSettings()
+
+    const appearanceChip = screen.getByRole("button", { name: "Appearance" })
+    const resumeChip = screen.getByRole("button", { name: "Resume language" })
+    const segment = (key: string) =>
+      container.querySelector(`[data-stored-segment="${key}"]`)
+
+    fireEvent.mouseEnter(appearanceChip)
+
+    expect(appearanceChip).not.toHaveClass("opacity-50")
+    expect(resumeChip).toHaveClass("opacity-50")
+    expect(segment("os.appearance")).not.toHaveClass("opacity-50")
+    expect(segment("resume:locale")).toHaveClass("opacity-50")
+
+    fireEvent.mouseLeave(appearanceChip)
+
+    expect(resumeChip).not.toHaveClass("opacity-50")
+    expect(segment("resume:locale")).not.toHaveClass("opacity-50")
   })
 
   it("says what an entry weighs on hovering its segment", async () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
 
     const { container } = renderSettings()
 
@@ -244,12 +279,17 @@ describe("Data", () => {
     expect(
       await screen.findByText("Appearance takes up 4 B"),
     ).toBeInTheDocument()
+    // The bar dims its neighbours the same way the legend does.
+    expect(
+      container.querySelector('[data-stored-segment="resume:locale"]'),
+    ).toHaveClass("opacity-50")
   })
 
-  // Hover is unreachable by keyboard, so the chip is a real focusable control
-  // and says the same thing when it is focused.
+  // Hover is unreachable by keyboard, so the chip is a real focusable control:
+  // it lights the entry and reads its size exactly as hovering it does.
   it("says what an entry weighs on focusing its legend chip", async () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
 
     renderSettings()
 
@@ -258,6 +298,9 @@ describe("Data", () => {
     expect(
       await screen.findByText("Appearance takes up 4 B"),
     ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Resume language" })).toHaveClass(
+      "opacity-50",
+    )
   })
 
   // The bar repeats what the legend already names, so a screen reader is not
@@ -280,7 +323,7 @@ describe("Data", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("draws no segment for an entry weighing nothing, and keeps its row", async () => {
+  it("draws no width for an entry weighing nothing, and keeps its chip", async () => {
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
 
     renderSettings()
@@ -288,10 +331,13 @@ describe("Data", () => {
     expect(
       document.querySelector('[data-stored-segment="resume:locale"]'),
     ).toBeInTheDocument()
-    // A sliver would be the bar claiming bytes that are not stored.
+    // A sliver would be the bar claiming bytes that are not stored; the segment
+    // is still there, at no width, for that entry's tooltip to rise over.
     expect(
-      document.querySelector('[data-stored-segment="terminal.history"]'),
-    ).not.toBeInTheDocument()
+      document.querySelector<HTMLElement>(
+        `[data-stored-segment="${HISTORY_KEY}"]`,
+      )?.style.width,
+    ).toBe("0%")
     // Its row stays, saying what it weighs — nothing.
     fireEvent.mouseEnter(
       screen.getByRole("button", { name: "Terminal history" }),
@@ -306,7 +352,13 @@ describe("Data", () => {
 
     expect(screen.getByText("0 B kept by this site.")).toBeInTheDocument()
     expect(document.querySelector("[data-stored-bar]")).toBeInTheDocument()
-    expect(document.querySelectorAll("[data-stored-segment]")).toHaveLength(0)
+    // Nothing is stored, so nothing is drawn: every segment is at no width, and
+    // the track stays as an empty frame.
+    for (const segment of document.querySelectorAll<HTMLElement>(
+      "[data-stored-segment]",
+    )) {
+      expect(segment.style.width).toBe("0%")
+    }
     expect(
       within(screen.getByRole("list", { name: "Stored data" })).getAllByRole(
         "listitem",
