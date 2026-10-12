@@ -86,14 +86,8 @@ export function subscribeStoredSizes(onChange: () => void): () => void {
   }
 }
 
-/** Delete one entry, asking its owner to clear it, then tell the Data section
+/** Delete every entry, each through its own owner, then tell the Data section
  * the sizes moved. */
-export function clearStoredEntry(entry: StoredEntry): void {
-  entry.clear()
-  for (const listener of listeners) listener()
-}
-
-/** Delete every entry the same way, each through its owner. */
 export function clearAllStoredData(): void {
   for (const entry of STORED_DATA) entry.clear()
   for (const listener of listeners) listener()

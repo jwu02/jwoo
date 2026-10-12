@@ -36,6 +36,15 @@ function dataRow(label: string): HTMLElement {
   return row
 }
 
+/** Press the Data section's one destructive control twice, the way a visitor
+ * has to: the first press arms it, the second deletes. */
+function deleteEverything() {
+  fireEvent.click(screen.getByRole("button", { name: "Delete everything" }))
+  fireEvent.click(
+    screen.getByRole("button", { name: "Press again to delete everything" }),
+  )
+}
+
 /** The value the System section shows for one fact, found by its label. */
 function systemFact(label: string): string {
   const list = screen.getByRole("list", { name: "System facts" })
@@ -162,34 +171,104 @@ describe("Data", () => {
     expect(dataRow("Terminal history")).toHaveTextContent("19 B")
   })
 
-  it("deletes exactly the entry its button names", () => {
-    window.localStorage.setItem(APPEARANCE_KEY, "dark")
-    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(["/help"]))
-    saveDockOrder(orderOf("/", "/resume"))
+  it("states the total the bar is a whole of, and proportions each segment to it", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+    saveDockOrder(orderOf("/")) // 5 bytes
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
+    window.localStorage.setItem(
+      HISTORY_KEY,
+      JSON.stringify(["/help", "/resume"]),
+    ) // 19 bytes
 
-    render(<SettingsPage />)
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete Resume language" }),
-    )
+    const { container } = render(<SettingsPage />)
 
-    expect(window.localStorage.getItem(RESUME_LOCALE_KEY)).toBeNull()
-    expect(window.localStorage.getItem(APPEARANCE_KEY)).toBe("dark")
-    expect(window.localStorage.getItem(HISTORY_KEY)).toBe(
-      JSON.stringify(["/help"]),
-    )
-    expect(window.localStorage.getItem("dock.order")).toBe(
-      JSON.stringify(["/", "/resume"]),
-    )
+    const widthOf = (key: string) =>
+      Number.parseFloat(
+        (
+          container.querySelector(
+            `[data-stored-segment="${key}"]`,
+          ) as HTMLElement
+        ).style.width,
+      )
+
+    // 4 + 5 + 2 + 19: the whole is the entries' own sum, not the browser's
+    // quota, so no free region is drawn against it.
+    expect(screen.getByText("30 B kept by this site.")).toBeInTheDocument()
+    expect(widthOf(HISTORY_KEY)).toBeCloseTo((19 / 30) * 100)
+    expect(widthOf(APPEARANCE_KEY)).toBeCloseTo((4 / 30) * 100)
+    // Proportioned by what was measured, so the widest segment is the biggest.
+    expect(widthOf(HISTORY_KEY)).toBeGreaterThan(widthOf(APPEARANCE_KEY))
   })
 
-  it("puts the Dock back when its entry is deleted", () => {
+  // The bar repeats what the legend already says as text, so a screen reader is
+  // not made to read the same four numbers twice.
+  it("draws the bar as decoration, with every number in the legend", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark")
+
+    render(<SettingsPage />)
+
+    const list = screen.getByRole("list", { name: "Stored data" })
+    expect(list).toBeInTheDocument()
+    expect(dataRow("Appearance")).toHaveTextContent("os.appearance")
+    expect(dataRow("Appearance")).toHaveTextContent("4 B")
+
+    expect(
+      document.querySelector("[data-stored-bar]"),
+    ).toHaveAttribute("aria-hidden", "true")
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /export/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("draws no segment for an entry weighing nothing, and keeps its row", () => {
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
+
+    render(<SettingsPage />)
+
+    expect(
+      document.querySelector('[data-stored-segment="resume:locale"]'),
+    ).toBeInTheDocument()
+    // A sliver would be the bar claiming bytes that are not stored.
+    expect(
+      document.querySelector('[data-stored-segment="terminal.history"]'),
+    ).not.toBeInTheDocument()
+    expect(dataRow("Terminal history")).toHaveTextContent("0 B")
+  })
+
+  it("keeps the empty frame and every row when the site stores nothing", () => {
+    render(<SettingsPage />)
+
+    expect(screen.getByText("0 B kept by this site.")).toBeInTheDocument()
+    expect(document.querySelector("[data-stored-bar]")).toBeInTheDocument()
+    expect(document.querySelectorAll("[data-stored-segment]")).toHaveLength(0)
+    expect(
+      within(screen.getByRole("list", { name: "Stored data" })).getAllByRole(
+        "listitem",
+      ),
+    ).toHaveLength(4)
+  })
+
+  it("offers one delete for the section, and none per entry", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark")
+
+    render(<SettingsPage />)
+
+    expect(
+      within(screen.getByRole("list", { name: "Stored data" })).queryByRole(
+        "button",
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Delete everything" }),
+    ).toBeInTheDocument()
+  })
+
+  it("puts the Dock back when the entries are deleted", () => {
     saveDockOrder(orderOf("/", "/resume", "/terminal"))
 
     render(<SettingsPage />)
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete Dock arrangement" }),
-    )
+    deleteEverything()
 
     expect(window.localStorage.getItem("dock.order")).toBeNull()
     expect(arrangementLabels()).toEqual(APPS.map((app) => app.label))
@@ -197,13 +276,13 @@ describe("Data", () => {
 
   // Deleting the appearance flips the page on the spot: the clearest proof
   // that what the Data section lists is real.
-  it("changes the page's appearance the moment the appearance entry is deleted", () => {
+  it("changes the page's appearance the moment the entries are deleted", () => {
     saveAppearance("dark")
 
     render(<SettingsPage />)
     expect(document.documentElement).toHaveClass("dark")
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Appearance" }))
+    deleteEverything()
 
     expect(document.documentElement).not.toHaveClass("dark")
   })
@@ -215,12 +294,7 @@ describe("Data", () => {
     saveHistory(["/help"])
 
     render(<SettingsPage />)
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete Resume language" }),
-    )
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete Terminal history" }),
-    )
+    deleteEverything()
 
     expect(localeSnapshot()).toBe("en")
     expect(loadHistory()).toEqual([])
@@ -252,9 +326,7 @@ describe("Data", () => {
       expect(loadHistory()).toEqual(["/help"])
 
       render(<SettingsPage />)
-      fireEvent.click(
-        screen.getByRole("button", { name: "Delete Terminal history" }),
-      )
+      deleteEverything()
 
       expect(loadHistory()).toEqual([])
     } finally {
@@ -262,14 +334,6 @@ describe("Data", () => {
     }
   })
 
-  it("offers no export control and no usage bar", () => {
-    render(<SettingsPage />)
-
-    expect(
-      screen.queryByRole("button", { name: /export/i }),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument()
-  })
 })
 
 describe("Delete everything", () => {
@@ -281,7 +345,7 @@ describe("Delete everything", () => {
     jest.useRealTimers()
   })
 
-  it("does nothing on the first press and deletes on the second", () => {
+  it("deletes nothing on the first press, and everything on the second", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
 

@@ -23,7 +23,6 @@ import {
 import {
   STORED_DATA,
   clearAllStoredData,
-  clearStoredEntry,
   formatBytes,
   storedSizesServerSnapshot,
   storedSizesSnapshot,
@@ -36,6 +35,15 @@ import {
   systemSnapshot,
 } from "@/components/settings/system"
 import { Button } from "@/components/ui/button"
+
+/**
+ * One entry's colour: the positional `--chart-N` slot for its place in the
+ * list, which never reorders. The bar's segment and the legend's dot both read
+ * it from here, so the two can never disagree about which entry is which.
+ */
+function storedEntryColor(index: number): string {
+  return `var(--chart-${(index % 5) + 1})`
+}
 
 /** The two appearances, in display order, for the shared pill group. */
 const APPEARANCE_OPTIONS: RangeOption<Appearance>[] = [
@@ -69,6 +77,13 @@ export function Settings() {
     subscribeStoredSizes,
     storedSizesSnapshot,
     storedSizesServerSnapshot,
+  )
+  // The bar's whole, and the number its heading states: the site's own bytes,
+  // not the origin's. The browser's estimate below includes these, so the two
+  // can never be added together.
+  const total = STORED_DATA.reduce(
+    (sum, entry) => sum + (sizes[entry.key] ?? 0),
+    0,
   )
 
   return (
@@ -152,19 +167,49 @@ export function Settings() {
         </h2>
 
         <p className="text-sm text-muted-foreground">
-          Everything the site keeps in this browser. Deleting an entry costs
-          only that entry.
+          {formatBytes(total)} kept by this site.
         </p>
+
+        {/* One bar, the entries against their own sum — the site holds no
+            capacity it could draw free space against. Decoration: every size
+            it draws is written out in the legend below, so nothing here is
+            load-bearing for a screen reader. An entry weighing nothing draws
+            no segment rather than a sliver it does not own. */}
+        <div
+          data-stored-bar
+          className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
+          aria-hidden
+        >
+          {STORED_DATA.map((entry, index) => {
+            const bytes = sizes[entry.key] ?? 0
+            if (bytes === 0) return null
+            return (
+              <div
+                key={entry.key}
+                data-stored-segment={entry.key}
+                style={{
+                  width: `${(bytes / total) * 100}%`,
+                  backgroundColor: storedEntryColor(index),
+                }}
+              />
+            )
+          })}
+        </div>
 
         <ul
           aria-label="Stored data"
           className="divide-y rounded-xl border"
         >
-          {STORED_DATA.map((entry) => (
+          {STORED_DATA.map((entry, index) => (
             <li
               key={entry.key}
               className="flex items-center gap-3 px-4 py-3"
             >
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: storedEntryColor(index) }}
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-sm">{entry.label}</p>
                 <p className="truncate font-mono text-xs text-muted-foreground">
@@ -174,15 +219,6 @@ export function Settings() {
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                 {formatBytes(sizes[entry.key] ?? 0)}
               </span>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => clearStoredEntry(entry)}
-                aria-label={`Delete ${entry.label}`}
-              >
-                Delete
-              </Button>
             </li>
           ))}
         </ul>
