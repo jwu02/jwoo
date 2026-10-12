@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   PieChart,
   Pie,
@@ -51,32 +51,15 @@ export function segmentColor(
   return colorMap.get(label) ?? aiUsageColorVar(label, index);
 }
 
-function DonutTooltip({
-  active,
-  payload,
-  formatValue,
-}: Partial<TooltipContentProps> & {
-  formatValue: (value: number) => string;
-}) {
+function DonutTooltip({ active, payload }: Partial<TooltipContentProps>) {
   if (!active || !payload || payload.length === 0) return null;
 
-  const slice = payload[0]?.payload as
-    | { label: string; value: number; share: number }
-    | undefined;
+  const slice = payload[0]?.payload as { share: number } | undefined;
   if (!slice) return null;
 
-  return (
-    <ChartTooltipCard title={slice.label}>
-      <div className="flex items-center justify-between gap-4">
-        <span style={{ color: "var(--foreground)" }}>
-          {formatValue(slice.value)}
-        </span>
-        <span className="text-muted-foreground">
-          {formatNumber(slice.share, 1)}%
-        </span>
-      </div>
-    </ChartTooltipCard>
-  );
+  // The share alone: the legend already carries the segment's name and value,
+  // so there is nothing else for the card to say.
+  return <ChartTooltipCard title={`${formatNumber(slice.share, 1)}%`} />;
 }
 
 function Donut({
@@ -94,9 +77,12 @@ function Donut({
   emptyLabel: string;
   labelHeader: string;
   colorMap: Map<string, string>;
-  /** The exact value a row stands for, in both the legend and on hover. */
+  /** The exact value a row stands for, printed in the legend. */
   formatValue: (value: number) => string;
 }) {
+  // Which segment is in hand, from either the donut itself or its legend; the
+  // other segments and legend rows dim while one is held.
+  const [hovered, setHovered] = useState<string | null>(null);
   const segments = buildDonutSegments(rows, metric);
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const slices = segments.map((segment, index) => ({
@@ -104,6 +90,11 @@ function Donut({
     share: total > 0 ? (segment.value / total) * 100 : 0,
     color: segmentColor(segment.label, index, colorMap),
   }));
+
+  // A poll can replace the rows and drop the held label; then nothing is lit,
+  // and every slice would dim with none in hand.
+  const active = slices.some((slice) => slice.label === hovered) ? hovered : null;
+  const dimmed = (label: string) => active !== null && active !== label;
 
   return (
     // The figure names the grouping for assistive tech; the pills above name
@@ -120,7 +111,7 @@ function Donut({
       ) : (
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           {/* The donut is decoration: the legend beneath it carries every name
-              and share as real text, so nothing here is load-bearing for a
+              and value as real text, so nothing here is load-bearing for a
               screen reader, and nothing needs a hover. */}
           <div className="h-40 w-40 shrink-0" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
@@ -135,12 +126,20 @@ function Donut({
                   // Polling replaces the rows on an interval; without this the
                   // donut re-grows its slices on every poll.
                   isAnimationActive={false}
+                  onMouseEnter={(_, index) =>
+                    setHovered(slices[index]?.label ?? null)
+                  }
+                  onMouseLeave={() => setHovered(null)}
                 >
                   {slices.map((slice) => (
-                    <Cell key={slice.label} fill={slice.color} />
+                    <Cell
+                      key={slice.label}
+                      fill={slice.color}
+                      fillOpacity={dimmed(slice.label) ? 0.3 : 1}
+                    />
                   ))}
                 </Pie>
-                <Tooltip content={<DonutTooltip formatValue={formatValue} />} />
+                <Tooltip content={<DonutTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -148,7 +147,11 @@ function Donut({
             {slices.map((slice) => (
               <li
                 key={slice.label}
-                className="flex items-center justify-between gap-2"
+                onMouseEnter={() => setHovered(slice.label)}
+                onMouseLeave={() => setHovered(null)}
+                className={`flex items-center justify-between gap-2 transition-opacity ${
+                  dimmed(slice.label) ? "opacity-30" : ""
+                }`}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <span
@@ -162,8 +165,11 @@ function Donut({
                     {slice.label}
                   </span>
                 </span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">
+                <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
                   {formatValue(slice.value)}
+                  {active === slice.label && (
+                    <span>{formatNumber(slice.share, 1)}%</span>
+                  )}
                 </span>
               </li>
             ))}

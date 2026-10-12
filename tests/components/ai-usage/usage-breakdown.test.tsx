@@ -45,6 +45,19 @@ const manyRows = Array.from({ length: 9 }, (_, i) => ({
   totalTokens: 9 - i,
 }));
 
+// Recharts replaces the sector nodes on every re-render, so always query anew
+// rather than holding a reference across a hover.
+const sectorAt = (index: number) =>
+  document.querySelectorAll(".recharts-sector")[index]!;
+
+// A hovered donut's tooltip also prints the label, so pick the legend element
+// (the one inside a list item) rather than the first text match.
+const legendFor = (label: string) =>
+  screen
+    .getAllByText(label)
+    .map((el) => el.closest("li"))
+    .find((li): li is HTMLLIElement => li !== null)!;
+
 describe("UsageBreakdown", () => {
   // The appearance store is module state shared across the file's renders, so
   // put it back where a fresh visit finds it after each test.
@@ -106,30 +119,85 @@ describe("UsageBreakdown", () => {
     expect(screen.getByText("No AI usage recorded yet.")).toBeInTheDocument();
   });
 
-  it("shows a segment's exact value on hover", async () => {
+  it("shows a segment's share, and only its share, on hover", async () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
-    const sector = document.querySelectorAll(".recharts-sector")[0]!;
-    fireEvent.mouseEnter(sector);
+    fireEvent.mouseEnter(sectorAt(0));
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
-    // The cost donut ranks claude-opus-5 first, so it is the hovered sector;
-    // the legend already carries the value, so the tooltip's share is what
-    // proves the card rendered.
-    expect(await screen.findByText("48.0%")).toBeInTheDocument();
-    expect(screen.getAllByText("¥1.20")).toHaveLength(2);
+    // The cost donut ranks claude-opus-5 first, so it is the hovered sector.
+    // The value stays in the legend; the tooltip holds the share and nothing
+    // else — not even the segment's name.
+    expect(await screen.findAllByText(/48\.0%/)).toHaveLength(2);
+    expect(
+      document.querySelector(".recharts-tooltip-wrapper")?.textContent
+    ).toBe("48.0%");
+    // The held row reveals its share beside the value it always shows.
+    expect(legendFor("claude-opus-5")).toHaveTextContent("¥1.20");
+    expect(legendFor("claude-opus-5")).toHaveTextContent("48.0%");
+    expect(screen.getAllByText("¥1.20")).toHaveLength(1);
   });
 
-  it("reads token counts the way the chart does, not at full length", async () => {
+  it("reads token counts the way the chart does, not at full length", () => {
+    render(<UsageBreakdown rows={rows} labelHeader="Model" />);
+    // The token legend reads each count through the chart's own formatter.
+    expect(screen.getAllByText("3.0K")).toHaveLength(1);
+  });
+
+  it("shows a token segment's share on hover", async () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     // The three cost sectors come first, then the three token sectors.
-    const sector = document.querySelectorAll(".recharts-sector")[3]!;
-    fireEvent.mouseEnter(sector);
+    fireEvent.mouseEnter(sectorAt(3));
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
-    expect(await screen.findByText("50.0%")).toBeInTheDocument();
-    expect(screen.getAllByText("3.0K")).toHaveLength(2);
+    expect(await screen.findAllByText("50.0%")).toHaveLength(2);
+  });
+
+  it("dims the other segments and legends while one segment is hovered", () => {
+    render(<UsageBreakdown rows={rows} labelHeader="Model" />);
+    fireEvent.mouseEnter(sectorAt(0));
+
+    // The held segment and its legend row stay lit; the rest dim in both the
+    // donut and the legend.
+    expect(sectorAt(0).getAttribute("fill-opacity")).not.toBe("0.3");
+    expect(sectorAt(1).getAttribute("fill-opacity")).toBe("0.3");
+    expect(legendFor("claude-opus-5").className).not.toContain("opacity-30");
+    expect(legendFor("gpt-4o").className).toContain("opacity-30");
+
+    fireEvent.mouseLeave(sectorAt(0));
+    expect(sectorAt(1).getAttribute("fill-opacity")).not.toBe("0.3");
+  });
+
+  it("comes undimmed when a poll drops the held segment", () => {
+    const { rerender } = render(
+      <UsageBreakdown rows={rows} labelHeader="Model" />
+    );
+    fireEvent.mouseEnter(sectorAt(0));
+    expect(legendFor("gpt-4o").className).toContain("opacity-30");
+
+    // The poll no longer reports the held model; nothing may stay dimmed.
+    rerender(
+      <UsageBreakdown
+        rows={rows.filter((row) => row.label !== "claude-opus-5")}
+        labelHeader="Model"
+      />
+    );
+    expect(legendFor("gpt-4o").className).not.toContain("opacity-30");
+  });
+
+  it("does the same when a legend row itself is hovered", () => {
+    render(<UsageBreakdown rows={rows} labelHeader="Model" />);
+    // The second cost segment is deepseek-v4-flash; its legend row is the
+    // matching one in the cost donut's list.
+    const legend = legendFor("deepseek-v4-flash");
+    fireEvent.mouseEnter(legend);
+
+    expect(sectorAt(1).getAttribute("fill-opacity")).not.toBe("0.3");
+    expect(sectorAt(0).getAttribute("fill-opacity")).toBe("0.3");
+    expect(legend.className).not.toContain("opacity-30");
+    expect(legend).toHaveTextContent("32.0%");
+    expect(legendFor("gpt-4o").className).toContain("opacity-30");
   });
 
   it("gives the combined segment the neutral, not a chart slot", () => {
