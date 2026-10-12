@@ -3,6 +3,7 @@ import { cloneElement } from "react";
 import {
   UsageBreakdown,
   segmentColor,
+  ringPosition,
 } from "@/components/ai-usage/usage-breakdown";
 import { clearAppearance, saveAppearance } from "@/components/os/appearance";
 
@@ -128,13 +129,13 @@ describe("UsageBreakdown", () => {
     // The cost donut ranks claude-opus-5 first, so it is the hovered sector.
     // The value stays in the legend; the tooltip holds the share and nothing
     // else — not even the segment's name.
-    expect(await screen.findAllByText(/48\.0%/)).toHaveLength(2);
+    expect(await screen.findAllByText(/48\.0%/)).toHaveLength(1);
     expect(
       document.querySelector(".recharts-tooltip-wrapper")?.textContent
     ).toBe("48.0%");
-    // The held row reveals its share beside the value it always shows.
+    // The legend keeps the value, and never repeats the share beside it.
     expect(legendFor("claude-opus-5")).toHaveTextContent("¥1.20");
-    expect(legendFor("claude-opus-5")).toHaveTextContent("48.0%");
+    expect(legendFor("claude-opus-5")).not.toHaveTextContent("48.0%");
     expect(screen.getAllByText("¥1.20")).toHaveLength(1);
     // A sector hover uses the chart's own tooltip; the legend card stays shut.
     expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
@@ -153,7 +154,7 @@ describe("UsageBreakdown", () => {
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
-    expect(await screen.findAllByText("50.0%")).toHaveLength(2);
+    expect(await screen.findAllByText("50.0%")).toHaveLength(1);
   });
 
   it("dims the other segments and legends while one segment is hovered", () => {
@@ -198,13 +199,30 @@ describe("UsageBreakdown", () => {
     expect(sectorAt(1).getAttribute("fill-opacity")).not.toBe("0.3");
     expect(sectorAt(0).getAttribute("fill-opacity")).toBe("0.3");
     expect(legend.className).not.toContain("opacity-30");
-    expect(legend).toHaveTextContent("32.0%");
     expect(legendFor("gpt-4o").className).toContain("opacity-30");
-    // Same as a sector hover: the held row raises the share card.
-    expect(screen.getByTestId("legend-tooltip")).toHaveTextContent("32.0%");
+    // The share is not repeated in the row; it rides on the ring instead,
+    // where the segment's own tooltip would sit.
+    expect(legend).not.toHaveTextContent("32.0%");
+    const card = screen.getByTestId("legend-tooltip");
+    expect(card).toHaveTextContent("32.0%");
+    // The donut is 160px; deepseek's arc midpoint is left of centre, below it.
+    expect(Number.parseFloat(card.style.left)).toBeCloseTo(24.5, 1);
+    expect(Number.parseFloat(card.style.top)).toBeCloseTo(80.8, 1);
 
     fireEvent.mouseLeave(legend);
     expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
+  });
+
+  it("puts a slice's share card on that slice's arc", () => {
+    // Recharts' Pie starts at 3 o'clock and sweeps anticlockwise, so a 50/50
+    // split puts the first arc's midpoint at the top and the second at the
+    // bottom.
+    const first = ringPosition([{ share: 50 }, { share: 50 }], 0);
+    expect(first.left).toBeCloseTo(50);
+    expect(first.top).toBeCloseTo(10);
+    const second = ringPosition([{ share: 50 }, { share: 50 }], 1);
+    expect(second.left).toBeCloseTo(50);
+    expect(second.top).toBeCloseTo(90);
   });
 
   it("gives the combined segment the neutral, not a chart slot", () => {

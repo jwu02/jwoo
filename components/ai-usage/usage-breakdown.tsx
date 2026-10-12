@@ -55,6 +55,24 @@ function formatShare(share: number): string {
   return `${formatNumber(share, 1)}%`;
 }
 
+/** Where a slice's arc sits in the donut box, as percentages of its width/height. */
+export function ringPosition(
+  slices: { share: number }[],
+  index: number
+): { left: number; top: number } {
+  const before = slices
+    .slice(0, index)
+    .reduce((sum, slice) => sum + slice.share, 0);
+  // Recharts' Pie starts at 0° (3 o'clock) and sweeps anticlockwise, so the
+  // arc's midpoint is this far round; the card sits on the middle of the band.
+  const midAngle = ((before + (slices[index]?.share ?? 0) / 2) / 100) * 360;
+  const radians = (midAngle * Math.PI) / 180;
+  return {
+    left: 50 + Math.cos(radians) * 40,
+    top: 50 - Math.sin(radians) * 40,
+  };
+}
+
 function DonutTooltip({ active, payload }: Partial<TooltipContentProps>) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -106,6 +124,14 @@ function Donut({
       ? hovered
       : null;
   const dimmed = (label: string) => active !== null && active.label !== label;
+  // A legend hover shows the share on the ring where the segment sits, the way
+  // the chart's own tooltip would; a sector hover already gets that tooltip.
+  const legendIndex =
+    active?.from === "legend"
+      ? slices.findIndex((slice) => slice.label === active.label)
+      : -1;
+  const legendTooltip =
+    legendIndex >= 0 ? ringPosition(slices, legendIndex) : null;
 
   return (
     // The figure names the grouping for assistive tech; the pills above name
@@ -124,7 +150,7 @@ function Donut({
           {/* The donut is decoration: the legend beneath it carries every name
               and value as real text, so nothing here is load-bearing for a
               screen reader, and nothing needs a hover. */}
-          <div className="h-40 w-40 shrink-0" aria-hidden>
+          <div className="relative h-40 w-40 shrink-0" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -154,6 +180,20 @@ function Donut({
                 <Tooltip content={<DonutTooltip />} />
               </PieChart>
             </ResponsiveContainer>
+            {legendTooltip && (
+              <div
+                data-testid="legend-tooltip"
+                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${legendTooltip.left}%`,
+                  top: `${legendTooltip.top}%`,
+                }}
+              >
+                <ChartTooltipCard
+                  title={formatShare(slices[legendIndex]?.share ?? 0)}
+                />
+              </div>
+            )}
           </div>
           <ul className="w-full space-y-1 text-sm">
             {slices.map((slice) => (
@@ -163,18 +203,10 @@ function Donut({
                   setHovered({ label: slice.label, from: "legend" })
                 }
                 onMouseLeave={() => setHovered(null)}
-                className={`relative flex items-center justify-between gap-2 transition-opacity ${
+                className={`flex items-center justify-between gap-2 transition-opacity ${
                   dimmed(slice.label) ? "opacity-30" : ""
                 }`}
               >
-                {hovered?.from === "legend" && hovered.label === slice.label && (
-                  <div
-                    data-testid="legend-tooltip"
-                    className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2"
-                  >
-                    <ChartTooltipCard title={formatShare(slice.share)} />
-                  </div>
-                )}
                 <span className="flex min-w-0 items-center gap-2">
                   <span
                     className="inline-block h-2 w-2 shrink-0 rounded-sm"
@@ -187,11 +219,8 @@ function Donut({
                     {slice.label}
                   </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
+                <span className="shrink-0 tabular-nums text-muted-foreground">
                   {formatValue(slice.value)}
-                  {active?.label === slice.label && (
-                    <span>{formatShare(slice.share)}</span>
-                  )}
                 </span>
               </li>
             ))}
