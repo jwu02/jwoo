@@ -35,6 +35,7 @@ import {
   systemSnapshot,
 } from "@/components/settings/system"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 /**
  * One entry's colour: the positional `--chart-N` slot for its place in the
@@ -43,6 +44,15 @@ import { Button } from "@/components/ui/button"
  */
 function storedEntryColor(index: number): string {
   return `var(--chart-${(index % 5) + 1})`
+}
+
+/**
+ * What one entry weighs, for the bar's segment and the legend's chip alike.
+ * The size is written nowhere on the page, so this one string is where it is
+ * said — and the segment has no label of its own, so it names the entry too.
+ */
+function storedEntryWeight(label: string, bytes: number): string {
+  return `${label} takes up ${formatBytes(bytes)}`
 }
 
 /** The two appearances, in display order, for the shared pill group. */
@@ -171,10 +181,10 @@ export function Settings() {
         </p>
 
         {/* One bar, the entries against their own sum — the site holds no
-            capacity it could draw free space against. Decoration: every size
-            it draws is written out in the legend below, so nothing here is
-            load-bearing for a screen reader. An entry weighing nothing draws
-            no segment rather than a sliver it does not own. */}
+            capacity it could draw free space against. Decoration: the sizes it
+            draws are in a tooltip on the segment and in the legend's chip, so
+            nothing here is load-bearing for a screen reader. An entry weighing
+            nothing draws no segment rather than a sliver it does not own. */}
         <div
           data-stored-bar
           className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted"
@@ -184,43 +194,62 @@ export function Settings() {
             const bytes = sizes[entry.key] ?? 0
             if (bytes === 0) return null
             return (
-              <div
-                key={entry.key}
-                data-stored-segment={entry.key}
-                style={{
-                  width: `${(bytes / total) * 100}%`,
-                  backgroundColor: storedEntryColor(index),
-                }}
-              />
+              <Tooltip key={entry.key}>
+                {/* Not focusable, deliberately: a segment inside this
+                    decorative bar would add a tab stop saying nothing the
+                    legend below does not already say. */}
+                <TooltipTrigger
+                  render={
+                    <div
+                      data-stored-segment={entry.key}
+                      style={{
+                        width: `${(bytes / total) * 100}%`,
+                        backgroundColor: storedEntryColor(index),
+                      }}
+                    />
+                  }
+                />
+                <TooltipContent>
+                  {storedEntryWeight(entry.label, bytes)}
+                </TooltipContent>
+              </Tooltip>
             )
           })}
         </div>
 
         <ul
           aria-label="Stored data"
-          className="divide-y rounded-xl border"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2"
         >
-          {STORED_DATA.map((entry, index) => (
-            <li
-              key={entry.key}
-              className="flex items-center gap-3 px-4 py-3"
-            >
-              <span
-                aria-hidden
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: storedEntryColor(index) }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm">{entry.label}</p>
-                <p className="truncate font-mono text-xs text-muted-foreground">
-                  {entry.key}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                {formatBytes(sizes[entry.key] ?? 0)}
-              </span>
-            </li>
-          ))}
+          {STORED_DATA.map((entry, index) => {
+            const bytes = sizes[entry.key] ?? 0
+            return (
+              <li key={entry.key}>
+                <Tooltip>
+                  {/* A pointer is not the only way in: the chip is a real
+                      control, so focusing it says what hovering it does. */}
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="flex cursor-default items-center gap-2 rounded-sm text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                    }
+                  >
+                    <span
+                      aria-hidden
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: storedEntryColor(index) }}
+                    />
+                    {entry.label}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {storedEntryWeight(entry.label, bytes)}
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            )
+          })}
         </ul>
 
         <DeleteEverything />

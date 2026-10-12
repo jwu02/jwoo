@@ -11,6 +11,7 @@ import {
   saveLocale,
 } from "@/components/resume/locale-store"
 import { loadHistory, saveHistory } from "@/components/terminal/history-store"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 /** The Terminal's own key, which its store keeps to itself. */
 const HISTORY_KEY = "terminal.history"
@@ -34,6 +35,16 @@ function dataRow(label: string): HTMLElement {
   const row = within(list).getByText(label).closest("li")
   if (!row) throw new Error(`no Data row for ${label}`)
   return row
+}
+
+/** The app mounts TooltipProvider in app/layout.tsx; the Data legend's sizes
+ * are tooltips and need one, opened without the app's own hover delay. */
+function renderSettings() {
+  return render(
+    <TooltipProvider>
+      <SettingsPage />
+    </TooltipProvider>,
+  )
 }
 
 /** Press the Data section's one destructive control twice, the way a visitor
@@ -66,7 +77,7 @@ beforeEach(() => {
 
 describe("Settings page", () => {
   it("renders one scrolling column with no category navigation", () => {
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Desktop & Dock" }),
@@ -80,7 +91,7 @@ describe("Settings page", () => {
   // size class, so the row's glyph must sit in a fixed-size box or the image
   // resolves to the width of the window.
   it("gives each application's glyph a fixed-size box", () => {
-    render(<SettingsPage />)
+    renderSettings()
 
     const home = screen.getByText("Home").closest("li")!
     expect(home.querySelector("span.size-6")).toBeInTheDocument()
@@ -89,7 +100,7 @@ describe("Settings page", () => {
   it("shows the Dock's current arrangement", () => {
     saveDockOrder(orderOf("/", "/resume", "/terminal", "/settings"))
 
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(arrangementLabels()).toEqual([
       "Home",
@@ -102,7 +113,7 @@ describe("Settings page", () => {
   it("puts the declared order back when reset is clicked", () => {
     saveDockOrder(orderOf("/", "/resume", "/terminal", "/settings"))
 
-    render(<SettingsPage />)
+    renderSettings()
     expect(arrangementLabels()).not.toEqual(APPS.map((app) => app.label))
 
     fireEvent.click(
@@ -120,7 +131,7 @@ describe("Appearance", () => {
   // The visitor's own system reports nothing under jsdom, so a fresh visit is
   // light and the control has to say so before they ever choose.
   it("shows the appearance in effect, then applies and remembers a choice", () => {
-    render(<SettingsPage />)
+    renderSettings()
 
     const light = screen.getByRole("button", { name: "Light" })
     const dark = screen.getByRole("button", { name: "Dark" })
@@ -138,7 +149,7 @@ describe("Appearance", () => {
   it("starts from the appearance a previous visit chose", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
 
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute(
       "aria-pressed",
@@ -148,7 +159,7 @@ describe("Appearance", () => {
 })
 
 describe("Data", () => {
-  it("lists every stored entry by its plain name, its key and a measured size", () => {
+  it("lists every stored entry by its plain name, and not by its key", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
     saveDockOrder(orderOf("/")) // a real arrangement, so its key exists
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
@@ -157,18 +168,25 @@ describe("Data", () => {
       JSON.stringify(["/help", "/resume"]),
     ) // 19 bytes
 
-    render(<SettingsPage />)
+    renderSettings()
 
     const list = screen.getByRole("list", { name: "Stored data" })
     expect(within(list).getAllByRole("listitem")).toHaveLength(4)
 
-    expect(dataRow("Appearance")).toHaveTextContent("os.appearance")
-    expect(dataRow("Appearance")).toHaveTextContent("4 B")
-    expect(dataRow("Dock arrangement")).toHaveTextContent("dock.order")
-    expect(dataRow("Resume language")).toHaveTextContent("resume:locale")
-    expect(dataRow("Resume language")).toHaveTextContent("2 B")
-    expect(dataRow("Terminal history")).toHaveTextContent("terminal.history")
-    expect(dataRow("Terminal history")).toHaveTextContent("19 B")
+    for (const label of [
+      "Appearance",
+      "Dock arrangement",
+      "Resume language",
+      "Terminal history",
+    ]) {
+      expect(dataRow(label)).toBeInTheDocument()
+    }
+
+    // The key is not what a visitor is reading for: what each entry is, in
+    // plain words, and what it weighs once asked, is the whole of the legend.
+    expect(list).not.toHaveTextContent(
+      /os\.appearance|dock\.order|resume:locale|terminal\.history/,
+    )
   })
 
   it("states the total the bar is a whole of, and proportions each segment to it", () => {
@@ -180,7 +198,7 @@ describe("Data", () => {
       JSON.stringify(["/help", "/resume"]),
     ) // 19 bytes
 
-    const { container } = render(<SettingsPage />)
+    const { container } = renderSettings()
 
     const widthOf = (key: string) =>
       Number.parseFloat(
@@ -200,17 +218,58 @@ describe("Data", () => {
     expect(widthOf(HISTORY_KEY)).toBeGreaterThan(widthOf(APPEARANCE_KEY))
   })
 
-  // The bar repeats what the legend already says as text, so a screen reader is
-  // not made to read the same four numbers twice.
-  it("draws the bar as decoration, with every number in the legend", () => {
+  // The size is written nowhere on the page, so both the legend's chip and the
+  // bar's own segment have to be able to say it.
+  it("says what an entry weighs on hovering its legend chip", async () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+
+    renderSettings()
+
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Appearance" }))
+
+    expect(
+      await screen.findByText("Appearance takes up 4 B"),
+    ).toBeInTheDocument()
+  })
+
+  it("says what an entry weighs on hovering its segment", async () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+
+    const { container } = renderSettings()
+
+    fireEvent.mouseEnter(
+      container.querySelector('[data-stored-segment="os.appearance"]')!,
+    )
+
+    expect(
+      await screen.findByText("Appearance takes up 4 B"),
+    ).toBeInTheDocument()
+  })
+
+  // Hover is unreachable by keyboard, so the chip is a real focusable control
+  // and says the same thing when it is focused.
+  it("says what an entry weighs on focusing its legend chip", async () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+
+    renderSettings()
+
+    fireEvent.focus(screen.getByRole("button", { name: "Appearance" }))
+
+    expect(
+      await screen.findByText("Appearance takes up 4 B"),
+    ).toBeInTheDocument()
+  })
+
+  // The bar repeats what the legend already names, so a screen reader is not
+  // made to read the same four entries twice.
+  it("draws the bar as decoration, with every name in the legend", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
 
-    render(<SettingsPage />)
+    renderSettings()
 
     const list = screen.getByRole("list", { name: "Stored data" })
     expect(list).toBeInTheDocument()
-    expect(dataRow("Appearance")).toHaveTextContent("os.appearance")
-    expect(dataRow("Appearance")).toHaveTextContent("4 B")
+    expect(dataRow("Appearance")).toBeInTheDocument()
 
     expect(
       document.querySelector("[data-stored-bar]"),
@@ -221,10 +280,10 @@ describe("Data", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("draws no segment for an entry weighing nothing, and keeps its row", () => {
+  it("draws no segment for an entry weighing nothing, and keeps its row", async () => {
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
 
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(
       document.querySelector('[data-stored-segment="resume:locale"]'),
@@ -233,11 +292,17 @@ describe("Data", () => {
     expect(
       document.querySelector('[data-stored-segment="terminal.history"]'),
     ).not.toBeInTheDocument()
-    expect(dataRow("Terminal history")).toHaveTextContent("0 B")
+    // Its row stays, saying what it weighs — nothing.
+    fireEvent.mouseEnter(
+      screen.getByRole("button", { name: "Terminal history" }),
+    )
+    expect(
+      await screen.findByText("Terminal history takes up 0 B"),
+    ).toBeInTheDocument()
   })
 
   it("keeps the empty frame and every row when the site stores nothing", () => {
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(screen.getByText("0 B kept by this site.")).toBeInTheDocument()
     expect(document.querySelector("[data-stored-bar]")).toBeInTheDocument()
@@ -252,22 +317,19 @@ describe("Data", () => {
   it("offers one delete for the section, and none per entry", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
 
-    render(<SettingsPage />)
+    renderSettings()
 
-    expect(
-      within(screen.getByRole("list", { name: "Stored data" })).queryByRole(
-        "button",
-      ),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole("button", { name: "Delete everything" }),
-    ).toBeInTheDocument()
+    const deletes = screen
+      .getAllByRole("button")
+      .filter((button) => /delete|clear/i.test(button.textContent ?? ""))
+    expect(deletes).toHaveLength(1)
+    expect(deletes[0]).toHaveTextContent("Delete everything")
   })
 
   it("puts the Dock back when the entries are deleted", () => {
     saveDockOrder(orderOf("/", "/resume", "/terminal"))
 
-    render(<SettingsPage />)
+    renderSettings()
     deleteEverything()
 
     expect(window.localStorage.getItem("dock.order")).toBeNull()
@@ -279,7 +341,7 @@ describe("Data", () => {
   it("changes the page's appearance the moment the entries are deleted", () => {
     saveAppearance("dark")
 
-    render(<SettingsPage />)
+    renderSettings()
     expect(document.documentElement).toHaveClass("dark")
 
     deleteEverything()
@@ -293,7 +355,7 @@ describe("Data", () => {
     saveLocale("zh")
     saveHistory(["/help"])
 
-    render(<SettingsPage />)
+    renderSettings()
     deleteEverything()
 
     expect(localeSnapshot()).toBe("en")
@@ -325,7 +387,7 @@ describe("Data", () => {
       saveHistory(["/help"])
       expect(loadHistory()).toEqual(["/help"])
 
-      render(<SettingsPage />)
+      renderSettings()
       deleteEverything()
 
       expect(loadHistory()).toEqual([])
@@ -349,7 +411,7 @@ describe("Delete everything", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
 
-    render(<SettingsPage />)
+    renderSettings()
     const button = screen.getByRole("button", { name: "Delete everything" })
 
     fireEvent.click(button)
@@ -368,7 +430,7 @@ describe("Delete everything", () => {
   it("reverts if no second press follows", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
 
-    render(<SettingsPage />)
+    renderSettings()
     const button = screen.getByRole("button", { name: "Delete everything" })
 
     fireEvent.click(button)
@@ -398,7 +460,7 @@ describe("the browser's storage estimate", () => {
       },
     })
 
-    render(<SettingsPage />)
+    renderSettings()
 
     const note = await screen.findByText(/Most of it is caches/)
     // Rounded down, so the number never claims more than is stored, and a
@@ -421,7 +483,7 @@ describe("System", () => {
   it("reports what the browser answers, with the site's version", () => {
     setProp(window.navigator, "languages", ["en-GB", "fr"])
 
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(systemFact("Languages")).toBe("en-GB, fr")
     expect(systemFact("Time zone")).toBe(
@@ -435,7 +497,7 @@ describe("System", () => {
     setProp(window.navigator, "languages", undefined)
     setProp(window.navigator, "language", "")
 
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(screen.queryByText("Languages")).not.toBeInTheDocument()
     expect(screen.queryByText(/unknown/i)).not.toBeInTheDocument()
@@ -443,7 +505,7 @@ describe("System", () => {
   })
 
   it("discloses the measurement the site loads in one line", () => {
-    render(<SettingsPage />)
+    renderSettings()
 
     expect(
       screen.getByText(/cookieless page-view and performance collection/i),
