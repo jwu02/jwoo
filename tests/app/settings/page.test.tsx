@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 
+import manifest from "@/package.json"
 import SettingsPage from "@/app/settings/page"
 import { APPS } from "@/components/os/apps"
 import { APPEARANCE_KEY, saveAppearance } from "@/components/os/appearance"
@@ -33,6 +34,20 @@ function dataRow(label: string): HTMLElement {
   const row = within(list).getByText(label).closest("li")
   if (!row) throw new Error(`no Data row for ${label}`)
   return row
+}
+
+/** The value the System section shows for one fact, found by its label. */
+function systemFact(label: string): string {
+  const list = screen.getByRole("list", { name: "System facts" })
+  const row = within(list).getByText(label).closest("li")
+  if (!row) throw new Error(`no System row for ${label}`)
+  return row.lastElementChild?.textContent ?? ""
+}
+
+/** Put one property on `window` or `navigator`, which jsdom will not otherwise
+ * let a test change. */
+function setProp(target: object, prop: string, value: unknown) {
+  Object.defineProperty(target, prop, { configurable: true, value })
 }
 
 beforeEach(() => {
@@ -327,5 +342,47 @@ describe("the browser's storage estimate", () => {
     expect(note).toHaveTextContent("1.9 KB used for this site")
     expect(note).not.toHaveTextContent("1 GB")
     expect(screen.getAllByText(/Most of it is caches/)).toHaveLength(1)
+  })
+})
+
+describe("System", () => {
+  const originalLanguages = navigator.languages
+  const originalLanguage = navigator.language
+
+  afterEach(() => {
+    setProp(window.navigator, "languages", originalLanguages)
+    setProp(window.navigator, "language", originalLanguage)
+  })
+
+  it("reports what the browser answers, with the site's version", () => {
+    setProp(window.navigator, "languages", ["en-GB", "fr"])
+
+    render(<SettingsPage />)
+
+    expect(systemFact("Languages")).toBe("en-GB, fr")
+    expect(systemFact("Time zone")).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    )
+    expect(systemFact("Site version")).toBe(manifest.version)
+  })
+
+  // A browser that answers nothing is left out, never printed as a placeholder.
+  it("leaves out a fact the browser does not report", () => {
+    setProp(window.navigator, "languages", undefined)
+    setProp(window.navigator, "language", "")
+
+    render(<SettingsPage />)
+
+    expect(screen.queryByText("Languages")).not.toBeInTheDocument()
+    expect(screen.queryByText(/unknown/i)).not.toBeInTheDocument()
+    expect(systemFact("Site version")).toBe(manifest.version)
+  })
+
+  it("discloses the measurement the site loads in one line", () => {
+    render(<SettingsPage />)
+
+    expect(
+      screen.getByText(/cookieless page-view and performance collection/i),
+    ).toBeInTheDocument()
   })
 })

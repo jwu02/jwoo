@@ -29,6 +29,12 @@ import {
   storedSizesSnapshot,
   subscribeStoredSizes,
 } from "@/components/settings/stored-data"
+import {
+  SITE_VERSION,
+  subscribeSystem,
+  systemServerSnapshot,
+  systemSnapshot,
+} from "@/components/settings/system"
 import { Button } from "@/components/ui/button"
 
 /** The two appearances, in display order, for the shared pill group. */
@@ -185,6 +191,8 @@ export function Settings() {
 
         <StorageEstimate />
       </section>
+
+      <System />
     </div>
   )
 }
@@ -262,5 +270,67 @@ function StorageEstimate() {
       is caches, which a page cannot clear; the entries above are the part the
       site itself keeps.
     </p>
+  )
+}
+
+/**
+ * What the browser answers about this machine, plus the site's own version and
+ * what the site measures. A fact the browser does not report is left out rather
+ * than printed as a placeholder.
+ */
+function System() {
+  const facts = useSyncExternalStore(
+    subscribeSystem,
+    systemSnapshot,
+    systemServerSnapshot,
+  )
+
+  const rows: { label: string; value: string }[] = []
+  if (facts.languages) {
+    rows.push({ label: "Languages", value: facts.languages })
+  }
+  if (facts.timeZone) {
+    rows.push({ label: "Time zone", value: facts.timeZone })
+  }
+  rows.push({ label: "Site version", value: SITE_VERSION })
+
+  return (
+    <section
+      aria-labelledby="system-heading"
+      className="space-y-4"
+    >
+      <h2
+        id="system-heading"
+        className="font-os text-lg font-medium"
+      >
+        System
+      </h2>
+
+      <p className="text-sm text-muted-foreground">
+        What this browser tells the site about itself and this machine.
+      </p>
+
+      <ul
+        aria-label="System facts"
+        className="divide-y rounded-xl border"
+      >
+        {rows.map((row) => (
+          <li
+            key={row.label}
+            className="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            <span className="text-sm">{row.label}</span>
+            <span className="text-right text-sm text-muted-foreground">
+              {row.value}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="text-xs text-muted-foreground">
+        The site loads cookieless page-view and performance collection to see
+        how it is used.
+      </p>
+    </section>
   )
 }
