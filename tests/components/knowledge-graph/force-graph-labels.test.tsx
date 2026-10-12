@@ -93,8 +93,8 @@ function labelTexts(container: HTMLElement): string[] {
 }
 
 function labelXY(el: HTMLElement): { x: number; y: number } {
-  const match = /translate3d\((-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(el.style.transform);
-  if (!match) throw new Error(`label has no translate3d transform: "${el.style.transform}"`);
+  const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(el.style.transform);
+  if (!match) throw new Error(`label has no translate transform: "${el.style.transform}"`);
   return { x: Number(match[1]), y: Number(match[2]) };
 }
 
@@ -247,6 +247,23 @@ describe("ForceGraph node labels", () => {
     });
 
     expect(labels.map(labelXY)).toEqual(before);
+  });
+
+  // Pinned deliberately, and not as a shorthand: the 3D `translate3d` this used
+  // to be gives each of the hundreds of labels its own compositor layer, and
+  // dragging a node over a fully labelled graph (682 labels, device pixel ratio
+  // 2) then runs at ~25fps where this holds ~60. Nothing about a label wants a
+  // layer of its own, so a change back to the 3D form is a regression rather
+  // than a tidy-up.
+  it("moves the labels with a 2D translate rather than a compositor-promoting 3D one", async () => {
+    const { container, wrapper } = await renderGraph();
+
+    setPositions(forceSimulationMock, [{ x: 100, y: 100 }]);
+    act(() => wheel(wrapper, -75));
+
+    const transform = labelFor(container, ALPHA)!.style.transform;
+    expect(transform).toMatch(/^translate\(/);
+    expect(transform).not.toContain("translate3d");
   });
 
   it("hides the hover tooltip while the labels are shown", async () => {

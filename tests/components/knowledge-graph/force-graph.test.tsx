@@ -186,7 +186,7 @@ describe("ForceGraph", () => {
     // The label must be positioned when it mounts, not left at the wrapper's
     // top-left until some later simulation tick / drag repositions it.
     expect(labelEl.style.transform).not.toBe("");
-    expect(labelEl.style.transform).toContain("translate3d");
+    expect(labelEl.style.transform).toContain("translate(");
   });
 
   it("dims leaf nodes as edge nodes but leaves hubs and isolated nodes bright", async () => {

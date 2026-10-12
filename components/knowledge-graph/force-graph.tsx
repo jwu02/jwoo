@@ -328,12 +328,18 @@ export const ForceGraph = memo(function ForceGraph({
     const node = nodesByIdRef.current.get(hovered);
     if (!node || node.x === undefined || node.y === undefined) return;
     const { x, y } = labelScreenPosition(node);
-    label.style.transform = `translate3d(${x}px, ${y}px, 0) translateX(-50%)`;
+    label.style.transform = `translate(${x}px, ${y}px) translateX(-50%)`;
   }, [labelScreenPosition]);
 
   // Positions the whole label layer. Skipped while zoomed out, so the hot
   // per-tick path stays O(1) — the layout is run to rest before it is drawn and
   // opens framed to fit, which is well short of the zoom the labels appear at.
+  //
+  // Both writes here are a 2D `translate`, and that is load-bearing rather than
+  // a shorthand: the 3D `translate3d` this used to be gives every label its own
+  // compositor layer, and a drag that repositions all of them each tick (682
+  // nodes, at device pixel ratio 2) drops to ~25fps where this holds 60. The
+  // -50% holds either way; nothing here needs a layer of its own.
   const positionAllLabels = useCallback(() => {
     if (!showAllLabelsRef.current) return;
     const nodesById = nodesByIdRef.current;
@@ -341,7 +347,7 @@ export const ForceGraph = memo(function ForceGraph({
       const node = nodesById.get(id);
       if (!node || node.x === undefined || node.y === undefined) continue;
       const { x, y } = labelScreenPosition(node);
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) translateX(-50%)`;
+      el.style.transform = `translate(${x}px, ${y}px) translateX(-50%)`;
     }
   }, [labelScreenPosition]);
 
