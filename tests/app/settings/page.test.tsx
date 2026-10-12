@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 
 import SettingsPage from "@/app/settings/page"
 import { APPS } from "@/components/os/apps"
+import { APPEARANCE_KEY } from "@/components/os/appearance"
 import { saveDockOrder } from "@/components/os/dock-order"
 
 /** An order built from hrefs, the way the Dock hands one to the store. */
@@ -19,6 +20,7 @@ function arrangementLabels(): string[] {
 
 beforeEach(() => {
   window.localStorage.clear()
+  document.documentElement.classList.remove("dark")
 })
 
 describe("Settings page", () => {
@@ -69,6 +71,37 @@ describe("Settings page", () => {
     expect(arrangementLabels()).toEqual(APPS.map((app) => app.label))
     expect(window.localStorage.getItem("dock.order")).toBe(
       JSON.stringify(APPS.map((app) => app.href)),
+    )
+  })
+})
+
+describe("Appearance", () => {
+  // The visitor's own system reports nothing under jsdom, so a fresh visit is
+  // light and the control has to say so before they ever choose.
+  it("shows the appearance in effect, then applies and remembers a choice", () => {
+    render(<SettingsPage />)
+
+    const light = screen.getByRole("button", { name: "Light" })
+    const dark = screen.getByRole("button", { name: "Dark" })
+    expect(light).toHaveAttribute("aria-pressed", "true")
+    expect(dark).toHaveAttribute("aria-pressed", "false")
+
+    fireEvent.click(dark)
+
+    expect(dark).toHaveAttribute("aria-pressed", "true")
+    expect(light).toHaveAttribute("aria-pressed", "false")
+    expect(window.localStorage.getItem(APPEARANCE_KEY)).toBe("dark")
+    expect(document.documentElement.classList.contains("dark")).toBe(true)
+  })
+
+  it("starts from the appearance a previous visit chose", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark")
+
+    render(<SettingsPage />)
+
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     )
   })
 })

@@ -182,7 +182,10 @@ export function HomeCanvas() {
   }, [])
 
   return (
-    <div className="absolute inset-0">
+    // The scene is its own world and stays dark in either appearance, but the
+    // canvas is transparent: this backdrop is what a pixel the room does not
+    // cover shows, so light glass over the Desktop never turns the scene white.
+    <div className="absolute inset-0 bg-neutral-950">
       {/* The room light ships inside homepage.glb via KHR_lights_punctual —
           RoomFill_Light (wide 140° spot from the ceiling, ~6.5 cd), authored
           in the Blender scene and loaded with the model. SceneCanvas supplies

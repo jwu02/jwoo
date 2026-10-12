@@ -82,6 +82,16 @@
     --chart-4: #E69F00;
     --chart-5: #D55181;
     --radius: 0.625rem;
+    /* The OS's own material, in the light appearance. The glass a pane is cut
+       from, the glow the wallpaper is lit by, and the tint the Dock marks the
+       active application with are each one token here and one override in
+       `.dark`, so neither appearance is a second copy of the other. */
+    --os-glass: oklch(1 0 0 / 62%);
+    --os-glass-edge: oklch(0 0 0 / 8%);
+    --os-glow: oklch(0 0 0 / 4%);
+    --os-dock-active: oklch(0 0 0 / 10%);
+    --os-dock-active-edge: oklch(0 0 0 / 10%);
+    --os-dock-active-glow: oklch(1 0 0 / 70%);
     --claude-orange: #d97757;
     --ai-deepseek: #0B84F3;
     --ai-kimi: #8C52FF;
@@ -130,6 +140,12 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --os-glass: oklch(1 0 0 / 6%);
+    --os-glass-edge: oklch(1 0 0 / 12%);
+    --os-glow: oklch(1 0 0 / 7%);
+    --os-dock-active: oklch(1 0 0 / 15%);
+    --os-dock-active-edge: oklch(1 0 0 / 15%);
+    --os-dock-active-glow: oklch(1 0 0 / 12%);
     --claude-orange: #d97757;
     --ai-deepseek: #0B84F3;
     --ai-kimi: #8C52FF;
@@ -169,10 +185,10 @@
    each sets its own edges. A utility rather than a plain class so it can be
    prefixed with a variant: an application's surface drops the material on
    narrow screens, where there is no view behind it to blur and no room for a
-   pane to float in. */
+   pane to float in. The two colours come from the appearance's own tokens. */
 @utility os-glass {
-  background: oklch(1 0 0 / 6%);
-  border-color: oklch(1 0 0 / 12%);
+  background: var(--os-glass);
+  border-color: var(--os-glass-edge);
   backdrop-filter: blur(24px) saturate(150%);
 }
 

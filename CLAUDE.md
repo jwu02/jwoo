@@ -21,7 +21,7 @@ The site is framed as an OS: every route is an *application* the Dock selects. `
 - `.env` needs `MONGO_URI` (read lazily, throws if missing) and `ACTIVITY_DB_NAME` (defaults to `activity-telemetry`).
 - Buckets are UTC ISO strings; aggregations take an injectable `now = new Date()`; `alignToInterval` deliberately mirrors MongoDB `$dateTrunc`.
 - Each dashboard has one range selector, in its header row, and it governs every panel on that page except the activity-telemetry key heatmap, which keeps a fixed 30-day window by design (the source retains no more). See `docs/adr/0008-range-governs-the-page.md`.
-- Dark only: `<html class="dark">` is fixed in `app/layout.tsx`. There is no theme toggle — the OS chrome is glass, which needs a dark wallpaper to read as glass.
+- Two appearances: the visitor chooses Light or Dark in Settings, remembered in `os.appearance` and put on `<html>` before the first paint (`components/os/appearance.ts`); an unchosen visit follows `prefers-color-scheme`. The material each appearance is made of is one token per appearance in `app/globals.css`. An application's own world does not follow it — the arcade cabinet and the 3D scenes keep their own look. See `docs/adr/0009-the-os-has-two-appearances.md`.
 - Domain vocabulary in `CONTEXT.md`; hard-to-reverse decisions in `docs/adr/`.
 
 ## Gotchas

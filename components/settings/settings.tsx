@@ -4,12 +4,29 @@ import { useSyncExternalStore } from "react"
 import { RotateCcw } from "lucide-react"
 
 import {
+  appearanceServerSnapshot,
+  appearanceSnapshot,
+  saveAppearance,
+  subscribeAppearance,
+  type Appearance,
+} from "@/components/os/appearance"
+import {
   dockOrderServerSnapshot,
   dockOrderSnapshot,
   resetDockOrder,
   subscribeDockOrder,
 } from "@/components/os/dock-order"
+import {
+  RangeSelector,
+  type RangeOption,
+} from "@/components/polled/range-selector"
 import { Button } from "@/components/ui/button"
+
+/** The two appearances, in display order, for the shared pill group. */
+const APPEARANCE_OPTIONS: RangeOption<Appearance>[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+]
 
 /**
  * The Settings application: one scrolling column of sections, each a window
@@ -23,9 +40,39 @@ export function Settings() {
     dockOrderSnapshot,
     dockOrderServerSnapshot,
   )
+  // The control shows the appearance in effect, which is the visitor's own
+  // system until they choose — so what it says and what they see agree even
+  // when they never chose.
+  const appearance = useSyncExternalStore(
+    subscribeAppearance,
+    appearanceSnapshot,
+    appearanceServerSnapshot,
+  )
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto w-full max-w-2xl space-y-8 px-4 py-6 md:px-6 md:py-8">
+      <section
+        aria-labelledby="appearance-heading"
+        className="space-y-4"
+      >
+        <h2
+          id="appearance-heading"
+          className="font-os text-lg font-medium"
+        >
+          Appearance
+        </h2>
+
+        <p className="text-sm text-muted-foreground">
+          The look of the whole OS. What an application shows keeps its own.
+        </p>
+
+        <RangeSelector
+          value={appearance}
+          onChange={saveAppearance}
+          options={APPEARANCE_OPTIONS}
+        />
+      </section>
+
       <section
         aria-labelledby="desktop-dock-heading"
         className="space-y-4"

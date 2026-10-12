@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useLayoutEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 
 import { appTitle, HOME } from "./apps"
+import { applyAppearance, subscribeAppearance } from "./appearance"
 import { Dock } from "./dock"
 
 /**
@@ -99,6 +100,16 @@ export function OSShell({ children }: { children: React.ReactNode }) {
   const [fullScreenRoute, setFullScreenRoute] = useState<string | null>(null)
   const fullScreen = fullScreenRoute === pathname
 
+  // The appearance is a class on `<html>`, applied before paint by the inline
+  // script and kept there by the store. React never renders it, so this only
+  // puts it back: once after mount — development's Strict Mode remount resets
+  // `<html>` to the attributes React manages, dropping the script's class — and
+  // again whenever another tab's choice lands here.
+  useLayoutEffect(() => {
+    applyAppearance()
+    return subscribeAppearance(() => {})
+  }, [])
+
   return (
     // Column-reversed on narrow screens so the Dock lands at the bottom without
     // a second copy of the markup, and a plain row from `md` up. `isolate` is
@@ -114,7 +125,7 @@ export function OSShell({ children }: { children: React.ReactNode }) {
           hide any of them that does not happen to make a layer of its own. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-background bg-[radial-gradient(120%_85%_at_50%_-15%,rgba(255,255,255,0.07),transparent_55%)] print:bg-transparent print:bg-none"
+        className="pointer-events-none absolute inset-0 -z-10 bg-background bg-[radial-gradient(120%_85%_at_50%_-15%,var(--os-glow),transparent_55%)] print:bg-transparent print:bg-none"
       />
       {/* Floating over the desktop rather than taking a column from it: the
           scene runs the full width of the viewport, and the Dock's glass sits

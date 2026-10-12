@@ -452,7 +452,7 @@ export function Dock({ overlay = false }: { overlay?: boolean }) {
                   className={cn(
                     "flex size-11 items-center justify-center overflow-hidden rounded-xl os-dock-icon md:size-10",
                     active
-                      ? "bg-foreground/15 text-foreground ring-1 ring-foreground/15 shadow-[inset_0_1px_0_oklch(1_0_0/12%)]"
+                      ? "bg-[var(--os-dock-active)] text-foreground ring-1 ring-[var(--os-dock-active-edge)] shadow-[inset_0_1px_0_var(--os-dock-active-glow)]"
                       : "text-foreground/55 hover:scale-105 hover:bg-foreground/8 hover:text-foreground",
                     // `touch-none` is what lets a finger drag rather than
                     // scroll, and `select-none` keeps the gesture from
