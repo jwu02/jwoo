@@ -30,6 +30,7 @@ describe("the Command registry", () => {
       "/ai-usage",
       "/knowledge-graph",
       "/resume",
+      "/settings",
     ])
     expect(new Set(COMMANDS.map((entry) => entry.name)).size).toBe(
       COMMANDS.length

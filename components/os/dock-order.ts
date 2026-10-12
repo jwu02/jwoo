@@ -102,6 +102,11 @@ export function dockOrderServerSnapshot(): readonly App[] {
   return APPS
 }
 
+/** Restore the Dock to the order the applications are declared in. */
+export function resetDockOrder(): void {
+  saveDockOrder(APPS)
+}
+
 /** Remember where a drag left the applications. */
 export function saveDockOrder(order: readonly App[]): void {
   const raw = JSON.stringify(order.map((app) => app.href))

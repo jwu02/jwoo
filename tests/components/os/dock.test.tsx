@@ -200,6 +200,7 @@ describe("Dock", () => {
         "Activity Telemetry",
         "AI Usage",
         "Knowledge Graph",
+        "Settings",
       ])
     })
 
@@ -216,6 +217,7 @@ describe("Dock", () => {
         "Activity Telemetry",
         "AI Usage",
         "Knowledge Graph",
+        "Settings",
       ])
       expect(window.localStorage.getItem("dock.order")).toBe(
         JSON.stringify([
@@ -225,6 +227,7 @@ describe("Dock", () => {
           "/activity-telemetry",
           "/ai-usage",
           "/knowledge-graph",
+          "/settings",
         ]),
       )
     })
@@ -524,6 +527,7 @@ describe("Dock", () => {
         "AI Usage",
         "Knowledge Graph",
         "Resume",
+        "Settings",
       ])
       // The pane is sized by its contents, the Dock gives no size of its own:
       // one icon fewer is one icon worth of pane fewer. jsdom lays nothing out,
@@ -611,6 +615,7 @@ describe("Dock", () => {
         "Activity Telemetry",
         "AI Usage",
         "Knowledge Graph",
+        "Settings",
       ])
       expect(window.localStorage.getItem("dock.order")).not.toBeNull()
     })

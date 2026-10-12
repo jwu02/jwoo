@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { Activity, Bot, FileText, Globe, Terminal } from "lucide-react"
+import { Activity, Bot, FileText, Globe, Settings, Terminal } from "lucide-react"
 
 /** What the Dock renders an app's glyph with: a Lucide icon, or a drawn image. */
 type AppIcon = React.ComponentType<{
@@ -34,6 +34,7 @@ export const APPS: readonly App[] = [
   { href: "/ai-usage", label: "AI Usage", icon: Bot },
   { href: "/knowledge-graph", label: "Knowledge Graph", icon: Globe },
   { href: "/resume", label: "Resume", icon: FileText },
+  { href: "/settings", label: "Settings", icon: Settings },
   // Off the Dock until the Tetris cabinet ships its AI autopilot gameplay.
   // { href: "/tetris", label: "Tetris", icon: Tetris },
 ]

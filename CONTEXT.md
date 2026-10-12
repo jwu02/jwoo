@@ -14,6 +14,10 @@ _Avoid_: chrome, HUD, frame
 One part of the site presented as a thing you are inside of: the top-level area the Dock selects. Exactly one is active at a time, and each is a real route — an application is a page seen as a place.
 _Avoid_: nav item, section, tab, window
 
+**Application window**:
+The glass area an Application renders inside, with a Titlebar naming it. Only one is ever open. Code and comments call it the application's *surface*.
+_Avoid_: pane, card
+
 **Active application**:
 The one application the visitor is currently in. There is never more than one: selecting an application from the Dock replaces the active one rather than opening beside it.
 _Avoid_: open app, current window
@@ -33,6 +37,36 @@ _Avoid_: locked, docked (that is whether an application is on the Dock at all), 
 **Desktop**:
 Home, and only Home: the view the applications appear over rather than one of them. It is not framed as an application, because it is not a place within the site. It is the whole viewport rather than an area beside the Shell's chrome: the Dock is over it, not next to it.
 _Avoid_: home screen, landing page, wallpaper (that is the picture behind it)
+
+**Titlebar**:
+The bar at the head of an Application window that names the application it belongs to, and carries the Traffic lights at its left. The Shell draws it rather than each application drawing its own, so every window is titled the same way — in the Dock's voice, from the Dock's own list of names.
+_Avoid_: Top Bar, header, page header
+
+**Traffic lights**:
+The three window controls at the left of the Titlebar, in macOS's image. Close and Minimize are both a departure to the Desktop — the one place a window here can go when it leaves, there being no window manager to minimize into. Full screen is the one control that manages the window itself.
+_Avoid_: window buttons, dots (that is their look, not what they are)
+
+**Full screen**:
+The state the green Traffic light toggles: the Dock is hidden and the application's window takes the space the Dock held, everything else about the window unchanged. It belongs to the window: it dies with it, and any navigation or reload restores the Dock. The Desktop is never in it — the Desktop has no window, so nothing there could engage or leave the state.
+_Avoid_: Zoom (that is the knowledge graph's camera), maximize, presentation mode
+
+### Settings
+
+**Settings**:
+The application where the visitor sees and changes what the site looks like and what it has kept about them: Appearance, Desktop & Dock, Data and System. It is a window onto what other parts of the OS own, never a second keeper of it — resetting the Dock's arrangement is the Dock's own act, performed on Settings' behalf.
+_Avoid_: preferences (as the application's name), control panel, config
+
+**Appearance**:
+The visual scheme the whole OS is rendered in: light or dark. It governs the material the OS is made of — the glass, the wallpaper's glow, the tokens every application draws with — and not what an application shows: the arcade cabinet and the 3D scenes keep their own worlds in either scheme.
+_Avoid_: theme, colour scheme, mode
+
+**Preference**:
+A choice the visitor made that the site remembers between visits: the arrangement of the Dock, the language the resume is read in, the Appearance. It belongs to the visitor — which is why deleting it is theirs to do, and why the site never changes one on their behalf.
+_Avoid_: setting, option
+
+**Stored data**:
+Everything the site keeps in the visitor's browser, Preferences among it, together with the records of what they did there — the Terminal's History. The site holds no copy of it anywhere else, and deleting it costs exactly the Preferences and records it names.
+_Avoid_: cache, cookies, local state, user data
 
 ### Terminal
 
@@ -232,9 +266,17 @@ _Avoid_: cache ratio, cache effectiveness
 The tool that drove an AI-usage session — the agent runtime the session ran under. One of the three breakdowns; sessions recorded before the collector captured it show as `unknown`.
 _Avoid_: client, agent, tool
 
+**Tool Call**:
+One action the assistant takes that its harness reports as a tool call. The Tool Calls card on the AI usage dashboard sums the counts the usage records carry; a Skill Invocation reported as a tool call counts in it too, so the two counts overlap.
+_Avoid_: tool, tool use
+
 **Skill**:
 One reusable assistant skill, named exactly as the collector recorded it. The name is not folded or regrouped, so a namespaced skill keeps its prefix and reads as its own row. The Most invoked skills list ranks skills by invocations over the range — a count and nothing else: a session's cost is the session's, and a session may invoke several skills, so a per-skill cost share would be double-counted or invented.
 _Avoid_: tool (a Skill Invocation can be one, but not every Tool Call is a skill invocation), plugin, command
+
+**Skill Invocation**:
+One load of a reusable assistant skill. Repeat loads of the same skill are separate invocations, so every entry in a record's list counts: the Skill Invocations card on the AI usage dashboard totals them, and the dashboard's Most invoked skills list ranks those same entries by skill. An entry that names no skill is not a Skill Invocation, and neither one counts it.
+_Avoid_: skill use, tool call (a Skill Invocation can be one, but not every Tool Call is a Skill Invocation)
 
 **Project**:
 The repository an AI-usage session's working directory was inferred to belong to. The cwd is matched against ordered substrings, and anything matching none aggregates into `Others` — so the order is load-bearing: a project nested under a broader key must be listed first, or its rows fall into the broader one.

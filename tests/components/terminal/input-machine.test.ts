@@ -82,13 +82,17 @@ describe("the Popup", () => {
       "/knowledge-graph",
       "/neofetch",
       "/resume",
+      "/settings",
       "/socials",
     ])
     expect(lit(state, CONFIG)?.name).toBe("/activity-telemetry")
   })
 
   it("narrows by prefix as the query grows", () => {
-    expect(names(typ(initialState(), "/s"))).toEqual(["/socials"])
+    expect(names(typ(initialState(), "/s"))).toEqual([
+      "/settings",
+      "/socials",
+    ])
     expect(names(typ(initialState(), "/n"))).toEqual(["/neofetch"])
     expect(names(typ(initialState(), "/c"))).toEqual(["/clear", "/contacts"])
     expect(names(typ(initialState(), "/cl"))).toEqual(["/clear"])

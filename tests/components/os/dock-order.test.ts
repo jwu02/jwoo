@@ -2,6 +2,7 @@ import { APPS, HOME } from "@/components/os/apps"
 import {
   dockOrderServerSnapshot,
   dockOrderSnapshot,
+  resetDockOrder,
   saveDockOrder,
 } from "@/components/os/dock-order"
 
@@ -65,6 +66,7 @@ describe("the Dock's order", () => {
       "/activity-telemetry",
       "/ai-usage",
       "/knowledge-graph",
+      "/settings",
     ])
   })
 
@@ -83,6 +85,7 @@ describe("the Dock's order", () => {
       "/activity-telemetry",
       "/ai-usage",
       "/knowledge-graph",
+      "/settings",
     ])
   })
 
@@ -143,5 +146,55 @@ describe("the Dock's order", () => {
     window.localStorage.setItem(KEY, JSON.stringify(["/resume", HOME]))
 
     expect(dockOrderServerSnapshot()).toEqual(APPS)
+  })
+})
+
+describe("resetting the Dock", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  // Settings asks the Dock to put its declared order back, not by reaching
+  // into storage itself.
+  it("restores the declared order from a saved arrangement", () => {
+    saveDockOrder(orderOf(HOME, "/resume", "/terminal"))
+    expect(hrefs()).not.toEqual(DEFAULT)
+
+    resetDockOrder()
+
+    expect(hrefs()).toEqual(DEFAULT)
+    expect(window.localStorage.getItem(KEY)).toBe(JSON.stringify(DEFAULT))
+  })
+
+  // A reset must not look like it worked and then revert on the next read.
+  it("keeps the declared order when storage refuses to write", () => {
+    const failing = {
+      getItem: jest.fn(() => null),
+      setItem: jest.fn(() => {
+        throw new Error("quota exceeded")
+      }),
+    }
+    const storage = jest
+      .spyOn(window, "localStorage", "get")
+      .mockReturnValue(failing as unknown as Storage)
+
+    try {
+      saveDockOrder(orderOf(HOME, "/resume", "/terminal"))
+      resetDockOrder()
+
+      expect(hrefs()).toEqual(DEFAULT)
+    } finally {
+      storage.mockRestore()
+    }
+  })
+
+  // Once the store is back to default, clearing storage leaves the default
+  // standing — there is nothing to recover that was not already the default.
+  it("leaves the declared order when storage is cleared afterwards", () => {
+    saveDockOrder(orderOf(HOME, "/resume", "/terminal"))
+    resetDockOrder()
+    window.localStorage.clear()
+
+    expect(hrefs()).toEqual(DEFAULT)
   })
 })
