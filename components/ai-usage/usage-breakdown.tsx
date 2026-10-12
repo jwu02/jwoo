@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import {
   PieChart,
   Pie,
@@ -55,24 +55,6 @@ function formatShare(share: number): string {
   return `${formatNumber(share, 1)}%`;
 }
 
-/** Where a slice's arc sits in the donut box, as percentages of its width/height. */
-export function ringPosition(
-  slices: { share: number }[],
-  index: number
-): { left: number; top: number } {
-  const before = slices
-    .slice(0, index)
-    .reduce((sum, slice) => sum + slice.share, 0);
-  // Recharts' Pie starts at 0° (3 o'clock) and sweeps anticlockwise, so the
-  // arc's midpoint is this far round; the card sits on the middle of the band.
-  const midAngle = ((before + (slices[index]?.share ?? 0) / 2) / 100) * 360;
-  const radians = (midAngle * Math.PI) / 180;
-  return {
-    left: 50 + Math.cos(radians) * 40,
-    top: 50 - Math.sin(radians) * 40,
-  };
-}
-
 function DonutTooltip({ active, payload }: Partial<TooltipContentProps>) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -102,13 +84,10 @@ function Donut({
   /** The exact value a row stands for, printed in the legend. */
   formatValue: (value: number) => string;
 }) {
-  // Which segment is in hand — and whether the pointer is on the sector or on
-  // its legend row. Muting follows either; the card is drawn here only for a
-  // legend hover, since a sector hover already has the chart's own tooltip.
-  const [hovered, setHovered] = useState<{
-    label: string;
-    from: "segment" | "legend";
-  } | null>(null);
+  // Which segment is in hand, from either the donut itself or its legend; the
+  // other segments and legend rows dim while one is held.
+  const [hovered, setHovered] = useState<string | null>(null);
+  const chartBox = useRef<HTMLDivElement>(null);
   const segments = buildDonutSegments(rows, metric);
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const slices = segments.map((segment, index) => ({
@@ -119,19 +98,19 @@ function Donut({
 
   // A poll can replace the rows and drop the held label; then nothing is lit,
   // and every slice would dim with none in hand.
-  const active =
-    hovered && slices.some((slice) => slice.label === hovered.label)
-      ? hovered
-      : null;
-  const dimmed = (label: string) => active !== null && active.label !== label;
-  // A legend hover shows the share on the ring where the segment sits, the way
-  // the chart's own tooltip would; a sector hover already gets that tooltip.
-  const legendIndex =
-    active?.from === "legend"
-      ? slices.findIndex((slice) => slice.label === active.label)
-      : -1;
-  const legendTooltip =
-    legendIndex >= 0 ? ringPosition(slices, legendIndex) : null;
+  const active = slices.some((slice) => slice.label === hovered) ? hovered : null;
+  const dimmed = (label: string) => active !== null && active !== label;
+
+  // Recharts offers no way to set the active sector from outside, so a legend
+  // hover drives the sector's own hover: the chart then shows its real tooltip,
+  // placed by recharts rather than by a card drawn over the arc.
+  const hoverSector = (label: string, type: "mouseover" | "mouseout") => {
+    const index = slices.findIndex((slice) => slice.label === label);
+    const sector = chartBox.current?.querySelectorAll(".recharts-sector")[index];
+    sector?.dispatchEvent(
+      new MouseEvent(type, { bubbles: true, relatedTarget: null })
+    );
+  };
 
   return (
     // The figure names the grouping for assistive tech; the pills above name
@@ -150,7 +129,7 @@ function Donut({
           {/* The donut is decoration: the legend beneath it carries every name
               and value as real text, so nothing here is load-bearing for a
               screen reader, and nothing needs a hover. */}
-          <div className="relative h-40 w-40 shrink-0" aria-hidden>
+          <div ref={chartBox} className="h-40 w-40 shrink-0" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -165,7 +144,7 @@ function Donut({
                   isAnimationActive={false}
                   onMouseEnter={(_, index) => {
                     const label = slices[index]?.label;
-                    if (label) setHovered({ label, from: "segment" });
+                    if (label) setHovered(label);
                   }}
                   onMouseLeave={() => setHovered(null)}
                 >
@@ -180,29 +159,19 @@ function Donut({
                 <Tooltip content={<DonutTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-            {legendTooltip && (
-              <div
-                data-testid="legend-tooltip"
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  left: `${legendTooltip.left}%`,
-                  top: `${legendTooltip.top}%`,
-                }}
-              >
-                <ChartTooltipCard
-                  title={formatShare(slices[legendIndex]?.share ?? 0)}
-                />
-              </div>
-            )}
           </div>
           <ul className="w-full space-y-1 text-sm">
             {slices.map((slice) => (
               <li
                 key={slice.label}
-                onMouseEnter={() =>
-                  setHovered({ label: slice.label, from: "legend" })
-                }
-                onMouseLeave={() => setHovered(null)}
+                onMouseEnter={() => {
+                  setHovered(slice.label);
+                  hoverSector(slice.label, "mouseover");
+                }}
+                onMouseLeave={() => {
+                  setHovered(null);
+                  hoverSector(slice.label, "mouseout");
+                }}
                 className={`flex items-center justify-between gap-2 transition-opacity ${
                   dimmed(slice.label) ? "opacity-30" : ""
                 }`}

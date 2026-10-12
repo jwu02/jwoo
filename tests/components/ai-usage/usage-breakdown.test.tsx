@@ -3,7 +3,6 @@ import { cloneElement } from "react";
 import {
   UsageBreakdown,
   segmentColor,
-  ringPosition,
 } from "@/components/ai-usage/usage-breakdown";
 import { clearAppearance, saveAppearance } from "@/components/os/appearance";
 
@@ -137,8 +136,6 @@ describe("UsageBreakdown", () => {
     expect(legendFor("claude-opus-5")).toHaveTextContent("¥1.20");
     expect(legendFor("claude-opus-5")).not.toHaveTextContent("48.0%");
     expect(screen.getAllByText("¥1.20")).toHaveLength(1);
-    // A sector hover uses the chart's own tooltip; the legend card stays shut.
-    expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
   });
 
   it("reads token counts the way the chart does, not at full length", () => {
@@ -189,40 +186,50 @@ describe("UsageBreakdown", () => {
     expect(legendFor("gpt-4o").className).not.toContain("opacity-30");
   });
 
-  it("does the same when a legend row itself is hovered", () => {
+  it("does the same when a legend row itself is hovered", async () => {
     render(<UsageBreakdown rows={rows} labelHeader="Model" />);
     // The second cost segment is deepseek-v4-flash; its legend row is the
     // matching one in the cost donut's list.
     const legend = legendFor("deepseek-v4-flash");
     fireEvent.mouseEnter(legend);
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
 
     expect(sectorAt(1).getAttribute("fill-opacity")).not.toBe("0.3");
     expect(sectorAt(0).getAttribute("fill-opacity")).toBe("0.3");
     expect(legend.className).not.toContain("opacity-30");
     expect(legendFor("gpt-4o").className).toContain("opacity-30");
-    // The share is not repeated in the row; it rides on the ring instead,
-    // where the segment's own tooltip would sit.
+    // The row never repeats the share; the segment's own tooltip carries it.
     expect(legend).not.toHaveTextContent("32.0%");
-    const card = screen.getByTestId("legend-tooltip");
-    expect(card).toHaveTextContent("32.0%");
-    // The donut is 160px; deepseek's arc midpoint is left of centre, below it.
-    expect(Number.parseFloat(card.style.left)).toBeCloseTo(24.5, 1);
-    expect(Number.parseFloat(card.style.top)).toBeCloseTo(80.8, 1);
+    expect(
+      document.querySelector(".recharts-tooltip-wrapper")?.textContent
+    ).toBe("32.0%");
 
     fireEvent.mouseLeave(legend);
-    expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
+    expect(
+      document.querySelector(".recharts-tooltip-wrapper")?.textContent
+    ).toBe("");
   });
 
-  it("puts a slice's share card on that slice's arc", () => {
-    // Recharts' Pie starts at 3 o'clock and sweeps anticlockwise, so a 50/50
-    // split puts the first arc's midpoint at the top and the second at the
-    // bottom.
-    const first = ringPosition([{ share: 50 }, { share: 50 }], 0);
-    expect(first.left).toBeCloseTo(50);
-    expect(first.top).toBeCloseTo(10);
-    const second = ringPosition([{ share: 50 }, { share: 50 }], 1);
-    expect(second.left).toBeCloseTo(50);
-    expect(second.top).toBeCloseTo(90);
+  it("follows the legend even after another sector was hovered", async () => {
+    render(<UsageBreakdown rows={rows} labelHeader="Model" />);
+    // Hover a sector and leave; recharts keeps its last active index behind.
+    fireEvent.mouseEnter(sectorAt(0));
+    fireEvent.mouseLeave(sectorAt(0));
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    // The next hover is on a different legend row, so the tooltip must follow
+    // the legend and not the sector recharts still remembers.
+    fireEvent.mouseEnter(legendFor("deepseek-v4-flash"));
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+    expect(
+      document.querySelector(".recharts-tooltip-wrapper")?.textContent
+    ).toBe("32.0%");
   });
 
   it("gives the combined segment the neutral, not a chart slot", () => {
