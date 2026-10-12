@@ -251,7 +251,7 @@ The feature answering "how active was I": mouse and keyboard behaviour over a ra
 _Avoid_: telemetry (unqualified), activity dashboard
 
 **AI usage**:
-The feature answering "where did AI spend go": cost, tokens and tool call and skill invocation counts over a range, broken down by model, project and harness, with the range's most invoked skills ranked beside the breakdown. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
+The feature answering "where did AI spend go": cost, tokens and tool call and skill invocation counts over a range, broken down by model, project and harness, with the range's top invoked skills ranked below the breakdown. Sibling to Activity telemetry: the two share infrastructure, never domain logic.
 _Avoid_: AI dashboard, usage (on its own)
 
 **Range**:
@@ -271,11 +271,11 @@ One action the assistant takes that its harness reports as a tool call. The Tool
 _Avoid_: tool, tool use
 
 **Skill**:
-One reusable assistant skill, named exactly as the collector recorded it. The name is not folded or regrouped, so a namespaced skill keeps its prefix and reads as its own row. The Most invoked skills list ranks skills by invocations over the range — a count and nothing else: a session's cost is the session's, and a session may invoke several skills, so a per-skill cost share would be double-counted or invented.
+One reusable assistant skill, named exactly as the collector recorded it. The name is not folded or regrouped, so a namespaced skill keeps its prefix and reads as its own row. The Top invoked skills list ranks skills by invocations over the range, naming the highest few and folding nothing behind them — a count and nothing else: a session's cost is the session's, and a session may invoke several skills, so a per-skill cost share would be double-counted or invented.
 _Avoid_: tool (a Skill Invocation can be one, but not every Tool Call is a skill invocation), plugin, command
 
 **Skill Invocation**:
-One load of a reusable assistant skill. Repeat loads of the same skill are separate invocations, so every entry in a record's list counts: the Skill Invocations card on the AI usage dashboard totals them, and the dashboard's Most invoked skills list ranks those same entries by skill. An entry that names no skill is not a Skill Invocation, and neither one counts it.
+One load of a reusable assistant skill. Repeat loads of the same skill are separate invocations, so every entry in a record's list counts: the Skill Invocations card on the AI usage dashboard totals them, and the dashboard's Top invoked skills list ranks those same entries by skill. An entry that names no skill is not a Skill Invocation, and neither one counts it.
 _Avoid_: skill use, tool call (a Skill Invocation can be one, but not every Tool Call is a Skill Invocation)
 
 **Project**:
@@ -283,7 +283,7 @@ The repository an AI-usage session's working directory was inferred to belong to
 _Avoid_: repo, workspace
 
 **Others**:
-The AI usage breakdown's one unnamed segment: everything the breakdown does not name individually. In the Project breakdown that includes the working directories matching no project, so those and the smaller projects share the one segment rather than each getting its own — no reader sees two similarly named "rest" entries, or has to guess which is which. The Most invoked skills list folds its own tail into the same segment.
+The AI usage breakdown's one unnamed segment: everything the breakdown does not name individually. In the Project breakdown that includes the working directories matching no project, so those and the smaller projects share the one segment rather than each getting its own — no reader sees two similarly named "rest" entries, or has to guess which is which.
 _Avoid_: other (singular), misc, remainder
 
 ### Keyboard heatmap

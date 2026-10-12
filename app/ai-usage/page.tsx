@@ -120,7 +120,7 @@ export default function AiUsagePage() {
                   a skill has no cost or token split of its own. */}
               <section className="space-y-6">
                 <h2 className="text-lg font-semibold tracking-tight">
-                  Most invoked skills
+                  Top invoked skills
                 </h2>
                 <SkillList rows={data.bySkill} />
               </section>

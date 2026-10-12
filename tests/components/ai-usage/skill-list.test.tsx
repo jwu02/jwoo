@@ -7,8 +7,8 @@ const rows = [
   { skill: "prototype", invocations: 132 },
 ];
 
-// Twelve skills, each invoked one fewer time than the last, so the tail past
-// the tenth is worth 2 + 1.
+// Twelve skills, each invoked one fewer time than the last, so a list of them
+// runs past the limit.
 const manyRows = Array.from({ length: 12 }, (_, i) => ({
   skill: `s${i}`,
   invocations: 12 - i,
@@ -31,10 +31,10 @@ describe("SkillList", () => {
     ).toEqual(["implement1,791", "grill-with-docs299", "prototype132"]);
   });
 
-  it("folds everything past the tenth into one Others row", () => {
+  it("draws the ranking's head only, with no row standing for the rest", () => {
     render(<SkillList rows={manyRows} />);
-    expect(screen.getAllByRole("listitem")).toHaveLength(11);
-    expect(screen.getAllByRole("listitem")[10]?.textContent).toBe("Others3");
+    expect(screen.getAllByRole("listitem")).toHaveLength(10);
+    expect(screen.queryByText("Others")).not.toBeInTheDocument();
   });
 
   it("draws each bar against the most invoked skill", () => {

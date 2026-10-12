@@ -116,7 +116,7 @@ describe("AiUsagePage", () => {
     ).toBeTruthy();
   });
 
-  it("ranks the most invoked skills below the chart", async () => {
+  it("ranks the top invoked skills below the chart", async () => {
     render(<AiUsagePage />);
     await screen.findAllByText("claude-opus-5");
 
@@ -126,7 +126,7 @@ describe("AiUsagePage", () => {
     expect(screen.getByText("grill-with-docs")).toBeInTheDocument();
 
     const heading = screen.getByRole("heading", {
-      name: "Most invoked skills",
+      name: "Top invoked skills",
     });
     expect(
       screen.getByTestId("usage-chart").compareDocumentPosition(heading) &
