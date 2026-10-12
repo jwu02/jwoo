@@ -123,6 +123,26 @@ export function saveDockOrder(order: readonly App[]): void {
   for (const listener of listeners) listener()
 }
 
+/** Forget a saved arrangement, returning the Dock to its declared order while
+ * leaving no key behind — a first visit's state, not a saved copy of it. */
+export function clearDockOrder(): void {
+  inMemory = null
+  refusedWrite = false
+  try {
+    window.localStorage.removeItem(KEY)
+  } catch {
+    // Nothing was stored, or nothing can be written: memory is already clear.
+  }
+  for (const listener of listeners) listener()
+}
+
+/** The Data section's descriptor for this entry. */
+export const dockOrderEntry = {
+  key: KEY,
+  label: "Dock arrangement",
+  clear: clearDockOrder,
+}
+
 /** Be told when the order changes: this tab's own writes, and another tab's. */
 export function subscribeDockOrder(onChange: () => void): () => void {
   listeners.add(onChange)

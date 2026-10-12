@@ -2,6 +2,7 @@ import { APPS, HOME } from "@/components/os/apps"
 import {
   dockOrderServerSnapshot,
   dockOrderSnapshot,
+  clearDockOrder,
   resetDockOrder,
   saveDockOrder,
 } from "@/components/os/dock-order"
@@ -196,5 +197,54 @@ describe("resetting the Dock", () => {
     window.localStorage.clear()
 
     expect(hrefs()).toEqual(DEFAULT)
+  })
+})
+
+describe("clearing the Dock's arrangement", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
+  // What the Data section deletes: the key goes away, so a later visit is the
+  // declared order because nothing was ever stored, not because a copy of it
+  // was.
+  it("leaves no key behind and returns the declared order", () => {
+    saveDockOrder(orderOf(HOME, "/resume", "/terminal"))
+    expect(hrefs()).not.toEqual(DEFAULT)
+
+    clearDockOrder()
+
+    expect(hrefs()).toEqual(DEFAULT)
+    expect(window.localStorage.getItem(KEY)).toBeNull()
+  })
+
+  // A clear must not look like it worked and then revert on the next read.
+  it("drops the visit's own order when storage refuses everything", () => {
+    const failing = {
+      getItem: jest.fn(),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+    }
+    failing.getItem.mockImplementation(() => {
+      throw new Error("storage disabled")
+    })
+    failing.setItem.mockImplementation(() => {
+      throw new Error("storage disabled")
+    })
+    failing.removeItem.mockImplementation(() => {
+      throw new Error("storage disabled")
+    })
+    const storage = jest
+      .spyOn(window, "localStorage", "get")
+      .mockReturnValue(failing as unknown as Storage)
+
+    try {
+      saveDockOrder(orderOf(HOME, "/resume", "/terminal"))
+      clearDockOrder()
+
+      expect(hrefs()).toEqual(DEFAULT)
+    } finally {
+      storage.mockRestore()
+    }
   })
 })

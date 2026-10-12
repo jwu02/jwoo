@@ -67,6 +67,13 @@ export function saveLocale(locale: Locale): void {
   for (const listener of listeners) listener()
 }
 
+/** The Data section's descriptor for this entry. */
+export const resumeLocaleEntry = {
+  key: KEY,
+  label: "Resume language",
+  clear: clearLocale,
+}
+
 /** Forget the visitor's choice, leaving them where a first visit finds them. */
 export function clearLocale(): void {
   inMemory = null

@@ -91,6 +91,13 @@ export function saveAppearance(appearance: Appearance): void {
   for (const listener of listeners) listener()
 }
 
+/** The Data section's descriptor for this entry. */
+export const appearanceEntry = {
+  key: KEY,
+  label: "Appearance",
+  clear: clearAppearance,
+}
+
 /** Forget the visitor's choice, leaving them where a first visit finds them. */
 export function clearAppearance(): void {
   inMemory = null

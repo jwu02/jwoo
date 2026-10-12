@@ -44,3 +44,21 @@ export function saveHistory(history: readonly string[]): void {
     // Memory already holds it — that is the fallback.
   }
 }
+
+/** Forget the History a visit left. The in-memory fallback is emptied with it,
+ * so the delete holds even where storage refused the write. */
+export function clearHistory(): void {
+  inMemory = []
+  try {
+    window.localStorage.removeItem(KEY)
+  } catch {
+    // Nothing was stored, or nothing can be written: memory is already clear.
+  }
+}
+
+/** The Data section's descriptor for this entry. */
+export const terminalHistoryEntry = {
+  key: KEY,
+  label: "Terminal history",
+  clear: clearHistory,
+}
