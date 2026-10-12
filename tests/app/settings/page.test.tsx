@@ -266,6 +266,31 @@ describe("Data", () => {
     expect(segment("resume:locale")).not.toHaveClass("opacity-50")
   })
 
+  it("keeps the entry the pointer has moved on to lit, whatever the tooltip it left behind does", async () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
+    window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes
+
+    renderSettings()
+
+    const appearanceChip = screen.getByRole("button", { name: "Appearance" })
+    const resumeChip = screen.getByRole("button", { name: "Resume language" })
+    const segmentOpen = (key: string) =>
+      document.querySelector(`[data-stored-segment="${key}"]`)
+
+    // The pointer travels: off one legend label, straight onto the next. The
+    // tooltip the first one opened is still closing, and its close must not
+    // reach the page and put the light back out.
+    fireEvent.mouseEnter(appearanceChip)
+    fireEvent.mouseLeave(appearanceChip)
+    fireEvent.mouseEnter(resumeChip)
+    await act(() => new Promise((resolve) => setTimeout(resolve, 300)))
+
+    expect(segmentOpen("resume:locale")).toHaveAttribute("data-popup-open")
+    expect(segmentOpen("os.appearance")).not.toHaveAttribute("data-popup-open")
+    expect(resumeChip).not.toHaveClass("opacity-50")
+    expect(appearanceChip).toHaveClass("opacity-50")
+  })
+
   it("says what an entry weighs on hovering its segment", async () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark") // 4 bytes
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh") // 2 bytes

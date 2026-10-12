@@ -209,8 +209,12 @@ export function Settings() {
               <Tooltip
                 key={entry.key}
                 open={litKey === entry.key}
-                onOpenChange={(open) => setLitKey(open ? entry.key : null)}
               >
+                {/* Open, never written back: the pointer rests on a legend chip,
+                    not on this trigger, so base-ui answers a hover it does not
+                    have with a close — and that close can land on the entry the
+                    pointer has already reached, wiping the light. litKey is the
+                    page's and only the page's; the tooltip follows it. */}
                 {/* Not focusable, deliberately: a segment inside this
                     decorative bar would add a tab stop saying nothing the
                     legend below does not already say. The tooltip hangs here
@@ -235,7 +239,7 @@ export function Settings() {
                     />
                   }
                 />
-                <TooltipContent>
+                <TooltipContent sideOffset={10}>
                   {storedEntryWeight(entry.label, bytes)}
                 </TooltipContent>
               </Tooltip>
