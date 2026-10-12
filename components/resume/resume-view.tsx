@@ -12,9 +12,13 @@ import { en, zh } from "@/lib/resume/locale-data"
 import { printResume } from "@/lib/resume/print-resume"
 import type { Locale } from "@/lib/resume/types"
 import { LanguageToggle } from "./language-toggle"
+import {
+  localeServerSnapshot,
+  localeSnapshot,
+  saveLocale,
+  subscribeLocale,
+} from "./locale-store"
 import { ResumeA4Page } from "./resume-a4-page"
-
-const RESUME_LOCALE_KEY = "resume:locale"
 
 // The print dialog is modal and covers the page, so this notice has to be
 // readable *before* Download is clicked. Background graphics and zero margins
@@ -30,26 +34,12 @@ const PRINT_HELP: Record<Locale, { title: string; settings: string[] }> = {
   },
 }
 
-function subscribe(onStoreChange: () => void): () => void {
-  window.addEventListener("storage", onStoreChange)
-  return () => window.removeEventListener("storage", onStoreChange)
-}
-
-function getSnapshot(): Locale {
-  return window.localStorage.getItem(RESUME_LOCALE_KEY) === "zh" ? "zh" : "en"
-}
-
-function getServerSnapshot(): Locale {
-  return "en"
-}
-
 export function ResumeView() {
-  const locale = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-
-  const handleChange = (next: Locale) => {
-    window.localStorage.setItem(RESUME_LOCALE_KEY, next)
-    window.dispatchEvent(new Event("storage"))
-  }
+  const locale = useSyncExternalStore(
+    subscribeLocale,
+    localeSnapshot,
+    localeServerSnapshot
+  )
 
   const data = locale === "zh" ? zh : en
   const help = PRINT_HELP[locale]
@@ -61,7 +51,7 @@ export function ResumeView() {
     // clipping the sheet's far edge. `print:px-0` is what actually drops it.
     <div className="flex flex-col px-4 md:px-0 print:px-0">
       <div className="mt-6 flex items-center justify-center gap-2 print:hidden">
-        <LanguageToggle locale={locale} onChange={handleChange} />
+        <LanguageToggle locale={locale} onChange={saveLocale} />
         <Tooltip>
           <TooltipTrigger
             render={
