@@ -10,6 +10,7 @@ import {
   listOpens,
   matches,
   reduce,
+  replay,
   type InputConfig,
   type InputKey,
   type InputState,
@@ -38,6 +39,7 @@ describe("the input machine's shape", () => {
     expect(state.cursor).toBeNull()
     expect(state.draft).toBe("")
     expect(state.output).toEqual(seed)
+    expect(state.restored).toBe(false)
   })
 
   it("keeps DOM, storage and application imports out of the machine", () => {
@@ -356,15 +358,53 @@ describe("History", () => {
     expect(state.history).toEqual(["/neofetch", "/socials", "/neofetch"])
   })
 
-  it("hydrates from a store at boot", () => {
+  it("hydrates from a store at boot, reprinting the screen it left", () => {
     const state = reduce(initialState(), CONFIG, {
       type: "hydrate",
       history: ["/contacts", "/socials"],
     })
 
     expect(state.history).toEqual(["/contacts", "/socials"])
+    // With no seed, the screen is exactly what was replayed onto it.
+    expect(state.output.map((print) => print.echo)).toEqual([
+      "/contacts",
+      "/socials",
+    ])
+    // The screen came from the store, so nothing in it is this visit's doing.
+    expect(state.restored).toBe(true)
     expect(state.cursor).toBeNull()
     expect(state.draft).toBe("")
+  })
+})
+
+describe("replay", () => {
+  const seed = [{ rows: [{ label: "Name", value: "Tony" }] }]
+
+  it("prints a remembered list again, oldest first, on top of the seed", () => {
+    const restored = replay(["/neofetch", "/socials"], CONFIG, seed)
+
+    expect(restored.map((print) => print.echo)).toEqual([
+      undefined,
+      "/neofetch",
+      "/socials",
+    ])
+  })
+
+  it("applies /clear where it stands, so only what came after it returns", () => {
+    const restored = replay(["/neofetch", "/clear", "/socials"], CONFIG, seed)
+
+    expect(restored.map((print) => print.echo)).toEqual([
+      undefined,
+      "/socials",
+    ])
+  })
+
+  it("leaves the not-found line where an unknown invocation stood", () => {
+    const restored = replay(["/nope"], CONFIG, [])
+
+    expect(restored).toEqual([
+      { echo: "/nope", rows: [], error: "command not found: /nope" },
+    ])
   })
 })
 
@@ -429,18 +469,20 @@ describe("running a query", () => {
 })
 
 describe("/clear", () => {
-  it("wipes the output to empty and leaves no marker", () => {
-    let state = run(initialState(), "/neofetch")
+  const seed = [{ rows: [{ label: "Name", value: "Tony" }] }]
+
+  it("puts the screen back at the seed and leaves no marker", () => {
+    let state = run(initialState(seed), "/neofetch")
     state = run(state, "/socials")
     const cleared = run(state, "/clear")
 
-    expect(cleared.output).toEqual([])
+    expect(cleared.output).toEqual(seed)
     // The invocation is still remembered, even though its Print is not.
     expect(cleared.history).toEqual(["/neofetch", "/socials", "/clear"])
   })
 
-  it("wipes even when arguments follow it", () => {
-    const state = run(run(initialState(), "/neofetch"), "/clear everything")
-    expect(state.output).toEqual([])
+  it("puts the screen back even when arguments follow it", () => {
+    const state = run(run(initialState(seed), "/neofetch"), "/clear everything")
+    expect(state.output).toEqual(seed)
   })
 })

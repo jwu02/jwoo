@@ -41,6 +41,14 @@ export interface InputState {
   draft: string
   /** Everything printed so far, in the order it was produced. */
   output: readonly Print[]
+  /** The screen a fresh visit opens on: the opening Print the Terminal has
+   * already run, held so `/clear` can put the screen back where it started
+   * without the machine having to know which Command produced it. */
+  seed: readonly Print[]
+  /** Whether `output` is a screen restored from a store rather than one run
+   * here. The page follows a Print's route only for what this visit ran, so a
+   * way out a previous visit took does not take it again on the way in. */
+  restored: boolean
 }
 
 /** The keys the bar has an opinion about. Everything else is the browser's. */
@@ -69,7 +77,8 @@ export type InputAction =
   /** A Command was accepted into the field by name — a click on a Popup row,
    * which knows the row it picked and cannot say it in a keystroke. */
   | { type: "accept"; name: string }
-  /** History was read back from a store at boot. */
+  /** History was read back from a store at boot. The screen it had left is
+   * reprinted from it, so nothing rendered is remembered. */
   | { type: "hydrate"; history: readonly string[] }
 
 /**
@@ -85,6 +94,8 @@ export function initialState(seed: readonly Print[] = []): InputState {
     cursor: null,
     draft: "",
     output: seed.slice(),
+    seed: seed.slice(),
+    restored: false,
   }
 }
 
@@ -199,11 +210,58 @@ function notFound(query: string, name: string): Print {
 }
 
 /**
+ * The output one invocation leaves on top of `output`: the Command's Print,
+ * `/clear`'s way back to the seed, or the machine's not-found line when no
+ * Command answers to the name. An empty invocation leaves `output` alone.
+ * Shared by running a query and by replaying a remembered one, so `/clear`
+ * means the same thing however the line arrives at the screen.
+ */
+function printed(
+  output: readonly Print[],
+  config: InputConfig,
+  seed: readonly Print[],
+  raw: string
+): readonly Print[] {
+  const query = raw.trim()
+  if (query === "") return output
+  const name = query.split(" ")[0]
+  // Matching folds case, so the run must fold it too or `/WHOAMI` would match
+  // in the Popup and then not be found on Enter.
+  const command = config.commands.find(
+    (entry) => entry.name.toLowerCase() === name.toLowerCase()
+  )
+  if (command?.name === "/clear") return seed
+  return [...output, command ? command.print() : notFound(query, name)]
+}
+
+/**
+ * The screen a remembered list of invocations leaves: each one printed again,
+ * oldest first, on top of the seed. The Terminal keeps the invocations and
+ * nothing rendered — this is how a previous visit's transcript comes back
+ * without a second copy of itself being stored.
+ *
+ * shortcut: a Command run twice in a row is remembered once, because History
+ * collapses it, so the replayed screen has one fewer block; store the runs
+ * themselves if a visit ever needs the exact screen back.
+ */
+export function replay(
+  invocations: readonly string[],
+  config: InputConfig,
+  seed: readonly Print[]
+): readonly Print[] {
+  return invocations.reduce(
+    (output, invocation) => printed(output, config, seed, invocation),
+    seed
+  )
+}
+
+/**
  * Run a query, if there is one. An empty query is a no-op. The invocation goes
  * into History (consecutive duplicates collapse, the way a shell's `ignoredups`
  * does), the field and draft are cleared, and the output gains the Command's
- * Print — or `/clear` wipes it. `/clear` is keyed off the first token, so
- * anything typed after a Command's name is ignored for every Command alike.
+ * Print — or, for `/clear`, goes back to the seed. `/clear` is keyed off the
+ * first token, so anything typed after a Command's name is ignored for every
+ * Command alike.
  */
 function runQuery(
   state: InputState,
@@ -214,16 +272,6 @@ function runQuery(
   if (query === "") return state
   const last = state.history[state.history.length - 1]
   const history = last === query ? state.history : [...state.history, query]
-  const name = query.split(" ")[0]
-  // Matching folds case, so the run must fold it too or `/WHOAMI` would match
-  // in the Popup and then not be found on Enter.
-  const command = config.commands.find(
-    (entry) => entry.name.toLowerCase() === name.toLowerCase()
-  )
-  const output =
-    command?.name === "/clear"
-      ? []
-      : [...state.output, command ? command.print() : notFound(query, name)]
   return {
     ...state,
     query: "",
@@ -232,7 +280,8 @@ function runQuery(
     cursor: null,
     draft: "",
     history,
-    output,
+    output: printed(state.output, config, state.seed, query),
+    restored: false,
   }
 }
 
@@ -302,6 +351,8 @@ export function reduce(
       return {
         ...state,
         history: action.history.slice(),
+        output: replay(action.history, config, state.seed),
+        restored: true,
         cursor: null,
         draft: "",
       }

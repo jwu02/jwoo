@@ -257,24 +257,26 @@ describe("running a Command", () => {
     expect(echoes()).toEqual(["/nope"])
   })
 
-  it("wipes the screen to empty on /clear, with no marker", () => {
+  it("puts the opening view back on /clear, with no marker", () => {
     render(<TerminalPage />)
+    run("/socials")
     run("/clear")
 
     expect(echoes()).toEqual([])
-    expect(screen.queryByText("Tony Wu")).not.toBeInTheDocument()
+    // The identity print is back, exactly as a fresh visit opens on it.
+    expect(screen.getByText("Tony Wu")).toBeInTheDocument()
     expect(screen.queryByText("/neofetch")).not.toBeInTheDocument()
-    // A wiped screen is still a screen being typed at.
+    // A reset screen is still a screen being typed at.
     expect(standingPrompt().textContent).toBe("jwoo@localhost ~ %")
   })
 
-  it("draws a Portrait per run, and none is left behind by /clear", () => {
+  it("draws a Portrait per run, and only the opening one is left by /clear", () => {
     render(<TerminalPage />)
     run("/neofetch")
     expect(portraits()).toHaveLength(2)
 
     run("/clear")
-    expect(portraits()).toHaveLength(0)
+    expect(portraits()).toHaveLength(1)
   })
 
   it("keeps the output scrolled to the newest Print", () => {
@@ -303,6 +305,46 @@ describe("running a Command", () => {
   })
 })
 
+describe("a remembered conversation", () => {
+  it("comes back on a reload, printed again by its Commands", () => {
+    process.env.NEXT_PUBLIC_GITHUB = "github.com/jwu02"
+    const visit = render(<TerminalPage />)
+    run("/socials")
+    visit.unmount()
+
+    render(<TerminalPage />)
+
+    expect(echoes()).toEqual(["/socials"])
+    expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
+  })
+
+  it("comes back with /clear already applied, so only what came after it stands", () => {
+    const visit = render(<TerminalPage />)
+    run("/socials")
+    run("/clear")
+    visit.unmount()
+
+    render(<TerminalPage />)
+
+    expect(echoes()).toEqual([])
+    expect(screen.getByText("Tony Wu")).toBeInTheDocument()
+  })
+
+  it("does not follow a way out a previous visit took", () => {
+    const visit = render(<TerminalPage />)
+    run("/resume")
+    expect(mockPush).toHaveBeenCalledWith("/resume")
+    mockPush.mockClear()
+    visit.unmount()
+
+    render(<TerminalPage />)
+
+    // The restored print is history, not a run: the route is not taken twice.
+    expect(echoes()).toEqual(["/resume"])
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+})
+
 describe("the ways out", () => {
   it("follows a way out's Print to its route", () => {
     render(<TerminalPage />)
@@ -318,10 +360,10 @@ describe("the ways out", () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  // A wipe empties the screen, and the mark on how far the Terminal has acted
-  // comes back with it: the next run is the one that gets followed, not one
-  // whose index the wipe already passed.
-  it("follows nothing after a wipe, until a new Command runs", () => {
+  // A reset shortens the screen back to the opening print, and the mark on how
+  // far the Terminal has acted comes back with it: the next run is the one that
+  // gets followed, not one whose index the reset already passed.
+  it("follows nothing after a reset, until a new Command runs", () => {
     render(<TerminalPage />)
     run("/resume")
     expect(mockPush).toHaveBeenCalledTimes(1)

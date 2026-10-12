@@ -111,7 +111,7 @@ The printed invocation that opens a Command's Print: what the visitor ran, shown
 _Avoid_: prompt line, input log, history entry (that is what History keeps)
 
 **History**:
-The Commands this visitor has run, recalled by walking up from the Input bar and remembered across visits. A step back saves the half-typed draft; returning past the newest entry restores it. The transcript itself is not kept — only the invocations are.
+The Commands this visitor has run, recalled by walking up from the Input bar and remembered across visits. A step back saves the half-typed draft; returning past the newest entry restores it. It is all the Terminal stores: the transcript is not kept, it is reprinted from these invocations on the next visit, so what the screen shows comes from the Commands rather than from a recorded copy.
 _Avoid_: command log, session, history list
 
 ### 3D scenes

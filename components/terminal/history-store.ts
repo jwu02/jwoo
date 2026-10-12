@@ -5,6 +5,10 @@
 // machine can stay pure. Storage can be absent or throw — a private-mode
 // browser, a disabled store, a corrupted value — and in every one of those
 // cases History simply lives in memory for this visit instead.
+//
+// Only the invocations are stored: the screen a visit left is reprinted from
+// them by the page, so nothing rendered is kept and the Commands stay the one
+// source of what they print.
 
 const KEY = "terminal.history"
 

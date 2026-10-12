@@ -61,7 +61,8 @@ export function Terminal() {
   // is the Dock doing nothing wrong. See `useVisualViewport`.
   useVisualViewport()
 
-  // History survives the visit; the transcript does not.
+  // What the last visit ran comes back, and the screen it left is reprinted
+  // from it: the Terminal remembers the invocations, not the transcript.
   useEffect(() => {
     dispatch({ type: "hydrate", history: loadHistory() })
   }, [])
@@ -75,14 +76,17 @@ export function Terminal() {
 
   // A Command's way of taking the visitor somewhere is its Print's `href`: the
   // machine says where, and the page — the only part holding a router — goes.
-  // `/clear` wipes the screen, so the mark is pulled back with the output it
-  // emptied rather than left pointing past a shorter list.
+  // `/clear` puts the seed back where the output stood, so the mark is pulled
+  // back with the output it reset rather than left pointing past a shorter
+  // list. A restored screen is history rather than a run, and takes nobody
+  // anywhere: its way outs were followed when they were first run.
   useEffect(() => {
     const from = Math.min(actedOn.current, state.output.length)
     actedOn.current = state.output.length
+    if (state.restored) return
     const href = state.output.slice(from).find((print) => print.href)?.href
     if (href) router.push(href)
-  }, [state.output, router])
+  }, [state.output, state.restored, router])
 
   // Output appends and the screen follows it down — and keeps following when
   // the software keyboard shrinks the pane under it, which takes the newest
@@ -151,7 +155,7 @@ export function Terminal() {
         <PrintList prints={state.output} />
         {/* The line being typed at: the same prompt an Echo wears, standing
             empty at the end of the output. It is not a Print — nobody ran it
-            and /clear wipes the Prints, not the line waiting for one. */}
+            and /clear resets the Prints, not the line waiting for one. */}
         <p aria-hidden="true" className="text-muted-foreground">
           <Prompt />
         </p>

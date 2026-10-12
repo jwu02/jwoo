@@ -83,8 +83,8 @@ const WAYS_OUT: readonly Command[] = APPS.filter(
 export const COMMANDS: readonly Command[] = [
   {
     name: "/clear",
-    description: "Wipe the screen",
-    // No rows: wiping is the machine's doing, not a row's.
+    description: "Reset the screen",
+    // No rows: resetting is the machine's doing, not a row's.
     print: () => ({ echo: "/clear", rows: [] }),
   },
   {
