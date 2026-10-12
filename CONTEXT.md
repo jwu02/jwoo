@@ -83,11 +83,11 @@ The single list of the Terminal's Commands — the one place a Command is declar
 _Avoid_: command list, dispatcher, command map
 
 **Way out**:
-A Command that leaves the Terminal for an application: it prints like any other, and the route it names is the one the Terminal follows once that Print is on the screen. There is one per application the Dock holds — the applications' registry is the list they are made from — and none for the Terminal itself, because the visitor is already there.
+A Command that leaves the Terminal for an application: it prints like any other — a line naming where the run is going — and the route it names is the one the Terminal follows once that Print has stood for a beat on the screen, so the visitor reads where they are being taken before they are. There is one per application the Dock holds — the applications' registry is the list they are made from — and none for the Terminal itself, because the visitor is already there.
 _Avoid_: link, redirect, navigation command
 
 **Print**:
-The output a Command leaves on the Terminal's screen: an Echo of the invocation when the visitor ran it, followed by content — rows, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. A Print is also where a Command says where it takes the visitor: its destination, the route of the application the Terminal follows once the Print is on the screen, carried only by the Commands that are ways out.
+The output a Command leaves on the Terminal's screen: an Echo of the invocation when the visitor ran it, followed by content — rows, a line of the Command's own where it prints one instead, and a Portrait where the Command has one. A Command yields its Print as data the renderer styles, not as markup — the words live in the Command, the look lives in the renderer. A Print is also where a Command says where it takes the visitor: its destination, the route of the application the Terminal follows once the Print is on the screen, carried only by the Commands that are ways out.
 _Avoid_: output (unqualified), response, render
 
 **Portrait**:

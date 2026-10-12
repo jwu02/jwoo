@@ -28,6 +28,11 @@ export interface Print {
    * machine's own error, never a Command's. The renderer draws it in the
    * Print's accent. */
   error?: string
+  /** A Command's own line, printed where its rows would go: what a Command has
+   * to say when it has no data to list. Drawn in the Print's accent, like the
+   * machine's error, and never beside one — a Print prints one line or the
+   * other. */
+  note?: string
   /** The application route this Print takes the visitor to. A Command that is
    * a way out of the Terminal carries one; the page follows it and the
    * renderer draws the Print unchanged. */
@@ -48,6 +53,9 @@ export function Prompt() {
  * for an unknown invocation, the machine's not-found line. The rows are a
  * definition list, so a screen reader reads each label and value as a pair. */
 function PrintBlock({ print }: { print: Print }) {
+  // The one line a Print prints where its rows would go: the machine's
+  // not-found, or a Command's own note.
+  const line = print.error ?? print.note
   return (
     <div className="mb-6 last:mb-0">
       {/* The Echo: the invocation, prefixed by the pastiched machine's prompt —
@@ -77,8 +85,8 @@ function PrintBlock({ print }: { print: Print }) {
             {print.portrait}
           </pre>
         )}
-        {print.error ? (
-          <p className={ACCENT}>{print.error}</p>
+        {line ? (
+          <p className={ACCENT}>{line}</p>
         ) : (
           <dl className="grid grow basis-56 grid-cols-[7rem_1fr] gap-x-4 gap-y-1.5">
             {print.rows.map((row, index) => (

@@ -60,6 +60,14 @@ function run(value: string) {
   press("Enter")
 }
 
+/** How long a way out's Print stands before the Terminal follows its route. */
+const WAY_OUT_BEAT_MS = 1000
+
+/** Let a way out's beat pass, so the route it names is finally taken. */
+function passTheBeat() {
+  jest.advanceTimersByTime(WAY_OUT_BEAT_MS)
+}
+
 /** Every Echo on the screen, in the order printed: the invocation lines, which
  * are the only slash-words outside a row's own label. */
 function echoes(): string[] {
@@ -90,6 +98,9 @@ afterEach(() => {
     else process.env[name] = original[name]
   }
   jest.restoreAllMocks()
+  // A way out's beat is driven by the clock in the tests that follow one, so
+  // no timer outlives the test that installed it.
+  jest.useRealTimers()
   // A selection outlives a render, so it must not outlive a test.
   window.getSelection()?.removeAllRanges()
 })
@@ -348,13 +359,16 @@ describe("a remembered conversation", () => {
   })
 
   it("does not follow a way out a previous visit took", () => {
+    jest.useFakeTimers()
     const visit = render(<TerminalPage />)
     run("/resume")
+    passTheBeat()
     expect(mockPush).toHaveBeenCalledWith("/resume")
     mockPush.mockClear()
     visit.unmount()
 
     render(<TerminalPage />)
+    passTheBeat()
 
     // The restored print is history, not a run: the route is not taken twice.
     expect(echoes()).toEqual(["/resume"])
@@ -363,9 +377,24 @@ describe("a remembered conversation", () => {
 })
 
 describe("the ways out", () => {
-  it("follows a way out's Print to its route", () => {
+  // A way out only leaves once its Print has stood its beat, so every test here
+  // that follows one drives the clock.
+  beforeEach(() => jest.useFakeTimers())
+
+  it("prints where the run is going, and follows its route a beat later", () => {
     render(<TerminalPage />)
     run("/resume")
+
+    // One accent line under the Echo, saying where the run is taking the
+    // visitor — not a label and a value of their own...
+    const opening = screen.getByText("Opening Resume…")
+    expect(opening.tagName).toBe("P")
+    // ...and it is left standing to be read: the route waits for the beat.
+    expect(mockPush).not.toHaveBeenCalled()
+    jest.advanceTimersByTime(WAY_OUT_BEAT_MS - 1)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    passTheBeat()
 
     expect(mockPush).toHaveBeenCalledWith("/resume")
   })
@@ -373,6 +402,7 @@ describe("the ways out", () => {
   it("stays on the screen for a print-only Command", () => {
     render(<TerminalPage />)
     run("/neofetch")
+    passTheBeat()
 
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -383,12 +413,37 @@ describe("the ways out", () => {
   it("follows nothing after a reset, until a new Command runs", () => {
     render(<TerminalPage />)
     run("/resume")
+    passTheBeat()
     expect(mockPush).toHaveBeenCalledTimes(1)
 
     run("/clear")
     run("/neofetch")
+    passTheBeat()
 
     expect(mockPush).toHaveBeenCalledTimes(1)
+  })
+
+  // /clear takes the screen the way out stood on, so the exit goes with it
+  // rather than firing into a screen the visitor has already reset.
+  it("calls off a way out's beat when /clear resets the screen it stood on", () => {
+    render(<TerminalPage />)
+    run("/resume")
+    run("/clear")
+    passTheBeat()
+
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  // The beat belongs to the run, not to the screen: anything printed inside it
+  // is an ordinary run and does not swallow the exit already under way.
+  it("keeps a way out's beat while another Command runs inside it", () => {
+    render(<TerminalPage />)
+    run("/resume")
+    run("/neofetch")
+    passTheBeat()
+
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith("/resume")
   })
 })
 

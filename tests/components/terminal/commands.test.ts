@@ -57,15 +57,25 @@ describe("the ways out", () => {
     )
   })
 
-  it("prints only an Echo and a route: going there is the navigation's doing", () => {
+  it("prints an Opening line naming where it is going, and its route", () => {
     expect(command("/home").print()).toEqual({
       echo: "/home",
       rows: [],
+      note: "Opening Home…",
       href: "/",
     })
-    for (const href of ["/activity-telemetry", "/resume"]) {
-      expect(command(href).print()).toEqual({ echo: href, rows: [], href })
-    }
+    expect(command("/activity-telemetry").print()).toEqual({
+      echo: "/activity-telemetry",
+      rows: [],
+      note: "Opening Activity Telemetry…",
+      href: "/activity-telemetry",
+    })
+    expect(command("/resume").print()).toEqual({
+      echo: "/resume",
+      rows: [],
+      note: "Opening Resume…",
+      href: "/resume",
+    })
   })
 
   // Print-only Commands stay standing: nothing about them takes the visitor off

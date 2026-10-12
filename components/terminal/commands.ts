@@ -70,8 +70,15 @@ const WAYS_OUT: readonly Command[] = APPS.filter(
   return {
     name,
     description: `Open ${app.label}`,
-    // No rows: going there is the navigation's doing, not a row's.
-    print: () => ({ echo: name, rows: [], href: app.href }),
+    // No rows, one line: the run says where it is going under its Echo, and the
+    // Terminal holds that Print for a beat before it follows the route. The
+    // line still only prints; the going is the navigation's doing.
+    print: () => ({
+      echo: name,
+      rows: [],
+      note: `Opening ${app.label}…`,
+      href: app.href,
+    }),
   }
 })
 

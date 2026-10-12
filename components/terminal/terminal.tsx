@@ -23,6 +23,11 @@ import { PrintList, Prompt } from "./print"
 /** The registry the bar is fed. The machine imports no list of its own. */
 const CONFIG: InputConfig = { commands: COMMANDS }
 
+/** How long a way out stands before the Terminal leaves: long enough to read the
+ * Print that says where the run is taking the visitor, short enough to still
+ * feel like a door opening. */
+const WAY_OUT_PAUSE_MS = 1000
+
 /** The one listbox the bar's combobox controls, and the id its options share. */
 const LISTBOX_ID = "terminal-commands"
 
@@ -56,6 +61,11 @@ export function Terminal() {
   // so the count is all the bookkeeping a Print needs to be crossed off once.
   const actedOn = useRef(state.output.length)
 
+  // The way out waiting its beat. Held in a ref rather than in the effect's
+  // cleanup: output changing under the timer is an ordinary run, and must not
+  // call the exit off.
+  const wayOut = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // The pane, and only the pane, follows the software keyboard — the Shell and
   // its Dock stay where they are, and the keyboard landing on top of the Dock
   // is the Dock doing nothing wrong. See `useVisualViewport`.
@@ -83,18 +93,37 @@ export function Terminal() {
   }, [state.forgotten])
 
   // A Command's way of taking the visitor somewhere is its Print's `href`: the
-  // machine says where, and the page — the only part holding a router — goes.
-  // `/clear` puts the seed back where the output stood, so the mark is pulled
-  // back with the output it reset rather than left pointing past a shorter
-  // list. A restored screen is history rather than a run, and takes nobody
-  // anywhere: its way outs were followed when they were first run.
+  // machine says where, and the page — the only part holding a router — goes,
+  // once the Print has stood its beat. `/clear` puts the seed back where the
+  // output stood, so the mark is pulled back with the output it reset rather
+  // than left pointing past a shorter list. A restored screen is history rather
+  // than a run, and takes nobody anywhere: its way outs were followed when they
+  // were first run.
   useEffect(() => {
-    const from = Math.min(actedOn.current, state.output.length)
+    // The mark as it stood before this output: the shorter screen a reset
+    // leaves pulls it back rather than leaving it pointing past the end.
+    const acted = actedOn.current
+    const from = Math.min(acted, state.output.length)
     actedOn.current = state.output.length
-    if (state.restored) return
+    // The screen a waiting way out was printed on is gone, so the exit goes
+    // with it.
+    if (state.restored || state.output.length < acted) {
+      if (wayOut.current) clearTimeout(wayOut.current)
+      return
+    }
     const href = state.output.slice(from).find((print) => print.href)?.href
-    if (href) router.push(href)
+    if (!href) return
+    // The newest way out supersedes one still waiting: a run inside the beat
+    // means the visitor has moved on to a different door.
+    if (wayOut.current) clearTimeout(wayOut.current)
+    wayOut.current = setTimeout(() => router.push(href), WAY_OUT_PAUSE_MS)
   }, [state.output, state.restored, router])
+
+  // Nothing left standing watches a timer: a way out still waiting when the
+  // Terminal goes is dropped rather than fired into a screen nobody sees.
+  useEffect(() => () => {
+    if (wayOut.current) clearTimeout(wayOut.current)
+  }, [])
 
   // Output appends and the screen follows it down — and keeps following when
   // the software keyboard shrinks the pane under it, which takes the newest
