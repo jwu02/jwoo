@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { RotateCcw } from "lucide-react"
 
 import {
@@ -34,6 +34,17 @@ import {
   systemServerSnapshot,
   systemSnapshot,
 } from "@/components/settings/system"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -44,15 +55,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  */
 function storedEntryColor(index: number): string {
   return `var(--chart-${(index % 5) + 1})`
-}
-
-/**
- * What one entry weighs, for the bar's segment and the legend's chip alike.
- * The size is written nowhere on the page, so this one string is where it is
- * said — and the segment has no label of its own, so it names the entry too.
- */
-function storedEntryWeight(label: string, bytes: number): string {
-  return `${label} takes up ${formatBytes(bytes)}`
 }
 
 /**
@@ -114,22 +116,20 @@ export function Settings() {
         aria-labelledby="appearance-heading"
         className="space-y-4"
       >
-        <h2
-          id="appearance-heading"
-          className="font-os text-lg font-medium"
-        >
-          Appearance
-        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="appearance-heading"
+            className="font-os text-lg font-medium"
+          >
+            Appearance
+          </h2>
 
-        <p className="text-sm text-muted-foreground">
-          The look of the whole OS. What an application shows keeps its own.
-        </p>
-
-        <RangeSelector
-          value={appearance}
-          onChange={saveAppearance}
-          options={APPEARANCE_OPTIONS}
-        />
+          <RangeSelector
+            value={appearance}
+            onChange={saveAppearance}
+            options={APPEARANCE_OPTIONS}
+          />
+        </div>
       </section>
 
       <section
@@ -142,10 +142,6 @@ export function Settings() {
         >
           Desktop & Dock
         </h2>
-
-        <p className="text-sm text-muted-foreground">
-          The applications in the Dock, in the order they appear now.
-        </p>
 
         <ol
           aria-label="Current Dock arrangement"
@@ -166,15 +162,17 @@ export function Settings() {
           ))}
         </ol>
 
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={resetDockOrder}
-          className="w-full sm:w-auto"
-        >
-          <RotateCcw className="size-4" aria-hidden />
-          Reset Dock arrangement
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={resetDockOrder}
+            className="w-full sm:w-auto"
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            Reset dock
+          </Button>
+        </div>
       </section>
 
       <section
@@ -240,7 +238,7 @@ export function Settings() {
                   }
                 />
                 <TooltipContent sideOffset={10}>
-                  {storedEntryWeight(entry.label, bytes)}
+                  {formatBytes(bytes)}
                 </TooltipContent>
               </Tooltip>
             )
@@ -279,89 +277,43 @@ export function Settings() {
           ))}
         </ul>
 
-        <DeleteEverything />
-
-        <StorageEstimate />
+        <div className="flex justify-end">
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                />
+              }
+            >
+              Delete everything
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete everything?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Clears the Dock order, the appearance, the resume language and
+                  the Terminal history. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={clearAllStoredData}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </section>
 
       <System />
     </div>
-  )
-}
-
-/**
- * The destructive control asks once, in place: a first press arms it, a second
- * within a few seconds deletes everything, and left alone it reverts. No dialog
- * is involved — the button is its own confirmation.
- */
-function DeleteEverything() {
-  const [armed, setArmed] = useState(false)
-
-  useEffect(() => {
-    if (!armed) return
-    const timer = setTimeout(() => setArmed(false), 5000)
-    return () => clearTimeout(timer)
-  }, [armed])
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="destructive"
-        className="w-full sm:w-auto"
-        onClick={() => {
-          if (!armed) {
-            setArmed(true)
-            return
-          }
-          clearAllStoredData()
-          setArmed(false)
-        }}
-      >
-        {armed ? "Press again to delete everything" : "Delete everything"}
-      </Button>
-      {/* The button's own text is its name, so the armed state is also said
-          aloud for a screen reader rather than only shown. */}
-      <span role="status" className="sr-only">
-        {armed ? "Press again within five seconds to delete everything." : ""}
-      </span>
-    </>
-  )
-}
-
-/**
- * What the browser reports for this origin, shown once if it answers at all.
- * Most of that number is caches a page cannot clear, so the caption says so
- * rather than letting it read as something the site could hand back.
- */
-function StorageEstimate() {
-  const [usage, setUsage] = useState<number | null>(null)
-
-  useEffect(() => {
-    const storage = navigator.storage
-    if (!storage || typeof storage.estimate !== "function") return
-    let active = true
-    storage
-      .estimate()
-      .then((value) => {
-        if (active && typeof value.usage === "number") setUsage(value.usage)
-      })
-      .catch(() => {
-        // A browser that cannot answer simply says nothing.
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  if (usage === null) return null
-
-  return (
-    <p className="text-xs text-muted-foreground">
-      This browser reports {formatBytes(usage)} used for this site. Most of it
-      is caches, which a page cannot clear; the entries above are the part the
-      site itself keeps.
-    </p>
   )
 }
 
@@ -398,10 +350,6 @@ function System() {
         System
       </h2>
 
-      <p className="text-sm text-muted-foreground">
-        What this browser tells the site about itself and this machine.
-      </p>
-
       <ul
         aria-label="System facts"
         className="divide-y rounded-xl border"
@@ -418,11 +366,6 @@ function System() {
           </li>
         ))}
       </ul>
-
-      <p className="text-xs text-muted-foreground">
-        The site loads cookieless page-view and performance collection to see
-        how it is used.
-      </p>
     </section>
   )
 }

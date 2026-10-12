@@ -47,13 +47,10 @@ function renderSettings() {
   )
 }
 
-/** Press the Data section's one destructive control twice, the way a visitor
- * has to: the first press arms it, the second deletes. */
+/** Open the Data section's dialog and confirm it. */
 function deleteEverything() {
   fireEvent.click(screen.getByRole("button", { name: "Delete everything" }))
-  fireEvent.click(
-    screen.getByRole("button", { name: "Press again to delete everything" }),
-  )
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }))
 }
 
 /** The value the System section shows for one fact, found by its label. */
@@ -117,7 +114,7 @@ describe("Settings page", () => {
     expect(arrangementLabels()).not.toEqual(APPS.map((app) => app.label))
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Reset Dock arrangement" }),
+      screen.getByRole("button", { name: "Reset dock" }),
     )
 
     expect(arrangementLabels()).toEqual(APPS.map((app) => app.label))
@@ -228,7 +225,7 @@ describe("Data", () => {
     fireEvent.mouseEnter(screen.getByRole("button", { name: "Appearance" }))
 
     expect(
-      await screen.findByText("Appearance takes up 4 B"),
+      await screen.findByText("4 B"),
     ).toBeInTheDocument()
     // It hangs off the bar's own segment, not the chip: the tooltip rises over
     // the bar whichever of the two the pointer is on.
@@ -302,7 +299,7 @@ describe("Data", () => {
     )
 
     expect(
-      await screen.findByText("Appearance takes up 4 B"),
+      await screen.findByText("4 B"),
     ).toBeInTheDocument()
     // The bar dims its neighbours the same way the legend does.
     expect(
@@ -321,7 +318,7 @@ describe("Data", () => {
     fireEvent.focus(screen.getByRole("button", { name: "Appearance" }))
 
     expect(
-      await screen.findByText("Appearance takes up 4 B"),
+      await screen.findByText("4 B"),
     ).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Resume language" })).toHaveClass(
       "opacity-50",
@@ -368,7 +365,7 @@ describe("Data", () => {
       screen.getByRole("button", { name: "Terminal history" }),
     )
     expect(
-      await screen.findByText("Terminal history takes up 0 B"),
+      await screen.findByText("0 B"),
     ).toBeInTheDocument()
   })
 
@@ -476,75 +473,24 @@ describe("Data", () => {
 })
 
 describe("Delete everything", () => {
-  beforeEach(() => {
-    jest.useFakeTimers()
+  it("clears nothing until the dialog is confirmed", () => {
+    window.localStorage.setItem(APPEARANCE_KEY, "dark")
+
+    renderSettings()
+    fireEvent.click(screen.getByRole("button", { name: "Delete everything" }))
+
+    expect(window.localStorage.getItem(APPEARANCE_KEY)).toBe("dark")
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
-  })
-
-  it("deletes nothing on the first press, and everything on the second", () => {
+  it("clears the site's data when confirmed", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
     window.localStorage.setItem(RESUME_LOCALE_KEY, "zh")
 
     renderSettings()
-    const button = screen.getByRole("button", { name: "Delete everything" })
+    deleteEverything()
 
-    fireEvent.click(button)
-    expect(window.localStorage.getItem(APPEARANCE_KEY)).toBe("dark")
-    expect(window.localStorage.getItem(RESUME_LOCALE_KEY)).toBe("zh")
-    // The armed state is said aloud, not only shown.
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Press again within five seconds to delete everything.",
-    )
-
-    fireEvent.click(button)
     expect(window.localStorage.getItem(APPEARANCE_KEY)).toBeNull()
     expect(window.localStorage.getItem(RESUME_LOCALE_KEY)).toBeNull()
-  })
-
-  it("reverts if no second press follows", () => {
-    window.localStorage.setItem(APPEARANCE_KEY, "dark")
-
-    renderSettings()
-    const button = screen.getByRole("button", { name: "Delete everything" })
-
-    fireEvent.click(button)
-    act(() => {
-      jest.advanceTimersByTime(5000)
-    })
-
-    // Reverted, so this press only arms the button rather than deleting.
-    fireEvent.click(button)
-    expect(window.localStorage.getItem(APPEARANCE_KEY)).toBe("dark")
-  })
-})
-
-describe("the browser's storage estimate", () => {
-  afterEach(() => {
-    Reflect.deleteProperty(window.navigator, "storage")
-  })
-
-  it("shows the origin estimate once, as mostly caches", async () => {
-    Object.defineProperty(window.navigator, "storage", {
-      configurable: true,
-      value: {
-        estimate: jest.fn().mockResolvedValue({
-          usage: 2047,
-          quota: 1024 * 1024 * 1024,
-        }),
-      },
-    })
-
-    renderSettings()
-
-    const note = await screen.findByText(/Most of it is caches/)
-    // Rounded down, so the number never claims more than is stored, and a
-    // single number: the origin's allowance is not a second one.
-    expect(note).toHaveTextContent("1.9 KB used for this site")
-    expect(note).not.toHaveTextContent("1 GB")
-    expect(screen.getAllByText(/Most of it is caches/)).toHaveLength(1)
   })
 })
 
@@ -579,13 +525,5 @@ describe("System", () => {
     expect(screen.queryByText("Languages")).not.toBeInTheDocument()
     expect(screen.queryByText(/unknown/i)).not.toBeInTheDocument()
     expect(systemFact("Site version")).toBe(manifest.version)
-  })
-
-  it("discloses the measurement the site loads in one line", () => {
-    renderSettings()
-
-    expect(
-      screen.getByText(/cookieless page-view and performance collection/i),
-    ).toBeInTheDocument()
   })
 })
