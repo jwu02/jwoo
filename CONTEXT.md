@@ -103,7 +103,7 @@ The Terminal's one persistent field: the bottom edge of its surface where the qu
 _Avoid_: prompt (that is the Echo), search field, textarea
 
 **Popup**:
-The command list the Input bar opens above itself while the query is being typed: one command and its description per row, matched by prefix and narrowed as the query grows. It closes on a space — arguments end the list — on acceptance, and on Esc.
+The command list the Input bar opens above itself while the query is being typed: one command and its description per row, matched by prefix and narrowed as the query grows. It closes on a space — arguments end the list — on acceptance, on Esc, and on a click anywhere outside the bar it belongs to.
 _Avoid_: autocomplete menu, dropdown, suggestion list
 
 **Echo**:

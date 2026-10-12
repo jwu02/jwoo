@@ -250,6 +250,27 @@ describe("the Popup", () => {
     press("Escape")
     expect(bar()).toHaveValue("")
   })
+
+  it("closes on a click away from the bar, keeping the field", () => {
+    render(<TerminalPage />)
+    type("/neo")
+
+    fireEvent.pointerDown(screen.getByRole("log"))
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    expect(bar()).toHaveValue("/neo")
+  })
+
+  it("stays up for a click on the bar it belongs to", () => {
+    render(<TerminalPage />)
+    type("/neo")
+
+    fireEvent.pointerDown(bar())
+
+    expect(
+      screen.getByRole("listbox", { name: "Commands" })
+    ).toBeInTheDocument()
+  })
 })
 
 describe("running a Command", () => {
@@ -504,11 +525,13 @@ describe("focus", () => {
   // The window's titlebar belongs to the Shell — named in
   // tests/components/os/os-shell — so the whole of the Terminal is now the
   // pane below it.
-  it("moves to the field from a click anywhere in the Terminal", () => {
+  it("moves to the field from a click on the bar, not from one in the output", () => {
     render(<TerminalPage />)
 
     fireEvent.mouseUp(screen.getByRole("log"))
+    expect(bar()).not.toHaveFocus()
 
+    fireEvent.mouseUp(bar().parentElement as HTMLElement)
     expect(bar()).toHaveFocus()
   })
 
@@ -519,7 +542,7 @@ describe("focus", () => {
     const selection = window.getSelection()
     selection?.addRange(range)
 
-    fireEvent.mouseUp(screen.getByRole("log"))
+    fireEvent.mouseUp(bar().parentElement as HTMLElement)
 
     expect(selection?.isCollapsed).toBe(false)
     expect(bar()).not.toHaveFocus()

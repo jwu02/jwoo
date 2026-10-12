@@ -45,7 +45,7 @@ const step = (state: InputState, action: InputAction) =>
  * The bar is the machine's only driver. Every keystroke the bar has an opinion
  * about goes into `reduce`; every Print on the screen came out of it; and the
  * only things this component knows that the machine does not are the browser's:
- * storage, focus, the scroll position and the router.
+ * storage, focus, the scroll position, the page's clicks and the router.
  */
 export function Terminal() {
   // A fresh Terminal has already run the identity Command — the registry's
@@ -54,6 +54,7 @@ export function Terminal() {
     initialState(openingPrint())
   )
   const field = useRef<HTMLInputElement>(null)
+  const bar = useRef<HTMLDivElement>(null)
   const output = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -145,6 +146,20 @@ export function Terminal() {
   // An empty match has no list to expand, so the Popup shows nothing at all.
   const popupShowing = state.popupOpen && options.length > 0
 
+  // A click away from the bar puts the Popup away, the way Esc does: the list
+  // belongs to the field, and a click elsewhere is a different errand. What
+  // counts as the bar is the field and the rows, so a click on either leaves
+  // the list standing. The listener is up only while there is a list.
+  useEffect(() => {
+    if (!popupShowing) return
+    const away = (event: PointerEvent) => {
+      if (bar.current?.contains(event.target as Node)) return
+      dispatch({ type: "key", key: "Escape" })
+    }
+    document.addEventListener("pointerdown", away)
+    return () => document.removeEventListener("pointerdown", away)
+  }, [popupShowing])
+
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     // The browser's own shortcuts are the browser's: ⌘↑ is not History.
     if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -156,8 +171,10 @@ export function Terminal() {
     dispatch({ type: "key", key: event.key })
   }
 
-  /** A click anywhere in the Terminal puts the field under the visitor's hands,
-   * the way a terminal does. On mouse-up rather than mouse-down: the press is
+  /** A click on the bar puts the field under the visitor's hands, the way a
+   * terminal does. The output is left out of it — a click up there is a
+   * selection or a copy, not a caret — which is why this hangs on the bar
+   * rather than on the pane. On mouse-up rather than mouse-down: the press is
    * left to the browser, so dragging a selection in the output still works, and
    * a release that ends one is a selection rather than a click. The focus is
    * taken without scrolling, so the pane does not jump to reveal the field
@@ -176,10 +193,7 @@ export function Terminal() {
     // pointer it takes the visual viewport's height, so the Input bar ends up
     // above the keyboard rather than under it. `100%` is the ceiling — with
     // the keyboard away the pane fills its surface as it always did.
-    <div
-      className="flex h-full min-h-0 flex-col pointer-coarse:h-[min(var(--vvh,100svh),100%)]"
-      onMouseUp={onMouseUp}
-    >
+    <div className="flex h-full min-h-0 flex-col pointer-coarse:h-[min(var(--vvh,100svh),100%)]">
       {/* The output is the only part that moves: the window's titlebar above
           stays put and the Input bar stays pinned to the bottom edge. */}
       <div
@@ -201,7 +215,11 @@ export function Terminal() {
       {/* An OS text field, not a terminal prompt: rounded, translucent, the
           focus ring borrowed from the rest of the Shell — with the Popup
           attached above it. */}
-      <div className="relative shrink-0 px-4 pb-4 md:px-6 md:pb-6">
+      <div
+        ref={bar}
+        className="relative shrink-0 px-4 pb-4 md:px-6 md:pb-6"
+        onMouseUp={onMouseUp}
+      >
         {/* The bar's legend: the keys it has an opinion about. Chrome rather
             than Print — it is never appended to the output and never cleared. */}
         <p className="mb-2 flex flex-wrap items-center gap-1.5 px-1 font-mono text-[11px] text-muted-foreground">
