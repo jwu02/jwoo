@@ -51,6 +51,10 @@ export function segmentColor(
   return colorMap.get(label) ?? aiUsageColorVar(label, index);
 }
 
+function formatShare(share: number): string {
+  return `${formatNumber(share, 1)}%`;
+}
+
 function DonutTooltip({ active, payload }: Partial<TooltipContentProps>) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -59,7 +63,7 @@ function DonutTooltip({ active, payload }: Partial<TooltipContentProps>) {
 
   // The share alone: the legend already carries the segment's name and value,
   // so there is nothing else for the card to say.
-  return <ChartTooltipCard title={`${formatNumber(slice.share, 1)}%`} />;
+  return <ChartTooltipCard title={formatShare(slice.share)} />;
 }
 
 function Donut({
@@ -80,9 +84,13 @@ function Donut({
   /** The exact value a row stands for, printed in the legend. */
   formatValue: (value: number) => string;
 }) {
-  // Which segment is in hand, from either the donut itself or its legend; the
-  // other segments and legend rows dim while one is held.
-  const [hovered, setHovered] = useState<string | null>(null);
+  // Which segment is in hand — and whether the pointer is on the sector or on
+  // its legend row. Muting follows either; the card is drawn here only for a
+  // legend hover, since a sector hover already has the chart's own tooltip.
+  const [hovered, setHovered] = useState<{
+    label: string;
+    from: "segment" | "legend";
+  } | null>(null);
   const segments = buildDonutSegments(rows, metric);
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const slices = segments.map((segment, index) => ({
@@ -93,8 +101,11 @@ function Donut({
 
   // A poll can replace the rows and drop the held label; then nothing is lit,
   // and every slice would dim with none in hand.
-  const active = slices.some((slice) => slice.label === hovered) ? hovered : null;
-  const dimmed = (label: string) => active !== null && active !== label;
+  const active =
+    hovered && slices.some((slice) => slice.label === hovered.label)
+      ? hovered
+      : null;
+  const dimmed = (label: string) => active !== null && active.label !== label;
 
   return (
     // The figure names the grouping for assistive tech; the pills above name
@@ -126,9 +137,10 @@ function Donut({
                   // Polling replaces the rows on an interval; without this the
                   // donut re-grows its slices on every poll.
                   isAnimationActive={false}
-                  onMouseEnter={(_, index) =>
-                    setHovered(slices[index]?.label ?? null)
-                  }
+                  onMouseEnter={(_, index) => {
+                    const label = slices[index]?.label;
+                    if (label) setHovered({ label, from: "segment" });
+                  }}
                   onMouseLeave={() => setHovered(null)}
                 >
                   {slices.map((slice) => (
@@ -147,12 +159,22 @@ function Donut({
             {slices.map((slice) => (
               <li
                 key={slice.label}
-                onMouseEnter={() => setHovered(slice.label)}
+                onMouseEnter={() =>
+                  setHovered({ label: slice.label, from: "legend" })
+                }
                 onMouseLeave={() => setHovered(null)}
-                className={`flex items-center justify-between gap-2 transition-opacity ${
+                className={`relative flex items-center justify-between gap-2 transition-opacity ${
                   dimmed(slice.label) ? "opacity-30" : ""
                 }`}
               >
+                {hovered?.from === "legend" && hovered.label === slice.label && (
+                  <div
+                    data-testid="legend-tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2"
+                  >
+                    <ChartTooltipCard title={formatShare(slice.share)} />
+                  </div>
+                )}
                 <span className="flex min-w-0 items-center gap-2">
                   <span
                     className="inline-block h-2 w-2 shrink-0 rounded-sm"
@@ -167,8 +189,8 @@ function Donut({
                 </span>
                 <span className="flex shrink-0 items-center gap-2 tabular-nums text-muted-foreground">
                   {formatValue(slice.value)}
-                  {active === slice.label && (
-                    <span>{formatNumber(slice.share, 1)}%</span>
+                  {active?.label === slice.label && (
+                    <span>{formatShare(slice.share)}</span>
                   )}
                 </span>
               </li>

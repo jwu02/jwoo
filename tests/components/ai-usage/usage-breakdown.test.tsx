@@ -136,6 +136,8 @@ describe("UsageBreakdown", () => {
     expect(legendFor("claude-opus-5")).toHaveTextContent("¥1.20");
     expect(legendFor("claude-opus-5")).toHaveTextContent("48.0%");
     expect(screen.getAllByText("¥1.20")).toHaveLength(1);
+    // A sector hover uses the chart's own tooltip; the legend card stays shut.
+    expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
   });
 
   it("reads token counts the way the chart does, not at full length", () => {
@@ -198,6 +200,11 @@ describe("UsageBreakdown", () => {
     expect(legend.className).not.toContain("opacity-30");
     expect(legend).toHaveTextContent("32.0%");
     expect(legendFor("gpt-4o").className).toContain("opacity-30");
+    // Same as a sector hover: the held row raises the share card.
+    expect(screen.getByTestId("legend-tooltip")).toHaveTextContent("32.0%");
+
+    fireEvent.mouseLeave(legend);
+    expect(screen.queryByTestId("legend-tooltip")).not.toBeInTheDocument();
   });
 
   it("gives the combined segment the neutral, not a chart slot", () => {
