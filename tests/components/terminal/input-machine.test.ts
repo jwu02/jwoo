@@ -40,6 +40,7 @@ describe("the input machine's shape", () => {
     expect(state.draft).toBe("")
     expect(state.output).toEqual(seed)
     expect(state.restored).toBe(false)
+    expect(state.forgotten).toBe(false)
   })
 
   it("keeps DOM, storage and application imports out of the machine", () => {
@@ -390,7 +391,7 @@ describe("replay", () => {
     ])
   })
 
-  it("applies /clear where it stands, so only what came after it returns", () => {
+  it("resets at a stored /clear, which only a store written before it forgot", () => {
     const restored = replay(["/neofetch", "/clear", "/socials"], CONFIG, seed)
 
     expect(restored.map((print) => print.echo)).toEqual([
@@ -471,18 +472,29 @@ describe("running a query", () => {
 describe("/clear", () => {
   const seed = [{ rows: [{ label: "Name", value: "Tony" }] }]
 
-  it("puts the screen back at the seed and leaves no marker", () => {
+  it("puts the screen back at the seed and forgets what was run", () => {
     let state = run(initialState(seed), "/neofetch")
     state = run(state, "/socials")
     const cleared = run(state, "/clear")
 
     expect(cleared.output).toEqual(seed)
-    // The invocation is still remembered, even though its Print is not.
-    expect(cleared.history).toEqual(["/neofetch", "/socials", "/clear"])
+    // Nothing is left to recall, or for the next visit to replay: what was run
+    // goes with the screen. The page takes `forgotten` to the store.
+    expect(cleared.history).toEqual([])
+    expect(cleared.forgotten).toBe(true)
   })
 
-  it("puts the screen back even when arguments follow it", () => {
+  it("puts the screen back and forgets even when arguments follow it", () => {
     const state = run(run(initialState(seed), "/neofetch"), "/clear everything")
+
     expect(state.output).toEqual(seed)
+    expect(state.history).toEqual([])
+  })
+
+  it("leaves ↑ nothing to walk back to", () => {
+    const state = run(run(initialState(seed), "/neofetch"), "/clear")
+
+    expect(key(state, "ArrowUp")).toBe(state)
+    expect(consumes(state, CONFIG, "ArrowUp")).toBe(false)
   })
 })

@@ -50,7 +50,8 @@ export function saveHistory(history: readonly string[]): void {
 }
 
 /** Forget the History a visit left. The in-memory fallback is emptied with it,
- * so the delete holds even where storage refused the write. */
+ * so the delete holds even where storage refused the write. The Terminal's
+ * `/clear` calls this too, so a cleared visit leaves nothing behind. */
 export function clearHistory(): void {
   inMemory = []
   try {

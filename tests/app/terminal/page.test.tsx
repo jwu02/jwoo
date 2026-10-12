@@ -23,6 +23,10 @@ const CONTACT_ENV_VARS = [
   "NEXT_PUBLIC_WECHAT",
 ] as const
 
+// The store's key, named the way the settings page test names it: what `/clear`
+// must take out of the browser is the Terminal's own entry and nothing else.
+const HISTORY_KEY = "terminal.history"
+
 const original: Record<string, string | undefined> = {}
 
 function bar(): HTMLInputElement {
@@ -279,6 +283,19 @@ describe("running a Command", () => {
     expect(portraits()).toHaveLength(1)
   })
 
+  it("forgets what it remembered, in the browser as well as on the screen", () => {
+    render(<TerminalPage />)
+    run("/socials")
+    expect(window.localStorage.getItem(HISTORY_KEY)).not.toBeNull()
+
+    run("/clear")
+
+    // The stored entry is gone, not merely emptied, and nothing is left for ↑.
+    expect(window.localStorage.getItem(HISTORY_KEY)).toBeNull()
+    press("ArrowUp")
+    expect(bar()).toHaveValue("")
+  })
+
   it("keeps the output scrolled to the newest Print", () => {
     render(<TerminalPage />)
     const log = screen.getByRole("log")
@@ -318,7 +335,7 @@ describe("a remembered conversation", () => {
     expect(screen.getByText("github.com/jwu02")).toBeInTheDocument()
   })
 
-  it("comes back with /clear already applied, so only what came after it stands", () => {
+  it("comes back from a /clear as a fresh visit, remembering nothing", () => {
     const visit = render(<TerminalPage />)
     run("/socials")
     run("/clear")

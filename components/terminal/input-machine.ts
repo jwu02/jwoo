@@ -49,6 +49,10 @@ export interface InputState {
    * here. The page follows a Print's route only for what this visit ran, so a
    * way out a previous visit took does not take it again on the way in. */
   restored: boolean
+  /** Whether the visitor has just run `/clear`: the screen is a fresh one and
+   * nothing is left to recall. The page, which owns storage, empties it, so the
+   * forget reaches the browser as well as the screen. */
+  forgotten: boolean
 }
 
 /** The keys the bar has an opinion about. Everything else is the browser's. */
@@ -96,6 +100,7 @@ export function initialState(seed: readonly Print[] = []): InputState {
     output: seed.slice(),
     seed: seed.slice(),
     restored: false,
+    forgotten: false,
   }
 }
 
@@ -210,11 +215,25 @@ function notFound(query: string, name: string): Print {
 }
 
 /**
+ * The Command an invocation names, folding case the way the Popup's matching
+ * does — a `/WHOAMI` that matches must also run. Undefined when no Command
+ * answers to the invocation's first token. Arguments are ignored: v1 Commands
+ * take none, and whatever follows a name is dropped for every Command alike.
+ */
+function commandFor(config: InputConfig, raw: string): Command | undefined {
+  const name = raw.trim().split(" ")[0]
+  return config.commands.find(
+    (entry) => entry.name.toLowerCase() === name.toLowerCase()
+  )
+}
+
+/**
  * The output one invocation leaves on top of `output`: the Command's Print,
  * `/clear`'s way back to the seed, or the machine's not-found line when no
  * Command answers to the name. An empty invocation leaves `output` alone.
- * Shared by running a query and by replaying a remembered one, so `/clear`
- * means the same thing however the line arrives at the screen.
+ * Shared by running a query and by replaying a remembered one, so a store
+ * written before the Terminal forgot on `/clear` still resets where that
+ * `/clear` stood.
  */
 function printed(
   output: readonly Print[],
@@ -224,14 +243,12 @@ function printed(
 ): readonly Print[] {
   const query = raw.trim()
   if (query === "") return output
-  const name = query.split(" ")[0]
-  // Matching folds case, so the run must fold it too or `/WHOAMI` would match
-  // in the Popup and then not be found on Enter.
-  const command = config.commands.find(
-    (entry) => entry.name.toLowerCase() === name.toLowerCase()
-  )
+  const command = commandFor(config, query)
   if (command?.name === "/clear") return seed
-  return [...output, command ? command.print() : notFound(query, name)]
+  return [
+    ...output,
+    command ? command.print() : notFound(query, query.split(" ")[0]),
+  ]
 }
 
 /**
@@ -259,9 +276,12 @@ export function replay(
  * Run a query, if there is one. An empty query is a no-op. The invocation goes
  * into History (consecutive duplicates collapse, the way a shell's `ignoredups`
  * does), the field and draft are cleared, and the output gains the Command's
- * Print — or, for `/clear`, goes back to the seed. `/clear` is keyed off the
- * first token, so anything typed after a Command's name is ignored for every
- * Command alike.
+ * Print.
+ *
+ * `/clear` is the one invocation that is not remembered: it puts the screen back
+ * at the seed, empties History, and says so, so that neither ↑ nor the next
+ * visit can recall what was just cleared. The page takes the same forget to
+ * the browser, where the invocations are stored.
  */
 function runQuery(
   state: InputState,
@@ -270,18 +290,26 @@ function runQuery(
 ): InputState {
   const query = raw.trim()
   if (query === "") return state
-  const last = state.history[state.history.length - 1]
-  const history = last === query ? state.history : [...state.history, query]
-  return {
+  // Whatever the invocation was, running it settles the bar: the field and
+  // draft are cleared and the Popup is put away.
+  const settled = {
     ...state,
     query: "",
     popupOpen: false,
     active: 0,
     cursor: null,
     draft: "",
-    history,
-    output: printed(state.output, config, state.seed, query),
     restored: false,
+  }
+  if (commandFor(config, query)?.name === "/clear") {
+    return { ...settled, history: [], output: state.seed, forgotten: true }
+  }
+  const last = state.history[state.history.length - 1]
+  return {
+    ...settled,
+    history: last === query ? state.history : [...state.history, query],
+    output: printed(state.output, config, state.seed, query),
+    forgotten: false,
   }
 }
 
@@ -353,6 +381,7 @@ export function reduce(
         history: action.history.slice(),
         output: replay(action.history, config, state.seed),
         restored: true,
+        forgotten: false,
         cursor: null,
         draft: "",
       }

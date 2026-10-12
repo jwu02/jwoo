@@ -6,7 +6,7 @@ import { useEffect, useReducer, useRef } from "react"
 import { useVisualViewport } from "@/hooks/use-visual-viewport"
 
 import { COMMANDS, openingPrint } from "./commands"
-import { loadHistory, saveHistory } from "./history-store"
+import { clearHistory, loadHistory, saveHistory } from "./history-store"
 import {
   consumes,
   initialState,
@@ -68,11 +68,19 @@ export function Terminal() {
   }, [])
 
   useEffect(() => {
-    // v1 has no way to empty History, so a non-empty list is the only thing
-    // worth writing — and the mount-time `[]`, which is not yet hydrated,
-    // cannot overwrite what the last visit left.
+    // A non-empty list is the only thing worth writing: the `[]` of a mount
+    // that has not hydrated yet cannot overwrite what the last visit left, and
+    // an emptied History is taken out of the store by `/clear` itself.
     if (state.history.length > 0) saveHistory(state.history)
   }, [state.history])
+
+  // `/clear` forgets as well as resets: the visit's invocations come out of the
+  // browser, the same way Settings' Data section takes them out. The machine
+  // says what the visitor asked for, and the page — the only part that knows
+  // about storage — does it.
+  useEffect(() => {
+    if (state.forgotten) clearHistory()
+  }, [state.forgotten])
 
   // A Command's way of taking the visitor somewhere is its Print's `href`: the
   // machine says where, and the page — the only part holding a router — goes.
