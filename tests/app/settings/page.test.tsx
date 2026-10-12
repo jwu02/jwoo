@@ -143,6 +143,23 @@ describe("Appearance", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true)
   })
 
+  // The pointer is the only feedback these controls give before a press, and
+  // every one of them does something: the two pills, the two buttons, and the
+  // Data legend's chips and bar segments, which light the entry they name.
+  it("shows the pointer over every control it offers", () => {
+    const { container } = renderSettings()
+
+    for (const name of ["Light", "Dark", "Reset dock", "Delete everything"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("cursor-pointer")
+    }
+    expect(screen.getByRole("button", { name: "Appearance" })).toHaveClass(
+      "cursor-pointer",
+    )
+    expect(
+      container.querySelector('[data-stored-segment="os.appearance"]'),
+    ).toHaveClass("cursor-pointer")
+  })
+
   it("starts from the appearance a previous visit chose", () => {
     window.localStorage.setItem(APPEARANCE_KEY, "dark")
 

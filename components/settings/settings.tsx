@@ -223,7 +223,7 @@ export function Settings() {
                   render={
                     <div
                       data-stored-segment={entry.key}
-                      className={`transition-opacity ${
+                      className={`cursor-pointer transition-opacity ${
                         isDimmed(litKey, entry.key) ? "opacity-50" : ""
                       }`}
                       style={{
@@ -256,7 +256,7 @@ export function Settings() {
                   keyboard, and where the tooltip goes is the bar's business. */}
               <button
                 type="button"
-                className={`flex cursor-default items-center gap-2 rounded-sm text-sm transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`flex cursor-pointer items-center gap-2 rounded-sm text-sm transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   isDimmed(litKey, entry.key)
                     ? "text-muted-foreground opacity-50"
                     : ""
