@@ -5,6 +5,7 @@ const CONTACT_ENV_VARS = [
   "NEXT_PUBLIC_PHONE",
   "NEXT_PUBLIC_GITHUB",
   "NEXT_PUBLIC_WECHAT",
+  "NEXT_PUBLIC_WEBSITE",
 ] as const
 
 describe("getContacts", () => {
@@ -31,10 +32,12 @@ describe("getContacts", () => {
   it("returns only the configured contacts, in display order", () => {
     process.env.NEXT_PUBLIC_GITHUB = "jwu02"
     process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
+    process.env.NEXT_PUBLIC_WEBSITE = "https://jwu02.com"
 
     expect(getContacts()).toEqual([
       { key: "email", value: "tony@example.com" },
       { key: "github", value: "jwu02" },
+      { key: "website", value: "https://jwu02.com" },
     ])
   })
 

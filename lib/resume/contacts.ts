@@ -15,6 +15,7 @@ export function getContacts(): ContactItem[] {
     { key: "phone", value: process.env.NEXT_PUBLIC_PHONE },
     { key: "github", value: process.env.NEXT_PUBLIC_GITHUB },
     { key: "wechat", value: process.env.NEXT_PUBLIC_WECHAT },
+    { key: "website", value: process.env.NEXT_PUBLIC_WEBSITE },
   ]
 
   // An unset variable means "this contact is not published", not "render it

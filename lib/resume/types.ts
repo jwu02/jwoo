@@ -5,7 +5,7 @@ export interface ResumeHeader {
   profession: string
 }
 
-export type ContactKey = "email" | "phone" | "github" | "wechat"
+export type ContactKey = "email" | "phone" | "github" | "wechat" | "website"
 
 export interface ContactItem {
   key: ContactKey

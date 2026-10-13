@@ -30,11 +30,12 @@ const CONTACT_LABELS: Record<ContactKey, string> = {
   phone: "Phone",
   github: "GitHub",
   wechat: "WeChat",
+  website: "Website",
 }
 
 /** Which contacts each listing Command prints: socials are where I post,
  * contacts are how I'm reached. */
-const SOCIAL_KEYS: readonly ContactKey[] = ["github"]
+const SOCIAL_KEYS: readonly ContactKey[] = ["github", "website"]
 const CONTACT_KEYS: readonly ContactKey[] = ["email", "phone", "wechat"]
 
 /** The one contact to use first: its row says so. */

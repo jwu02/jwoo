@@ -16,6 +16,7 @@ const CONTACT_ENV_VARS = [
   "NEXT_PUBLIC_PHONE",
   "NEXT_PUBLIC_GITHUB",
   "NEXT_PUBLIC_WECHAT",
+  "NEXT_PUBLIC_WEBSITE",
 ] as const
 
 describe("the Command registry", () => {
@@ -132,9 +133,11 @@ describe("the contact listings", () => {
     it("prints only the social keys' rows, verbatim, in the seam's order", () => {
       process.env.NEXT_PUBLIC_GITHUB = "jwu02"
       process.env.NEXT_PUBLIC_EMAIL = "tony@example.com"
+      process.env.NEXT_PUBLIC_WEBSITE = "https://jwu02.com"
 
       expect(command("/socials").print().rows).toEqual([
         { label: "GitHub", value: "jwu02", tone: "accent" },
+        { label: "Website", value: "https://jwu02.com", tone: "accent" },
       ])
     })
 

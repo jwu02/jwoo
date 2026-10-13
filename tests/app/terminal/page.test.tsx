@@ -21,6 +21,7 @@ const CONTACT_ENV_VARS = [
   "NEXT_PUBLIC_PHONE",
   "NEXT_PUBLIC_GITHUB",
   "NEXT_PUBLIC_WECHAT",
+  "NEXT_PUBLIC_WEBSITE",
 ] as const
 
 // The store's key, named the way the settings page test names it: what `/clear`

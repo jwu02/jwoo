@@ -321,7 +321,7 @@ One titled block of the resume — education, languages, technical skills, inter
 _Avoid_: panel, block
 
 **Contact**:
-A way to reach the person — email, phone, GitHub, WeChat — supplied by the deployment rather than written into the resume. A contact that is not configured simply does not appear. Its value is deployment configuration and never localized; how it is labelled is copy, and localizes with the rest.
+A way to reach the person — email, phone, GitHub, WeChat, personal website — supplied by the deployment rather than written into the resume. A contact that is not configured simply does not appear. Its value is deployment configuration and never localized; how it is labelled is copy, and localizes with the rest.
 _Avoid_: social link, contact detail
 
 **Locale parity**:
