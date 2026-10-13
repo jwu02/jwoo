@@ -96,7 +96,7 @@ export default function AiUsagePage() {
                 <div>
                   <div className="mb-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-lg font-semibold tracking-tight">
-                      Usage breakdown
+                      Usage Breakdown
                     </h2>
                     <RangeSelector
                       value={view}
@@ -120,7 +120,7 @@ export default function AiUsagePage() {
                   a skill has no cost or token split of its own. */}
               <section className="space-y-6">
                 <h2 className="text-lg font-semibold tracking-tight">
-                  Top invoked skills
+                  Top Invoked Skills
                 </h2>
                 <SkillList rows={data.bySkill} />
               </section>

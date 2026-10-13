@@ -227,7 +227,7 @@ export function UsageBreakdown({ rows, labelHeader }: UsageBreakdownProps) {
       <Donut
         rows={rows}
         metric="costYuan"
-        title="Cost (¥)"
+        title="Cost"
         emptyLabel="No cost recorded in this range."
         labelHeader={labelHeader}
         colorMap={colorMap}

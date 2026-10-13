@@ -75,14 +75,14 @@ describe("UsageBreakdown", () => {
       <UsageBreakdown rows={rows} labelHeader="Model" />
     );
     expect(
-      screen.getByRole("figure", { name: "Cost (¥) by Model" })
+      screen.getByRole("figure", { name: "Cost by Model" })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("figure", { name: "Tokens by Model" })
     ).toBeInTheDocument();
     rerender(<UsageBreakdown rows={rows} labelHeader="Project" />);
     expect(
-      screen.getByRole("figure", { name: "Cost (¥) by Project" })
+      screen.getByRole("figure", { name: "Cost by Project" })
     ).toBeInTheDocument();
   });
 

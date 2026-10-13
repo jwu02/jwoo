@@ -109,7 +109,7 @@ describe("AiUsagePage", () => {
 
     const pills = screen.getAllByRole("button", { name: "1y" });
     expect(pills).toHaveLength(1);
-    const breakdown = screen.getByText("Usage breakdown");
+    const breakdown = screen.getByText("Usage Breakdown");
     expect(
       pills[0].compareDocumentPosition(breakdown) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -126,7 +126,7 @@ describe("AiUsagePage", () => {
     expect(screen.getByText("grill-with-docs")).toBeInTheDocument();
 
     const heading = screen.getByRole("heading", {
-      name: "Top invoked skills",
+      name: "Top Invoked Skills",
     });
     expect(
       screen.getByTestId("usage-chart").compareDocumentPosition(heading) &
