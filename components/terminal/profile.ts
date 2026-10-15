@@ -7,7 +7,7 @@ export const PROFILE = {
   name: "Tony Wu",
   /** ISO. The one place the owner's age lives: the Age row is derived from it. */
   birthdate: "2002-03-14",
-  role: "Full-Stack Engineer",
+  role: "Professional Vibecoder",
   /** The owner's own location, not the visitor's. */
   location: "Guangdong, China",
   /** One language per entry: the Command joins them with newlines, so each

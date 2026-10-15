@@ -121,7 +121,7 @@ describe("the opening print", () => {
 
     // The Profile's own rows, not the skeleton's fixture copy of them.
     expect(screen.getByText("Tony Wu")).toBeInTheDocument()
-    expect(screen.getByText("Full-Stack Engineer")).toBeInTheDocument()
+    expect(screen.getByText("Professional Vibecoder")).toBeInTheDocument()
     expect(screen.getByText("Guangdong, China")).toBeInTheDocument()
   })
 
