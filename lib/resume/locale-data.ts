@@ -57,7 +57,7 @@ function buildLanguages(locale: Locale): LanguageItem[] {
 }
 
 export const en: ResumeData = {
-  header: { name: "Tony Wu", profession: "AI Full-Stack Engineer" },
+  header: { name: "Tony Wu", profession: "Python Engineer" },
   titles: {
     education: "Education",
     foreignLanguages: "Languages",
@@ -195,7 +195,7 @@ export const en: ResumeData = {
 }
 
 export const zh: ResumeData = {
-  header: { name: "吴家聪", profession: "AI 全栈工程师" },
+  header: { name: "吴家聪", profession: "Python 工程师" },
   titles: {
     education: "教育背景",
     foreignLanguages: "语言能力",
